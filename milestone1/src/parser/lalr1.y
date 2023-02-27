@@ -164,7 +164,6 @@ Literal:    INTEGER_LITERAL
 */
 UnannType:
     PrimitiveType
-|   NumericType
 ;
 
 PrimitiveType:      
@@ -344,14 +343,22 @@ MethodDeclaration:
 ;
 
 MethodHeader: // correct
-    Modifiers UnannType MethodDeclarator
-|   UnannType MethodDeclarator
-|   Modifiers VOID MethodDeclarator
-|   VOID MethodDeclarator
+    Modifiers UnannType Declarator
+|   UnannType Declarator
+|   Modifiers VOID Declarator
+|   VOID Declarator
 ;
 
 // didnt include dims
-MethodDeclarator:
+/* MethodDeclarator:
+    IDENTIFIER LPAREN RPAREN
+|   IDENTIFIER LPAREN FormalParameterList RPAREN
+; */
+
+/*
+    Added in place  of MethodDeclarator and ConstructorDeclarator
+*/
+Declarator:
     IDENTIFIER LPAREN RPAREN
 |   IDENTIFIER LPAREN FormalParameterList RPAREN
 ;
@@ -375,14 +382,18 @@ StaticInitializer:
 ;
 
 ConstructorDeclaration:
-    Modifiers ConstructorDeclarator ConstructorBody
-|   ConstructorDeclarator ConstructorBody
+    Modifiers Declarator ConstructorBody
+|   Declarator ConstructorBody
 ;
 
-ConstructorDeclarator:
+/*
+    Use Declarator instead;
+*/
+
+/* ConstructorDeclarator:
     IDENTIFIER LPAREN FormalParameterList RPAREN
 |   IDENTIFIER LPAREN RPAREN
-;
+; */
 
 // ExplicitInvocation missed for now (this, super)
 ConstructorBody:
