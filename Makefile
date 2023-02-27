@@ -1,6 +1,6 @@
 all: milestone1
 
-G++ := g++ -O3
+G++ := g++ -O3 -Wno-write-strings
 MILESTONE1 := milestone1/src
 Parser_Src := parser/lalr1.y
 Lexer_Src := scanner/lexer.l

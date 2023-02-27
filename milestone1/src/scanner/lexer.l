@@ -96,65 +96,265 @@ COMMENT             {TRADITIONAL_COMMENT}|{EOL_COMMENT}
 
 "permits"|"record"|"sealed"|"yield"        {}
 
-"int"                                     {return INT;}
-"long"                                    {return LONG;}
-"byte"                                    {return BYTE;}
-"char"                                    {return CHAR;}
-"short"                                   {return SHORT;}
+"int"                                     {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return INT;
+                                          }
+"long"                                    {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return LONG;
+                                          }
+"byte"                                    {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return BYTE;
+                                          }
+"char"                                    {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return CHAR;
+                                          }
+"short"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return SHORT;
+                                          }
 
-"float"                                   {return FLOAT;}
-"double"                                  {return DOUBLE;}
-"boolean"                                 {return BOOLEAN;}
+"float"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return FLOAT;
+                                          }
+"double"                                  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return DOUBLE;
+                                          }
+"boolean"                                 {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return BOOLEAN;
+                                          }
 
-"new"                                     {return NEW;}
-"if"                                      {return IF;}
-"else"                                    {return ELSE;}
-"for"                                     {return FOR;}
-"while"                                   {return WHILE;}
-"break"                                   {return BREAK;}
-"continue"                                {return CONTINUE;}
+"new"                                     {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return NEW;
+                                          }
+"if"                                      {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return IF;
+                                          }
+"else"                                    {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return ELSE;
+                                          }
+"for"                                     {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return FOR;
+                                          }
+"while"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return WHILE;
+                                          }
+"break"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return BREAK;
+                                          }
+"continue"                                {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return CONTINUE;
+                                          }
 
-"void"                                    {return VOID;}
-"return"                                  {return RETURN;}
-"public"                                  {return PUBLIC;}
-"private"                                 {return PRIVATE;}
-"class"                                   {return CLASS;}
-"static"                                  {return STATIC;}
+"void"                                    {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return VOID;
+                                          }
+"return"                                  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return RETURN;
+                                          }
+"public"                                  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return PUBLIC;
+                                          }
+"private"                                 {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return PRIVATE;
+                                          }
+"class"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return CLASS;
+                                          }
+"static"                                  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return STATIC;
+                                          }
 
-"final"                                   {return FINAL;}
-"var"                                     {return VAR;}
-"assert"                                  {return ASSERT;}
-"throw"                                   {return THROW;}
+"final"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return FINAL;
+                                          }
+"var"                                     {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return VAR;
+                                          }
+"assert"                                  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return ASSERT;
+                                          }
+"throw"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return THROW;
+                                          }
 
-"::"								  {return DOUBLE_COLON;}
-"<>"                                  {return DIAMOND;}
+"::"								  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return DOUBLE_COLON;
+                                      }
+"<>"                                  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return DIAMOND;
+                                      }
 
-"+"                                   {return PLUS;}
-"-"                                   {return MINUS;}
-"*"                                   {return ASTERIK;}
-"/"                                   {return DIV;}
-"%"                                   {return MODULO;}
-"++"                                  {return INCREMENT;}
-"--"                                  {return DECREMENT;}
+"+"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return PLUS;
+                                      }
+"-"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return MINUS;
+                                      }
+"*"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return ASTERIK;
+                                      }
+"/"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return DIV;
+                                      }
+"%"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return MODULO;
+                                      }
+"++"                                  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return INCREMENT;
+                                      }
+"--"                                  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return DECREMENT;
+                                      }
 
-">="								  {return GEQ;}
-"<="								  {return LEQ;}
-">"									  {return GT;}
-"<"									  {return LT;}
-"!="								  {return NEQ;}
-"=="								  {return DEQ;}
+">="								  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return GEQ;
+                                      }
+"<="								  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return LEQ;
+                                      }
+">"									  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return GT;
+                                      }
+"<"									  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return LT;
+                                      }
+"!="								  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return NEQ;
+                                      }
+"=="								  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return DEQ;
+                                      }
 
-"&"                                   {return BITWISE_AND;}
-"|"                                   {return BITWISE_OR;}
-"^"                                   {return BITWISE_XOR;}
-"~"                                   {return BITWISE_COMPLEMENT;}
-"<<"                                  {return LEFT_SHIFT;}
-">>"                                  {return RIGHT_SHIFT;}
-">>>"                                 {return UNSIGNED_RIGHT_SHIFT;}  
+"&"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return BITWISE_AND;
+                                      }
+"|"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return BITWISE_OR;
+                                      }
+"^"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return BITWISE_XOR;
+                                      }
+"~"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return BITWISE_COMPLEMENT;
+                                      }
+"<<"                                  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return LEFT_SHIFT;
+                                      }
+">>"                                  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return RIGHT_SHIFT;
+                                      }
+">>>"                                 {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return UNSIGNED_RIGHT_SHIFT;} 
+                                         
 
-"&&"								  {return AND;}
-"||"								  {return OR;}
-"!"                                   {return NOT;}
+"&&"								  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return AND;
+                                      }
+"||"								  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return OR;
+                                      }
+"!"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return NOT;
+                                      }
 
 "="|"+="|"-="|"*="|"/="|"&="|"%="|">>="|"<<="|">>>="|"|="|"^="         {
                                                                             yylval.str = yytext;
@@ -162,27 +362,112 @@ COMMENT             {TRADITIONAL_COMMENT}|{EOL_COMMENT}
                                                                             return ASSIGNMENT;
                                                                         }
 
-":"									  {return COLON;}
-"?"									  {return QM;}
+":"									  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return COLON;
+ 
+                                      }
+"?"									  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return QM;
+                                      }
 
-"("									  {return LPAREN;}
-")"									  {return RPAREN;}
-"{"									  {return LCURLY;}
-"}"									  {return RCURLY;}
-"["									  {return LSQUARE;}
-"]"									  {return RSQUARE;}
-";"									  {return SEMICOLON;}
-","									  {return COMMA;}
-"."                                   {return DOT;}
+"("									  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return LPAREN;
+                                      }
 
-"this"                                {return THIS;}
-"instanceof"                          {return INSTANCEOF;}
-"super"                               {return SUPER;}
-"implements"                          {return IMPLEMENTS; }
-"interface"                           { return INTERFACE; }
-"extends"                             { return EXTENDS; }
-"package"                             { return PACKAGE; }
-"import"                              { return IMPORT; }
+")"									  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return RPAREN;
+                                      }
+
+"{"									  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return LCURLY;
+                                      }
+
+"}"									  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return RCURLY;
+                                      }
+
+"["									  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return LSQUARE;
+                                      }
+
+"]"									  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return RSQUARE;
+                                      }
+
+";"									  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return SEMICOLON;
+                                      }
+
+","									  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return COMMA;
+                                      }
+
+"."                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return DOT;
+                                      }
+
+"this"                                {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return THIS;
+                                      }
+"instanceof"                          {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return INSTANCEOF;
+                                      }
+"super"                               {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return SUPER;
+                                      }
+"implements"                          {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return IMPLEMENTS; 
+                                      }
+"interface"                           {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return INTERFACE; 
+                                      }
+"extends"                             {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return EXTENDS; 
+                                      }
+"package"                             {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return PACKAGE; 
+                                      }
+"import"                              {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return IMPORT; 
+                                      }
 
 {CHAR_LITERAL}                          {   
                                             yylval.str = strdup(yytext); 
@@ -203,14 +488,14 @@ COMMENT             {TRADITIONAL_COMMENT}|{EOL_COMMENT}
                                         }
 
 {INTEGER_LITERAL}                       {   
-                                            //yylval.num = stoi(yytext); 
-                                            //check_for_null(yylval.num); 
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str); 
                                             return INTEGER_LITERAL;
                                         }
 
 {FP_LITERAL}                            {   
-                                            //yylval.float_num = stof(yytext); 
-                                            //check_for_null(yylval.float_num); 
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
                                             return FP_LITERAL;
                                         }
 
