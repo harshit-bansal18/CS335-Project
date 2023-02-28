@@ -1,8 +1,0 @@
-Convert each word of type "ABC_XYZ" to "Abc_xyz , " and each word of type "ABC" to "Abc , " in the following sentence:
-
-INT LONG BYTE CHAR SHORT FLOAT DOUBLE BOOLEAN VAR IF ELSE FOR WHILE BREAK CONTINUE VOID NEW RETURN PUBLIC PRIVATE CLASS STATIC FINAL ASSERT PLUS MINUS DIV MODULO INCREMENT DECREMENT GEQ LEQ GT LT NEQ DEQ BITWISE_AND BITWISE_OR BITWISE_XOR BITWISE_COMPLEMENT LEFT_SHIFT RIGHT_SHIFT UNSIGNED_RIGHT_SHIFT AND OR NOT ASSIGNMENT DOUBLE_COLON COLON QM LPAREN RPAREN LCURLY RCURLY LSQUARE RSQUARE SEMICOLON COMMA DOT CHAR_LITERAL BOOLEAN_LITERAL NULL_LITERAL INTEGER_LITERAL FP_LITERAL STRING TEXT_BLOCK IDENTIFIER THIS INSTANCEOF SUPER THROW EOF_ IMPLEMENTS INTERFACE EXTENDS PACKAGE IMPORT ASTERIK DIAMOND
-
-
-
-
-Int, Long, Byte, Char, Short, Float, Double, Boolean, Var, If, Else, For, While, Break, Continue, Void, New, Return, Public, Private, Class, Static, Final, Assert, Plus, Minus, Div, Modulo, Increment, Decrement, Geq, Leq, Gt, Lt, Neq, Deq, Bitwise_and, Bitwise_or, Bitwise_xor, Bitwise_complement, Left_shift, Right_shift, Unsigned_right_shift, And, Or, Not, Assignment, Double_colon, Colon, Qm, Lparen, Rparen, Lcurly, Rcurly, Lsquare, Rsquare, Semicolon, Comma, Dot, Char_literal, Boolean_literal, Null_literal, Integer_literal, Fp_literal, String, Text_block, Identifier, This, Instanceof, Super, Throw, Implements, Interface, Extends, Package, Import, Asterik, Diamond

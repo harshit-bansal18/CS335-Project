@@ -1,6 +1,7 @@
 
 %top{
     #include <string>
+    #include <iostream>
     #include <fstream>
     #include <iomanip>
     #include <unordered_map>
@@ -69,16 +70,19 @@ BINARY_DIGITS               {BINARY_DIGIT}|{BINARY_DIGIT}{BINARY_DIGIT_AND_UNDER
 BINARY_NUMERAL              0[bB]{BINARY_DIGITS}
 BINARY_INTEGER_LITERAL      {BINARY_NUMERAL}{SUFFIX}
 
-
 INTEGER_LITERAL         {DECIMAL_INTEGER_LITERAL}|{HEX_INTEGER_LITERAL}{OCTAL_INTEGER_LITERAL}|{BINARY_INTEGER_LITERAL}
 
-EXPONENT_PART           [eE][+-]?{DIGITS}
+
+SIGN                    [-+]?
+SIGNED_INTEGER          {SIGN}{DIGITS}
+
+EXPONENT_PART           [eE]{SIGNED_INTEGER}
 FLOAT_TYPE_SUFFIX       [fFdD]
 
 DECIMAL_FP_LITERAL      {DIGITS}\.{DIGITS}?{EXPONENT_PART}?{FLOAT_TYPE_SUFFIX}?|\.{DIGITS}{EXPONENT_PART}?{FLOAT_TYPE_SUFFIX}?|{DIGITS}{EXPONENT_PART}{FLOAT_TYPE_SUFFIX}?|{DIGITS}{EXPONENT_PART}?{FLOAT_TYPE_SUFFIX}
 
 HEX_SIGNIFICAND         {HEX_NUMERAL}[\.]?|0[xX]{HEX_DIGITS}?[\.]{HEX_DIGITS}
-BINARY_EXPONENT         [pP][-+]?{DIGITS}
+BINARY_EXPONENT         [pP]{SIGNED_INTEGER}
 HEXADECIMAL_FP_LITERAL  {HEX_SIGNIFICAND}{BINARY_EXPONENT}{FLOAT_TYPE_SUFFIX}?
 
 FP_LITERAL              {DECIMAL_FP_LITERAL}|{HEXADECIMAL_FP_LITERAL}
@@ -89,12 +93,32 @@ TEXT_BLOCK_CHAR         [^\\\"]|\"[^\\\"]|\"\"[^\\\"]|{ESCAPAE_SEQ}|{LINE_TERMIN
 TEXT_BLOCK              \"\"\"{WHITESPACE}?{LINE_TERMINATOR}{TEXT_BLOCK_CHAR}*\"\"\"
 
 TRADITIONAL_COMMENT \/\*([^\*]|[\r\n]|(\*+([^\*\/]|[\r\n])))*[\*]+\/
-EOL_COMMENT         \/\/[^\n\r]*([\n\r]|\r\n)
-COMMENT             {TRADITIONAL_COMMENT}|{EOL_COMMENT}
+EOL_COMMENT         \/\/[^\n\r]*
+/* COMMENT             {TRADITIONAL_COMMENT}|{EOL_COMMENT} */
+
 
 %%
 
-"permits"|"record"|"sealed"|"yield"        {}
+"do"                                     {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return DO;
+                                          }
+"case"                                    {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return CASE;
+                                          }
+"default"                                    {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return DEFAULT;
+                                          }
+"switch"                                  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return SWITCH;
+                                          }
 
 "int"                                     {   
                                             yylval.str = strdup(yytext); 
@@ -173,6 +197,27 @@ COMMENT             {TRADITIONAL_COMMENT}|{EOL_COMMENT}
                                             check_for_null(yylval.str);
                                             return CONTINUE;
                                           }
+"yield"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return YIELD;
+                                          }
+
+"try"                                     {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return TRY;
+                                          }
+"catch"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return CATCH;
+                                          }
+"finally"                                {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return FINALLY;
+                                          }
 
 "void"                                    {   
                                             yylval.str = strdup(yytext); 
@@ -225,17 +270,17 @@ COMMENT             {TRADITIONAL_COMMENT}|{EOL_COMMENT}
                                             check_for_null(yylval.str);
                                             return THROW;
                                           }
+"throws"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return THROWS;
+                                          }
 
-"::"								  {   
+"synchronized"                            {   
                                             yylval.str = strdup(yytext); 
                                             check_for_null(yylval.str);
-                                            return DOUBLE_COLON;
-                                      }
-"<>"                                  {   
-                                            yylval.str = strdup(yytext); 
-                                            check_for_null(yylval.str);
-                                            return DIAMOND;
-                                      }
+                                            return SYNCHRONIZED;
+                                          }
 
 "+"                                   {   
                                             yylval.str = strdup(yytext); 
@@ -272,8 +317,13 @@ COMMENT             {TRADITIONAL_COMMENT}|{EOL_COMMENT}
                                             check_for_null(yylval.str);
                                             return DECREMENT;
                                       }
+"->"                                  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return ARROW;
+                                      }
 
-">="								  {   
+">="						{   
                                             yylval.str = strdup(yytext); 
                                             check_for_null(yylval.str);
                                             return GEQ;
@@ -386,13 +436,13 @@ COMMENT             {TRADITIONAL_COMMENT}|{EOL_COMMENT}
                                             return RPAREN;
                                       }
 
-"{"									  {   
+"{"						{   
                                             yylval.str = strdup(yytext); 
                                             check_for_null(yylval.str);
                                             return LCURLY;
                                       }
 
-"}"									  {   
+"}"						      {   
                                             yylval.str = strdup(yytext); 
                                             check_for_null(yylval.str);
                                             return RCURLY;
@@ -519,7 +569,15 @@ COMMENT             {TRADITIONAL_COMMENT}|{EOL_COMMENT}
 
 {LINE_TERMINATOR}                      {}
 {WHITESPACE}                           {}
-{COMMENT}                              {}
+
+{EOL_COMMENT}                          {
+                                            int c = yyinput();
+                                            if(c == EOF){
+                                                unput(c);
+                                            }
+                                       }
+
+{TRADITIONAL_COMMENT}                  {/*ignore it*/}
 
 <INITIAL><<EOF>>        { BEGIN(REALLYEND); return EOF_; } 
 

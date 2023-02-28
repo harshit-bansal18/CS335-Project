@@ -6,33 +6,102 @@
     #include <iostream>
     #include <iomanip>
     #include <vector>
-
+    #include <fstream>
+    #include <argparse/argparse.hpp>
     
     #define YYDEBUG 1
     using namespace std;
+
 
     extern "C" int yylex();
     extern "C" FILE *yyin;
     extern "C" int yylineno;
 
+    struct args {
+        char *input;
+        char *output;
+        bool verbose;    
+    };
+    
     static int node_num=-1;
+
+    ofstream dotfile;
 
     int yyerror(const char *);
 
     int create_node(char* label, vector<int> children_node_num){
         //A new node created with given label and edges from current node_num to all children_node_num
-        printf("node%d[label=\"%s\"];\n", ++node_num, label);
+        dotfile << "node" << ++node_num << "[label=\"" << label << "\"];\n";
         for (auto& child : children_node_num){
-            printf("node%d -> node%d;\n", node_num, child);
+            dotfile << "node" << node_num << " -> node" << child << ";\n";
         }
+        dotfile.flush();
         return node_num;
     }
 
     int create_leaf(char* lexeme, char* token){
-        printf("node%d[label=\"%s(%s)\"];\n", ++node_num, token, lexeme);
+
+        if(strcmp(token, "STRING")==0){    
+            
+            dotfile << "node" << ++node_num << "[label=\"" << token << "(";
+
+            dotfile << "\\\""; lexeme++;
+
+            while(lexeme[0] != '"'){
+                if(lexeme[0] == '\\'){
+                    dotfile << "\\\\";
+                }
+                else{
+                    dotfile << lexeme[0];
+                }
+                lexeme++;
+            }
+
+            dotfile << "\\\"";
+            
+            dotfile << ")\"];\n";
+
+        }
+        else if(strcmp(token, "TEXT_BLOCK")==0){   
+
+
+            dotfile << "node" << ++node_num << "[label=\"" << token << "(";
+
+            dotfile << "\\\""; lexeme++;   dotfile << "\\\""; lexeme++;  dotfile << "\\\""; lexeme++;
+
+            while(lexeme[0] != '"' && lexeme[1] != '"' && lexeme[2] != '"'){
+                if(lexeme[0] == '\\'){
+                    dotfile << "\\\\";
+                }
+                else if(lexeme[0] == '"'){
+                    dotfile << "\\\"";
+                }
+                else{
+                    dotfile << lexeme[0];
+                }
+                lexeme++;
+            }
+            
+            dotfile << "\\\"" ; dotfile << "\\\""; dotfile << "\\\"";
+
+            dotfile << ")\"];\n";
+                   
+            
+        }
+        else
+            dotfile << "node" << ++node_num << "[label=\"" << token << "(" << lexeme << ")\"];\n";
+        
+        dotfile.flush();
         return node_num;
     }
 
+    int create_edges(int parent_node_num, vector<int> children_node_num){
+        for (auto& child : children_node_num){
+            dotfile << "node" << parent_node_num << "-> node" << child << ";\n";
+        }
+        dotfile.flush();
+        return parent_node_num;
+    }
 %}
 
 %define parse.error verbose
@@ -47,10 +116,10 @@
 
 %token<str> IF ELSE FOR WHILE BREAK CONTINUE
 
-%token<str> VOID NEW RETURN PUBLIC PRIVATE CLASS STATIC FINAL
+%token<str> VOID NEW RETURN PUBLIC PRIVATE CLASS STATIC FINAL SWITCH YIELD CATCH FINALLY SYNCHRONIZED
 
 %token<str> ASSERT PLUS MINUS DIV MODULO INCREMENT DECREMENT GEQ LEQ GT LT NEQ DEQ BITWISE_AND BITWISE_OR BITWISE_XOR BITWISE_COMPLEMENT LEFT_SHIFT RIGHT_SHIFT UNSIGNED_RIGHT_SHIFT AND OR NOT ASSIGNMENT
-%token<str> DOUBLE_COLON COLON QM LPAREN RPAREN LCURLY RCURLY LSQUARE RSQUARE SEMICOLON COMMA DOT
+%token<str> COLON QM LPAREN RPAREN LCURLY RCURLY LSQUARE RSQUARE SEMICOLON COMMA DOT ARROW
 %token<str> CHAR_LITERAL BOOLEAN_LITERAL NULL_LITERAL INTEGER_LITERAL FP_LITERAL STRING TEXT_BLOCK
 
 %token<str> IDENTIFIER
@@ -58,6 +127,7 @@
 %token<str> INSTANCEOF
 %token<str> SUPER
 %token<str> THROW
+%token<str> THROWS
 %token<str> EOF_
 %token<str> IMPLEMENTS
 %token<str> INTERFACE
@@ -65,7 +135,10 @@
 %token<str> PACKAGE
 %token<str> IMPORT
 %token<str> ASTERIK
-%token<str> DIAMOND
+%token<str> DO
+%token<str> TRY
+%token<str> CASE
+%token<str> DEFAULT
 
 %left INCREMENT DECREMENT
 %left NOT BITWISE_COMPLEMENT
@@ -95,8 +168,6 @@
 %type<num> FloatingPointType
 %type<num> ReferenceType 
 %type<num> ClassOrInterfaceType
-%type<num> ClassType
-%type<num> InterfaceType
 %type<num> ArrayType
 %type<num> Dims
 %type<num> TypeName
@@ -140,13 +211,10 @@
 %type<num> FieldAccess
 %type<num> ArrayAccess
 %type<num> MethodInvocation
-%type<num> ArgumentListopt
 %type<num> ArgumentList
 %type<num> ArrayCreationExpression
-%type<num> Dimsopt
 %type<num> DimExprs
 %type<num> DimExpr
-%type<num> ExpressionOpts
 %type<num> Expression
 %type<num> AssignmentExpression
 %type<num> Assignment
@@ -191,9 +259,7 @@
 %type<num> ForStatementNoShortIf
 %type<num> BasicForStatement
 %type<num> BasicForStatementNoShortIf
-%type<num> ForInitOpt
 %type<num> ForInit
-%type<num> ForUpdateOpts
 %type<num> ForUpdate
 %type<num> StatementExpressionList
 %type<num> CommaStatementExpressions
@@ -203,7 +269,6 @@
 %type<num> ContinueStatement
 %type<num> ReturnStatement
 %type<num> ThrowStatement
-%type<num> IdentifierOpts
 %type<num> IfThenStatement
 %type<num> LocalVariableDeclaration
 %type<num> LocalVariableDeclarationStatement
@@ -254,7 +319,7 @@
 %type<num> And
 %type<num> Or
 %type<num> Not
-%type<num> Double_colon
+/* %type<num> Double_colon */
 %type<num> Colon
 %type<num> Qm
 %type<num> Lparen
@@ -283,24 +348,60 @@
 %type<num> Package
 %type<num> Import
 %type<num> Asterik
-%type<num> Diamond
+/* %type<num> Diamond */
+%type<num> SynchronizedStatement
+%type<num> DoStatement
+%type<num> TryStatement
+%type<num> YieldStatement
+%type<num> SwitchBlock
+%type<num> SwitchBlockStatementGroup
+%type<num> SwitchBlockStatementGroups
+%type<num> SwitchLabel
+%type<num> SwitchLabelColons
+%type<num> SwitchRule
+%type<num> SwitchRules
+%type<num> SwitchStatement
+%type<num> CatchClause
+%type<num> Catches
+%type<num> CatchFormalParameter
+%type<num> CatchType
+%type<num> Finally
+%type<num> CaseConstant
+%type<num> CaseConstants
+%type<num> do_
+%type<num> switch_
+%type<num> yield_
+%type<num> try_
+%type<num> catch_
+%type<num> finally_
+%type<num> synchronized_
+%type<num> throws_
+%type<num> case_
+%type<num> default_
+%type<num> arrow_
+%type<num> endoffile
+%type<num> ImportDeclarations
+%type<num> Throws
+%type<num> ExceptionType
+%type<num> ExceptionTypeList
+%type<num> CommaExceptionTypes
 
 %start Program
 %%
 
 Program:
-    CompilationUnit EOF_; 
+    CompilationUnit endoffile {$$ = create_node("Program", {$1, $2});}; 
 
 /*     Productions from Chapter 7 (Package and Modueles)           */
 CompilationUnit:
-    PackageDeclaration ImportDeclaration ClassOrInterfaceDeclarations {$$ = create_node("CompilationUnit", {$1, $2, $3});}
-|   ImportDeclaration ClassOrInterfaceDeclarations {$$ = create_node("CompilationUnit", {$1, $2});}
+    PackageDeclaration ImportDeclarations ClassOrInterfaceDeclarations {$$ = create_node("CompilationUnit", {$1, $2, $3});}
+|   ImportDeclarations ClassOrInterfaceDeclarations {$$ = create_node("CompilationUnit", {$1, $2});}
 |   PackageDeclaration ClassOrInterfaceDeclarations {$$ = create_node("CompilationUnit", {$1, $2});}
 |   ClassOrInterfaceDeclarations {$$ = create_node("Compilation Unit", {$1});}
 ;
 
 ClassOrInterfaceDeclarations:
-    ClassOrInterfaceDeclaration {$$ = create_node("ClassOrInterfaceDeclaration", {$1});}
+    ClassOrInterfaceDeclaration {$$ = $1;}
 |   ClassOrInterfaceDeclarations ClassOrInterfaceDeclaration {$$ = create_node("ClassOrInterfaceDeclarations", {$1, $2});}
 ;
 
@@ -312,6 +413,10 @@ ClassOrInterfaceDeclaration:
 
 PackageDeclaration:
     Package TypeName Semicolon {$$ = create_node("PackageDeclaration", {$1, $2, $3});}
+;
+ImportDeclarations:
+    ImportDeclarations ImportDeclaration {$$ = create_node("ImportDeclarations", {$1, $2}); }
+|   ImportDeclaration       { $$ = $1; }
 ;
 
 ImportDeclaration:
@@ -326,13 +431,13 @@ ImportDeclaration:
 /*
     7, 7.5, 'c', "string", text block, true/false, null
 */
-Literal:    Integer_literal {$$ = create_node("Literal", {$1});}
-|           Fp_literal  {$$ = create_node("Literal", {$1});}
-|           Char_literal  {$$ = create_node("Literal", {$1});}
-|           String  {$$ = create_node("Literal", {$1});}
-|           Text_block  {$$ = create_node("Literal", {$1});}
-|           Boolean_literal  {$$ = create_node("Literal", {$1});}
-|           Null_literal  {$$ = create_node("Literal", {$1});}
+Literal:    Integer_literal {$$ = $1;}
+|           Fp_literal  {$$ = $1;}
+|           Char_literal  {$$ = $1;}
+|           String  {$$ = $1;}
+|           Text_block  {$$ = $1;}
+|           Boolean_literal  {$$ = $1;}
+|           Null_literal  {$$ = $1;}
 ;
 /*
     Productions from Chapter 4 (Types, values, and variables)
@@ -342,28 +447,29 @@ Literal:    Integer_literal {$$ = create_node("Literal", {$1});}
     int, long, float, char, double, char, byte, short
 */
 UnannType:
-    PrimitiveType   {$$ = create_node("UnannType", {$1});}
+    PrimitiveType   {$$ = $1; }
+|   ReferenceType   {$$ = $1; }
 ;
 
 PrimitiveType:      
-    NumericType {$$ = create_node("PrimitiveType", {$1});}
-|   Boolean  {$$ = create_node("PrimitiveType", {$1});}
+    NumericType {$$ = $1; }
+|   Boolean  {$$ = $1; }
 ;
 
 NumericType:        
-    IntegralType {$$ = create_node("NumericType", {$1});}
-|   FloatingPointType  {$$ = create_node("NumericType", {$1});}
+    IntegralType {$$ = $1; }
+|   FloatingPointType  {$$ = $1; }
 ;
 
-IntegralType:       Byte  { $$ = create_node("IntegralType", {$1}); }
-|                   Short  { $$ = create_node("IntegralType", {$1}); }
-|                   Int  { $$ = create_node("IntegralType", {$1}); }
-|                   Long  { $$ = create_node("IntegralType", {$1}); }
-|                   Char { $$ = create_node("IntegralType", {$1}); }
+IntegralType:       Byte  {$$ = $1; }
+|                   Short  {$$ = $1; }
+|                   Int  {$$ = $1; }
+|                   Long  {$$ = $1; }
+|                   Char {$$ = $1; }
 ;
 
-FloatingPointType:    Float { $$ = create_node("FloatingPointType", {$1}); }
-|                     Double { $$ = create_node("FloatingPointType", {$1}); }
+FloatingPointType:    Float { $$ = $1; }
+|                     Double { $$ = $1; }
 ;
 
 /*
@@ -371,41 +477,14 @@ FloatingPointType:    Float { $$ = create_node("FloatingPointType", {$1}); }
     *   ArrayType ()
 */
 ReferenceType:
-    ClassOrInterfaceType {$$ = create_node("ReferenceType", {$1});}
-|   ArrayType {$$ = create_node("ReferenceType", {$1});}
+    ClassOrInterfaceType {$$ = $1; }
+|   ArrayType {$$ = $1; }
 ;
 
 ClassOrInterfaceType:
-    TypeName    {$$ = create_node("ClassOrInterfaceType", {$1});}
+    TypeName    {$$ = $1; }
 ;
 
-ClassType:
-    ClassOrInterfaceType    {$$ = create_node("ClassType", {$1});}
-;
-
-InterfaceType:
-    ClassOrInterfaceType    {$$ = create_node("InterfaceType", {$1});}
-;
-
-/*
-    As of now remove arguments in <> type like in template to remove disambiguity from expressions of type a<b
-*/
-/* TypeArguments:
-    Lt TypeArgumentList Gt
-;
-
-TypeArgumentList:
-    TypeArgument Comma TypeArgumentList
-|   TypeArgument
-;
-
-TypeArgument:
-    ReferenceType
-; */
-
-/* TypeVariable:
-    Identifier
-; */
 
 ArrayType:
     PrimitiveType Dims {$$ = create_node("ArrayType", {$1, $2});}
@@ -429,7 +508,7 @@ Dims:
     Replace them with TypenName
 */
 TypeName:
-    Identifier  {$$ = create_node("Dims", {$1});}
+    Identifier  {$$ = $1; }
 |   TypeName Dot Identifier {$$ = create_node("Dims", {$1, $2 , $3});}
 ;
 
@@ -438,13 +517,16 @@ TypeName:
 
 
 Modifiers:
-    Modifier {$$ = create_node("Modifiers", {$1});}
+    Modifier {$$ = $1; }
 |   Modifiers Modifier {$$ = create_node("Modifiers", {$1, $2});}
 ;
 
 // *************Need to confirm it *******
 Modifier:
-    Public | Private | Static 
+    Public      { $$ = $1; } 
+|   Private     { $$ = $1; }
+|   Static      { $$ = $1; }
+|   Final       { $$ = $1; }
 ;
 
 /*
@@ -465,7 +547,7 @@ ClassDeclaration:
 ;
 
 Super:
-    Extends ClassType {$$ = create_node("Super", {$1, $2});}
+    Extends ClassOrInterfaceType {$$ = create_node("Super", {$1, $2});}
 ;
 
 Interfaces:
@@ -473,8 +555,8 @@ Interfaces:
 ;
 
 InterfaceTypeList:
-    InterfaceType { $$ = create_node("InterfaceTypeList", {$1}); }
-|   InterfaceTypeList Comma InterfaceType { $$ = create_node("InterfaceTypeList", {$1, $2, $3}); }
+    ClassOrInterfaceType {$$ = $1; }
+|   InterfaceTypeList Comma ClassOrInterfaceType { $$ = create_node("InterfaceTypeList", {$1, $2, $3}); }
 ;
 
 ClassBody:
@@ -484,19 +566,22 @@ ClassBody:
 
 ClassBodyDeclarations:
     ClassBodyDeclarations ClassBodyDeclaration {$$ = create_node("ClassBodyDeclarations", {$1, $2});}
-|   ClassBodyDeclaration {$$ = create_node("ClassBodyDeclarations", {$1});}
+|   ClassBodyDeclaration {$$ = $1; }
 ;
 
 ClassBodyDeclaration:
-    ClassMemberDeclaration {$$ = create_node("ClassBodyDeclaration", {$1});}
-|   ConstructorDeclaration {$$ = create_node("ClassBodyDeclaration", {$1});}
-|   StaticInitializer {$$ = create_node("ClassBodyDeclaration", {$1});}
+    ClassMemberDeclaration {$$ = $1; }
+|   ConstructorDeclaration {$$ = $1; }
+|   StaticInitializer {$$ = $1; }
+|   Block               {$$ = $1; }
 ;
 
 // Inner Classes and Interfaces are not supported
 ClassMemberDeclaration:
-    FieldDeclaration {$$ = create_node("ClassMemberDeclaration", {$1});}
-|   MethodDeclaration {$$ = create_node("ClassMemberDeclaration", {$1});}
+    FieldDeclaration {$$ = $1; }
+|   MethodDeclaration {$$ = $1; }
+|   ClassDeclaration  {$$ = $1;}
+|   InterfaceDeclaration {$$ = $1;}
 ;
 
 FieldDeclaration:
@@ -506,22 +591,25 @@ FieldDeclaration:
 
 VariableDeclaratorList:
     VariableDeclaratorList Comma VariableDeclarator {$$ = create_node("VariableDeclaratorList", {$1, $2, $3});}
-|   VariableDeclarator {$$ = create_node("VariableDeclaratorList", {$1});}
+|   VariableDeclarator {$$ = $1; }
 ;
 
 VariableDeclarator:
-    VariableDeclaratorId AssignmentOperator VariableInitializer {$$ = create_node("VariableDeclarator", {$1, $2, $3});}
-|   VariableDeclaratorId {$$ = create_node("VariableDeclarator", {$1});}
+    VariableDeclaratorId AssignmentOperator VariableInitializer {
+                                                                    create_edges($2, {$1, $3});
+                                                                    $$ = $2;
+                                                                }
+|   VariableDeclaratorId {$$ = $1; }
 ;
 
 VariableDeclaratorId:
     VariableDeclaratorId Lsquare Rsquare {$$ = create_node("VariableDeclaratorId", {$1, $2, $3});}
-|   Identifier {$$ = create_node("VariableDeclaratorId", {$1});}
+|   Identifier {$$ = $1; }
 ;
 
 VariableInitializer:
-    Expression {$$ = create_node("VariableInitializer", {$1});}
-|   ArrayInitializer {$$ = create_node("VariableInitializer", {$1});}
+    Expression {$$ = $1; }
+|   ArrayInitializer {$$ = $1; }
 ;
 
 MethodDeclaration:
@@ -529,17 +617,30 @@ MethodDeclaration:
 ;
 
 MethodHeader: // correct
-    Modifiers UnannType Declarator {$$ = create_node("MethodHeader", {$1, $2, $3});}
-|   UnannType Declarator {$$ = create_node("MethodHeader", {$1, $2});}
-|   Modifiers Void Declarator {$$ = create_node("MethodHeader", {$1, $2, $3});}
-|   Void Declarator 
+    Modifiers UnannType Declarator        {$$ = create_node("MethodHeader", {$1, $2, $3});}
+|   UnannType Declarator                  {$$ = create_node("MethodHeader", {$1, $2});}
+|   Modifiers Void Declarator             {$$ = create_node("MethodHeader", {$1, $2, $3});}
+|   Void Declarator                       {$$ = create_node("MethodHeader", {$1, $2});}
+|   Modifiers UnannType Declarator Throws {$$ = create_node("MethodHeader", {$1, $2, $3, $4});}
+|   UnannType Declarator Throws           {$$ = create_node("MethodHeader", {$1, $2, $3});}
+|   Modifiers Void Declarator Throws      {$$ = create_node("MethodHeader", {$1, $2, $3, $4});}
+|   Void Declarator Throws                {$$ = create_node("MethodHeader", {$1, $2, $3});}
 ;
 
-// didnt include dims
-/* MethodDeclarator:
-    Identifier Lparen Rparen
-|   Identifier Lparen FormalParameterList Rparen
-; */
+Throws:
+    throws_ ExceptionTypeList             {$$ = create_node("Throws", {$1, $2});}       
+
+ExceptionTypeList:
+    ExceptionType                         {$$ = $1;}
+|   ExceptionType CommaExceptionTypes     {$$ = create_node("ExceptionTypeList", {$1, $2});}
+    
+CommaExceptionTypes:
+    CommaExceptionTypes Comma ExceptionType  {$$ = create_node("CommaExceptionTypes", {$1, $2, $3});}
+|   Comma ExceptionType                      {$$ = create_node("CommaExceptionTypes", {$1, $2});} 
+
+ExceptionType:
+    ClassOrInterfaceType                    {$$ = $1;}
+
 
 /*
     Added in place  of MethodDeclarator and ConstructorDeclarator
@@ -551,7 +652,7 @@ Declarator:
 
 FormalParameterList:
     FormalParameterList Comma FormalParameter {$$ = create_node("FormalParameterList", {$1, $2, $3});}
-|   FormalParameter {$$ = create_node("FormalParameterList", {$1});}
+|   FormalParameter {$$ = $1; }
 ;
 
 FormalParameter:
@@ -560,7 +661,7 @@ FormalParameter:
 
 
 MethodBody:
-    Block {$$ = create_node("MethodBody", {$1});}
+    Block {$$ = $1; }
 ;
 
 StaticInitializer:
@@ -590,8 +691,10 @@ ConstructorBody:
 ;
 
 ExplicitConstructorInvocation:
-    This Lparen ArgumentListopt Rparen {$$ = create_node("ExplicitConstructorInvocation", {$1, $2, $3, $4});}
-|   super_ Lparen ArgumentListopt Rparen {$$ = create_node("ExplicitConstructorInvocation", {$1, $2, $3, $4});}
+    This Lparen Rparen {$$ = create_node("ExplicitConstructorInvocation", {$1, $2, $3});}
+|   This Lparen ArgumentList Rparen {$$ = create_node("ExplicitConstructorInvocation", {$1, $2, $3, $4});}
+|   super_ Lparen Rparen {$$ = create_node("ExplicitConstructorInvocation", {$1, $2, $3});}
+|   super_ Lparen ArgumentList Rparen {$$ = create_node("ExplicitConstructorInvocation", {$1, $2, $3, $4});}
 ;
 
 ArrayInitializer:
@@ -603,7 +706,7 @@ ArrayInitializer:
 
 VariableInitializerList:
     VariableInitializerList Comma VariableInitializer { $$ = create_node("VariableInitializerList", {$1, $2, $3});}
-|   VariableInitializer { $$ = create_node("VariableInitializerList", {$1});}
+|   VariableInitializer {$$ = $1; }
 ;
 
 /*     Productions from Chapter 9 - Interfaces      */
@@ -624,17 +727,17 @@ InterfaceBody:
 ;
 
 InterfaceMembers:
-    InterfaceMemberDeclaration {$$ = create_node("InterfaceMembers", {$1});}
+    InterfaceMemberDeclaration {$$ = $1; }
 |   InterfaceMembers InterfaceMemberDeclaration {$$ = create_node("InterfaceMembers", {$1, $2});}
 ;
 
 InterfaceMemberDeclaration:
-    ConstantDeclaration {$$ = create_node("InterfaceMemberDeclaration", {$1});}
-|   InterfaceMethodDeclaration {$$ = create_node("InterfaceMemberDeclaration", {$1});}
+    ConstantDeclaration {$$ = $1; }
+|   InterfaceMethodDeclaration {$$ = $1; }
 ;
 
 ConstantDeclaration:
-    FieldDeclaration {$$ = create_node("ConstantDeclaration", {$1});}
+    FieldDeclaration {$$ = $1; }
 ;
 
 InterfaceMethodDeclaration: 
@@ -646,28 +749,30 @@ InterfaceMethodDeclaration:
 */
 // Java Expressions Grammer
 
-Primary:    PrimaryNoNewArray {$$ = create_node("Primary", {$1});}
-|           ArrayCreationExpression {$$ = create_node("Primary", {$1});}
+Primary:    PrimaryNoNewArray {$$ = $1; }
+|           ArrayCreationExpression {$$ = $1; }
 ;
 
-PrimaryNoNewArray:  Literal {$$ = create_node("PrimaryNoNewArray", {$1});}
-|                   This {$$ = create_node("PrimaryNoNewArray", {$1});}
-|                   Lparen Expression Rparen {$$ = create_node("PrimaryNoNewArray", {$1, $2, $3});}
-|                   ClassInstanceCreationExpression {$$ = create_node("PrimaryNoNewArray", {$1});}
-|                   FieldAccess {$$ = create_node("PrimaryNoNewArray", {$1});}
-|                   ArrayAccess {$$ = create_node("PrimaryNoNewArray", {$1});}
-|                   MethodInvocation {$$ = create_node("PrimaryNoNewArray", {$1});}
+PrimaryNoNewArray:  Literal {$$ = $1; }
+|                   This {$$ = $1; }
+|                   Lparen Expression Rparen {$$ = create_node("PrimaryNoNewArray", {$1, $2, $3});} //Check Again
+|                   ClassInstanceCreationExpression {$$ = $1; }
+|                   FieldAccess {$$ = $1; }
+|                   ArrayAccess {$$ = $1; }
+|                   MethodInvocation {$$ = $1; }
 ;
 
 
 ClassInstanceCreationExpression: 
-    New ClassType Lparen ArgumentListopt Rparen {$$ = create_node("ClassInstanceCreationExpression", {$1, $2, $3, $4, $5});}
+    New ClassOrInterfaceType Lparen Rparen {$$ = create_node("ClassInstanceCreationExpression", {$1, $2, $3, $4});}
+|   New ClassOrInterfaceType Lparen ArgumentList Rparen {$$ = create_node("ClassInstanceCreationExpression", {$1, $2, $3, $4, $5});}
 ;
 
 
 
 FieldAccess:    Primary Dot Identifier {$$ = create_node("FieldAccess", {$1, $2, $3});}
 |               super_ Dot Identifier {$$ = create_node("FieldAccess", {$1, $2, $3});}
+|               TypeName Dot super_ Dot Identifier {$$ = create_node("FieldAccess", {$1, $2, $3, $4, $5});}
 ;
 
 
@@ -675,167 +780,207 @@ ArrayAccess:    TypeName Lsquare Expression Rsquare {$$ = create_node("ArrayAcce
 |               PrimaryNoNewArray Lsquare Expression Rsquare  {$$ = create_node("ArrayAccess", {$1, $2, $3, $4});}
 ;
 
-MethodInvocation:   TypeName Lparen ArgumentListopt Rparen {$$ = create_node("MethodInvocation", {$1, $2, $3, $4});}
-|                   Primary Dot Identifier Lparen ArgumentListopt Rparen {$$ = create_node("MethodInvocation", {$1, $2, $3, $4, $5});}
-|                   super_ Dot Identifier Lparen ArgumentListopt Rparen {$$ = create_node("MethodInvocation", {$1, $2, $3, $4, $5});}
+MethodInvocation:   TypeName Lparen Rparen {$$ = create_node("MethodInvocation", {$1, $2, $3});}
+|                   TypeName Lparen ArgumentList Rparen {$$ = create_node("MethodInvocation", {$1, $2, $3, $4});}
+|                   Primary Dot Identifier Lparen Rparen {$$ = create_node("MethodInvocation", {$1, $2, $3, $4, $5});}
+|                   Primary Dot Identifier Lparen ArgumentList Rparen {$$ = create_node("MethodInvocation", {$1, $2, $3, $4, $5, $6});}
+|                   super_ Dot Identifier Lparen Rparen {$$ = create_node("MethodInvocation", {$1, $2, $3, $4, $5});}
+|                   super_ Dot Identifier Lparen ArgumentList Rparen {$$ = create_node("MethodInvocation", {$1, $2, $3, $4, $5, $6});}
 ;
 
-/*
-Uncomment below rules when Allowing TypeArguments <> args.
-Remove above 4 rules
-*/
-/* |                   TypeName Dot TypeArgumentsopt Identifier Lparen ArgumentListopt Rparen
-|                   Primary Dot TypeArgumentsopt Identifier Lparen ArgumentListopt Rparen
-|                   Super Dot TypeArgumentsopt Identifier Lparen ArgumentListopt Rparen
-|                   TypeName Dot Super Dot TypeArgumentsopt Identifier Lparen ArgumentListopt Rparen */
 
-ArgumentListopt:    
-|                   ArgumentList { $$ = create_node("ArgumentListopt", {$1});}
-
-/* TypeArgumentsopt: 
-|                   TypeArguments */
-
-ArgumentList:       Expression  { $$ = create_node("ArgumentList", {$1});}
+ArgumentList:       Expression  {$$ = $1; }
 |                   ArgumentList Comma Expression { $$ = create_node("ArgumentList", {$1, $2, $3});}
 ;
 
-ArrayCreationExpression:    New PrimitiveType DimExprs Dimsopt { $$ = create_node("ArrayCreationExpression", {$1, $2, $3, $4});}
-|                           New ClassType DimExprs Dimsopt { $$ = create_node("ArrayCreationExpression", {$1, $2, $3, $4});}
+ArrayCreationExpression:    New PrimitiveType DimExprs Dims { $$ = create_node("ArrayCreationExpression", {$1, $2, $3, $4});}
+|                           New ClassOrInterfaceType DimExprs Dims { $$ = create_node("ArrayCreationExpression", {$1, $2, $3, $4});}
+|                           New PrimitiveType DimExprs { $$ = create_node("ArrayCreationExpression", {$1, $2, $3});}
+|                           New ClassOrInterfaceType DimExprs{ $$ = create_node("ArrayCreationExpression", {$1, $2, $3});}
 |                           New PrimitiveType Dims ArrayInitializer { $$ = create_node("ArrayCreationExpression", {$1, $2, $3, $4});}
-|                           New ClassType Dims ArrayInitializer { $$ = create_node("ArrayCreationExpression", {$1, $2, $3, $4});}
+|                           New ClassOrInterfaceType Dims ArrayInitializer { $$ = create_node("ArrayCreationExpression", {$1, $2, $3, $4});}
 ;
 
-Dimsopt: 
-|           Dims { $$ = create_node("Dimsopt", {$1});}
-;
-
-DimExprs:   DimExpr  { $$ = create_node("DimExprs", {$1});}
+DimExprs:   DimExpr  {$$ = $1; }
 |           DimExprs DimExpr { $$ = create_node("DimExprs", {$1, $2});}
 ;
 
 DimExpr:    Lsquare Expression Rsquare { $$ = create_node("DimExpr", {$1, $2, $3});}
-
-ExpressionOpts: Expression { $$ = create_node("ExpressionOpts", {$1});}
-|
 ;
 
-Expression:  AssignmentExpression { $$ = create_node("Expression", {$1});}
+
+Expression:  AssignmentExpression {$$ = $1; }
 
 AssignmentExpression:   
-    ConditionalExpression { $$ = create_node("AssignmentExpression", {$1});}
-|   Assignment { $$ = create_node("AssignmentExpression", {$1});}
+    ConditionalExpression {$$ = $1; }
+|   Assignment {$$ = $1; }
 ;
 
 Assignment:
-    LeftHandSide AssignmentOperator Expression { $$ = create_node("Assignment", {$1, $2, $3});}
+    LeftHandSide AssignmentOperator Expression  {
+                                                    create_edges($2, {$1, $3});
+                                                    $$ = $2;
+                                                }
 ;
 
 LeftHandSide:
-    TypeName { $$ = create_node("LeftHandSide", {$1});}
-|   FieldAccess { $$ = create_node("LeftHandSide", {$1});}
-|   ArrayAccess { $$ = create_node("LeftHandSide", {$1});}
+    TypeName {$$ = $1; }
+|   FieldAccess {$$ = $1; }
+|   ArrayAccess {$$ = $1; }
 ;
 
-ConditionalExpression:  ConditionalOrExpression { $$ = create_node("ConditionalExpression", {$1});}
-|                   ConditionalOrExpression Qm Expression Colon ConditionalExpression { $$ = create_node("ConditionalExpression", {$1, $2, $3, $4, $5});}
+ConditionalExpression:  ConditionalOrExpression {$$ = $1; }
+|                   ConditionalOrExpression Qm Expression Colon ConditionalExpression { $$ = create_node("ConditionalExpression", {$1, $2, $3, $4, $5});} //Check Again
 ;
 
-ConditionalOrExpression:    ConditionalAndExpression { $$ = create_node("ConditionalOrExpression", {$1});}
-|                   ConditionalOrExpression Or ConditionalAndExpression { $$ = create_node("ConditionalOrExpression", {$1, $2, $3});}
+ConditionalOrExpression:    ConditionalAndExpression {$$ = $1; }
+|                   ConditionalOrExpression Or ConditionalAndExpression {
+                                                                            create_edges($2, {$1, $3});
+                                                                            $$ = $2;
+                                                                        } 
 ;
 
-ConditionalAndExpression:   InclusiveOrExpression { $$ = create_node("ConditionalAndExpression", {$1});}
-|                   ConditionalAndExpression And InclusiveOrExpression { $$ = create_node("ConditionalAndExpression", {$1, $2, $3});}
+ConditionalAndExpression:   InclusiveOrExpression {$$ = $1; }
+|                   ConditionalAndExpression And InclusiveOrExpression  {
+                                                                            create_edges($2, {$1, $3});
+                                                                            $$ = $2;
+                                                                        } 
 ;
 
-InclusiveOrExpression:  ExclusiveOrExpression { $$ = create_node("InclusiveOrExpression", {$1});}
-|                   InclusiveOrExpression Bitwise_or ExclusiveOrExpression { $$ = create_node("InclusiveOrExpression", {$1, $2, $3});}
+InclusiveOrExpression:  ExclusiveOrExpression {$$ = $1; }
+|                   InclusiveOrExpression Bitwise_or ExclusiveOrExpression  {
+                                                                                create_edges($2, {$1, $3});
+                                                                                $$ = $2;
+                                                                            } 
 ;
 
-ExclusiveOrExpression:  AndExpression   { $$ = create_node("ExclusiveOrExpression", {$1});}
-|                   ExclusiveOrExpression Bitwise_xor AndExpression { $$ = create_node("ExclusiveOrExpression", {$1, $2, $3});}
+ExclusiveOrExpression:  AndExpression   {$$ = $1; }
+|                   ExclusiveOrExpression Bitwise_xor AndExpression     {
+                                                                            create_edges($2, {$1, $3});
+                                                                            $$ = $2;
+                                                                        }
 ;
 
-AndExpression:  EqualityExpression  { $$ = create_node("AndExpression", {$1});}
-|                   AndExpression Bitwise_and EqualityExpression { $$ = create_node("InclusiveOrExpression", {$1});}
+AndExpression:  EqualityExpression  {$$ = $1; }
+|                   AndExpression Bitwise_and EqualityExpression    {
+                                                                        create_edges($2, {$1, $3});
+                                                                        $$ = $2;
+                                                                    }
 ;
 
-EqualityExpression: RelationalExpression { $$ = create_node("EqualityExpression", {$1});}
-|                   EqualityExpression Deq RelationalExpression { $$ = create_node("EqualityExpression", {$1, $2, $3});}
-|                   EqualityExpression Neq RelationalExpression { $$ = create_node("EqualityExpression", {$1, $2, $3});}
+EqualityExpression: RelationalExpression {$$ = $1; }
+|                   EqualityExpression Deq RelationalExpression     {
+                                                                        create_edges($2, {$1, $3});
+                                                                        $$ = $2;
+                                                                    }
+|                   EqualityExpression Neq RelationalExpression     {
+                                                                        create_edges($2, {$1, $3});
+                                                                        $$ = $2;
+                                                                    }
 ;
 
-RelationalExpression:   ShiftExpression { $$ = create_node("RelationalExpression", {$1});}
-|                   RelationalExpression Lt ShiftExpression { $$ = create_node("RelationalExpression", {$1, $2, $3});}
-|                   RelationalExpression Gt ShiftExpression { $$ = create_node("RelationalExpression", {$1, $2, $3});}
-|                   RelationalExpression Leq ShiftExpression { $$ = create_node("RelationalExpression", {$1, $2, $3});}
-|                   RelationalExpression Geq ShiftExpression { $$ = create_node("RelationalExpression", {$1, $2, $3});}
-|                   RelationalExpression Instanceof ReferenceType { $$ = create_node("RelationalExpression", {$1, $2, $3});}
+RelationalExpression:   ShiftExpression {$$ = $1; }
+|                   RelationalExpression Lt ShiftExpression         {
+                                                                        create_edges($2, {$1, $3});
+                                                                        $$ = $2;
+                                                                    }
+|                   RelationalExpression Gt ShiftExpression         {
+                                                                        create_edges($2, {$1, $3});
+                                                                        $$ = $2;
+                                                                    }
+|                   RelationalExpression Leq ShiftExpression        {
+                                                                        create_edges($2, {$1, $3});
+                                                                        $$ = $2;
+                                                                    }
+|                   RelationalExpression Geq ShiftExpression        {
+                                                                        create_edges($2, {$1, $3});
+                                                                        $$ = $2;
+                                                                    }
+|                   RelationalExpression Instanceof ReferenceType   {
+                                                                        create_edges($2, {$1, $3});
+                                                                        $$ = $2;
+                                                                    }
 ;
 
-/* InstanceofExpression:   RelationalExpression Instanceof ReferenceType
-|                   RelationalExpression Instanceof Pattern */
-
-ShiftExpression:    AdditiveExpression { $$ = create_node("ShiftExpression", {$1});}
-|                   ShiftExpression Left_shift AdditiveExpression { $$ = create_node("ShiftExpression", {$1, $2, $3});}
-|                   ShiftExpression Right_shift AdditiveExpression { $$ = create_node("ShiftExpression", {$1, $2, $3});}
-|                   ShiftExpression Unsigned_right_shift AdditiveExpression { $$ = create_node("ShiftExpression", {$1, $2, $3});}
+ShiftExpression:    AdditiveExpression {$$ = $1; }
+|                   ShiftExpression Left_shift AdditiveExpression   {
+                                                                        create_edges($2, {$1, $3});
+                                                                        $$ = $2;
+                                                                    }
+|                   ShiftExpression Right_shift AdditiveExpression  {
+                                                                        create_edges($2, {$1, $3});
+                                                                        $$ = $2;
+                                                                    }
+|                   ShiftExpression Unsigned_right_shift AdditiveExpression     {
+                                                                                    create_edges($2, {$1, $3});
+                                                                                    $$ = $2;
+                                                                                }
 ;
 
-AdditiveExpression: MultiplicativeExpression { $$ = create_node("AdditiveExpression", {$1});}
-|                   AdditiveExpression Plus MultiplicativeExpression { $$ = create_node("AdditiveExpression", {$1, $2, $3});} 
-|                   AdditiveExpression Minus MultiplicativeExpression   { $$ = create_node("AdditiveExpression", {$1, $2, $3});}
+AdditiveExpression: MultiplicativeExpression {$$ = $1; }
+|                   AdditiveExpression Plus MultiplicativeExpression {
+                                                                        create_edges($2, {$1, $3});
+                                                                        $$ = $2;
+                                                                     } 
+|                   AdditiveExpression Minus MultiplicativeExpression   {
+                                                                            create_edges($2, {$1, $3});
+                                                                            $$ = $2;
+                                                                        }
 ;
 
-MultiplicativeExpression:   UnaryExpression { $$ = create_node("MultiplicativeExpression", {$1});}
-|                   MultiplicativeExpression Asterik UnaryExpression { $$ = create_node("MultiplicativeExpression", {$1, $2, $3});}
-|                   MultiplicativeExpression Div UnaryExpression { $$ = create_node("MultiplicativeExpression", {$1, $2, $3});}
-|                   MultiplicativeExpression Modulo UnaryExpression { $$ = create_node("MultiplicativeExpression", {$1, $2, $3});}
+MultiplicativeExpression:   UnaryExpression {$$ = $1; }
+|                   MultiplicativeExpression Asterik UnaryExpression    {
+                                                                            create_edges($2, {$1, $3});
+                                                                            $$ = $2;
+                                                                        }
+|                   MultiplicativeExpression Div UnaryExpression    {
+                                                                        create_edges($2, {$1, $3});
+                                                                        $$ = $2;
+                                                                    }
+|                   MultiplicativeExpression Modulo UnaryExpression     {
+                                                                        create_edges($2, {$1, $3});
+                                                                        $$ = $2;
+                                                                    }
 ;
 
-UnaryExpression:    PreIncrementExpression { $$ = create_node("UnaryExpression", {$1});}
-|                   PreDecrementExpression { $$ = create_node("UnaryExpression", {$1});}
+UnaryExpression:    PreIncrementExpression {$$ = $1; }
+|                   PreDecrementExpression {$$ = $1; }
 |                   Plus UnaryExpression    { $$ = create_node("UnaryExpression", {$1, $2});}
 |                   Minus UnaryExpression   { $$ = create_node("UnaryExpression", {$1, $2});}
-|                   UnaryExpressionNotPlusMinus { $$ = create_node("UnaryExpression", {$1});}
+|                   UnaryExpressionNotPlusMinus {$$ = $1; }
 ;
 
-PreIncrementExpression: Increment UnaryExpression   { $$ = create_node("PreIncrementExpression", {$1, $2});}
+PreIncrementExpression: Increment Primary   { $$ = create_node("PreIncrementExpression", {$1, $2});}
+|                       Increment TypeName   { $$ = create_node("PreIncrementExpression", {$1, $2});}
 ;
 
-PreDecrementExpression: Decrement UnaryExpression  { $$ = create_node("PreDecrementExpression", {$1, $2});}
+PreDecrementExpression: Decrement Primary  { $$ = create_node("PreDecrementExpression", {$1, $2});}
+|                       Decrement TypeName  { $$ = create_node("PreDecrementExpression", {$1, $2});}
 ;
 
-UnaryExpressionNotPlusMinus:    PostfixExpression   { $$ = create_node("UnaryExpressionNotPlusMinus", {$1});}
+UnaryExpressionNotPlusMinus:    PostfixExpression   {$$ = $1; }
 |                               Bitwise_complement UnaryExpression  { $$ = create_node("UnaryExpressionNotPlusMinus", {$1, $2});}
 |                               Not UnaryExpression { $$ = create_node("UnaryExpressionNotPlusMinus", {$1, $2});}
-|                               CastExpression  { $$ = create_node("UnaryExpressionNotPlusMinus", {$1});}
+|                               CastExpression  {$$ = $1; }
 ;
 
-PostfixExpression:  Primary { $$ = create_node("PostfixExpression", {$1});}
-|                   TypeName    { $$ = create_node("PostfixExpression", {$1});}
-|                   PostIncrementExpression { $$ = create_node("PostfixExpression", {$1});}
-|                   PostDecrementExpression { $$ = create_node("PostfixExpression", {$1});}
+PostfixExpression:  Primary {$$ = $1; }
+|                   TypeName    {$$ = $1; }
+|                   PostIncrementExpression {$$ = $1; }
+|                   PostDecrementExpression {$$ = $1; }
 ;
 
-PostIncrementExpression:    PostfixExpression Increment { $$ = create_node("PostIncrementExpression", {$1, $2});}
+PostIncrementExpression:    Primary Increment { $$ = create_node("PostIncrementExpression", {$1, $2});}
+|                           TypeName Increment  { $$ = create_node("PostIncrementExpression", {$1, $2});}
 ;
 
-PostDecrementExpression:    PostfixExpression Decrement { $$ = create_node("PostDecrementExpression", {$1, $2});}
+PostDecrementExpression:    Primary Decrement { $$ = create_node("PostDecrementExpression", {$1, $2});}
+|                           TypeName Decrement { $$ = create_node("PostDecrementExpression", {$1, $2});}
 ;
 
 CastExpression:     Lparen PrimitiveType Rparen UnaryExpression { $$ = create_node("CastExpression", {$1, $2, $3, $4});}
-|                   Lparen PrimitiveType Dims Rparen UnaryExpression    { $$ = create_node("CastExpression", {$1, $2, $3, $4, $5});}
-|                   Lparen Expression Rparen UnaryExpressionNotPlusMinus    { $$ = create_node("CastExpression", {$1, $2, $3, $4});}
-|                   Lparen TypeName Dims Rparen UnaryExpressionNotPlusMinus { $$ = create_node("CastExpression", {$1, $2, $3, $4, $5});}
+|                   Lparen ReferenceType Rparen UnaryExpressionNotPlusMinus  { $$ = create_node("CastExpression", {$1, $2, $3, $4});}
 ;
-
-
-
-/*  
-    * Production
-    * Chapter 14: (Blocks, Statements, and Patterns)
-*/
 
 
 Block:    Lcurly Rcurly { $$ = create_node("Block", {$1, $2});}
@@ -843,51 +988,60 @@ Block:    Lcurly Rcurly { $$ = create_node("Block", {$1, $2});}
 ;
 
 BlockStatements:    BlockStatements BlockStatement  { $$ = create_node("BlockStatements", {$1, $2});}
-|                   BlockStatement  { $$ = create_node("BlockStatements", {$1});}
+|                   BlockStatement  {$$ = $1; }
 ;
 
-BlockStatement:     
-                    LocalVariableDeclarationStatement   { $$ = create_node("BlockStatement", {$1});}
-|                   Statement   { $$ = create_node("BlockStatement", {$1});}
+BlockStatement:
+                    ClassOrInterfaceDeclaration {$$ = $1;}
+|                   LocalVariableDeclarationStatement   {$$ = $1; }
+|                   Statement   {$$ = $1; }
 ;
 
-/* LocalClassDeclaration:    ClassDeclaration
-; */
-
-
-LocalVariableDeclarationStatement:    LocalVariableDeclaration  { $$ = create_node("LocalVariableDeclarationStatement", {$1});}
+LocalVariableDeclarationStatement:    LocalVariableDeclaration  Semicolon { $$ = create_node("LocalVariableDeclarationStatement", {$1, $2});}
 ;
 
 LocalVariableDeclaration:    UnannType VariableDeclaratorList   { $$ = create_node("LocalVariableDeclaration", {$1, $2});}
+|                            Var       VariableDeclaratorList   { $$ = create_node("LocalVariableDeclaration", {$1, $2});}
+|                            Final UnannType VariableDeclaratorList { $$ = create_node("LocalVariableDeclaration", {$1, $2, $3});}
+|                            Final  Var     VariableDeclaratorList  { $$ = create_node("LocalVariableDeclaration", {$1, $2, $3});}
 ;
 
 
-Statement:          StatementWithoutTrailingSubstatement    { $$ = create_node("Statement", {$1});}
-|                   LabeledStatement    { $$ = create_node("Statement", {$1});}
-|                   IfThenStatement   { $$ = create_node("Statement", {$1});}
-|                   IfThenElseStatement  { $$ = create_node("Statement", {$1});}
-|                   WhileStatement  { $$ = create_node("Statement", {$1});}
-|                   ForStatement    { $$ = create_node("Statement", {$1});}
+Statement:          StatementWithoutTrailingSubstatement    {$$ = $1; }
+|                   LabeledStatement    {$$ = $1; }
+|                   IfThenStatement   {$$ = $1; }
+|                   IfThenElseStatement  {$$ = $1; }
+|                   WhileStatement  {$$ = $1; }
+|                   ForStatement    {$$ = $1; }
 ;
 
-StatementNoShortIf:     StatementWithoutTrailingSubstatement    { $$ = create_node("StatementNoShortIf", {$1});}
-|                       LabeledStatementNoShortIf   { $$ = create_node("StatementNoShortIf", {$1});}
-|                       IfThenElseStatementNoShortIf    { $$ = create_node("StatementNoShortIf", {$1});}
-|                       WhileStatementNoShortIf { $$ = create_node("StatementNoShortIf", {$1});}
-|                       ForStatementNoShortIf   { $$ = create_node("StatementNoShortIf", {$1});}
+StatementNoShortIf:     StatementWithoutTrailingSubstatement    {$$ = $1; }
+|                       LabeledStatementNoShortIf   {$$ = $1; }
+|                       IfThenElseStatementNoShortIf    {$$ = $1; }
+|                       WhileStatementNoShortIf {$$ = $1; }
+|                       ForStatementNoShortIf   {$$ = $1; }
 ;
 
-StatementWithoutTrailingSubstatement:   Block   { $$ = create_node("StatementWithoutTrailingSubstatement", {$1});}
-|                                       EmptyStatement  { $$ = create_node("StatementWithoutTrailingSubstatement", {$1});}
-|                                       ExpressionStatement { $$ = create_node("StatementWithoutTrailingSubstatement", {$1});}
-|                                       AssertStatement { $$ = create_node("StatementWithoutTrailingSubstatement", {$1});}
-|                                       BreakStatement  { $$ = create_node("StatementWithoutTrailingSubstatement", {$1});}
-|                                       ContinueStatement   { $$ = create_node("StatementWithoutTrailingSubstatement", {$1});}
-|                                       ReturnStatement { $$ = create_node("StatementWithoutTrailingSubstatement", {$1});}
-|                                       ThrowStatement  { $$ = create_node("StatementWithoutTrailingSubstatement", {$1});}
+StatementWithoutTrailingSubstatement:   Block   {$$ = $1; }
+|                                       EmptyStatement  {$$ = $1; }
+|                                       ExpressionStatement {$$ = $1; }
+|                                       AssertStatement {$$ = $1; }
+|                                       BreakStatement  {$$ = $1; }
+|                                       ContinueStatement   {$$ = $1; }
+|                                       ReturnStatement {$$ = $1; }
+|                                       ThrowStatement  {$$ = $1; }
+|                                       SwitchStatement  { $$ = $1;}
+|                                       DoStatement   { $$ = $1;}
+|                                       SynchronizedStatement { $$ = $1;}
+|                                       YieldStatement  { $$ = $1;}
+|                                       TryStatement  { $$ = $1;}
 ;
 
-EmptyStatement:    Semicolon    { $$ = create_node("EmptyStatement", {$1});}
+SynchronizedStatement:
+                        synchronized_ Lparen Expression Rparen Block { $$ = create_node("SynchronizedStatement", {$1, $2, $3, $4, $5});}
+;
+
+EmptyStatement:    Semicolon    {$$ = $1; }
 ;
 
 LabeledStatement:    Identifier Colon Statement   { $$ = create_node("LabeledStatement", {$1, $2, $3});}
@@ -898,13 +1052,13 @@ LabeledStatementNoShortIf:    Identifier Colon StatementNoShortIf   { $$ = creat
 
 ExpressionStatement:    StatementExpression Semicolon   { $$ = create_node("ExpressionStatement", {$1, $2});}
 
-StatementExpression:    Assignment  { $$ = create_node("StatementExpression", {$1});}
-|                       PreIncrementExpression  { $$ = create_node("StatementExpression", {$1});}
-|                       PreDecrementExpression  { $$ = create_node("StatementExpression", {$1});}
-|                       PostIncrementExpression { $$ = create_node("StatementExpression", {$1});}
-|                       PostDecrementExpression { $$ = create_node("StatementExpression", {$1});}
-|                       MethodInvocation        { $$ = create_node("StatementExpression", {$1});}
-|                       ClassInstanceCreationExpression  { $$ = create_node("StatementExpression", {$1});}
+StatementExpression:    Assignment  {$$ = $1; }
+|                       PreIncrementExpression  {$$ = $1; }
+|                       PreDecrementExpression  {$$ = $1; }
+|                       PostIncrementExpression {$$ = $1; }
+|                       PostDecrementExpression {$$ = $1; }
+|                       MethodInvocation        {$$ = $1; }
+|                       ClassInstanceCreationExpression  {$$ = $1; }
 
 IfThenStatement:    If Lparen Expression Rparen Statement   { $$ = create_node("IfThenStatement", {$1, $2, $3, $4, $5});}
 ;
@@ -919,42 +1073,106 @@ AssertStatement:    Assert Expression Semicolon  { $$ = create_node("AssertState
 |                   Assert Expression Colon Expression Semicolon    { $$ = create_node("AssertStatement", {$1, $2, $3, $4, $5});}
 ;
 
-WhileStatement:    While Lparen Expression Rparen Statement  { $$ = create_node("WhileStatement", {$1, $2, $3, $4, $5});}
+SwitchStatement:
+                    switch_ Lparen Expression Rparen SwitchBlock    {
+                                                                       $$ = create_node("SwitchStatement", {$1, $2, $3, $4, $5});
+                                                                    }
+
+SwitchBlock:
+                    Lcurly SwitchRules Rcurly                       { $$ = create_node("SwitchBlock", {$1, $2, $3});}
+|                   Lcurly SwitchBlockStatementGroups SwitchLabelColons Rcurly  { $$ = create_node("SwitchBlock", {$1, $2, $3, $4});}
+|                   Lcurly SwitchBlockStatementGroups Rcurly                { $$ = create_node("SwitchBlock", {$1, $2, $3});}
+|                   Lcurly SwitchLabelColons Rcurly                         { $$ = create_node("SwitchBlock", {$1, $2, $3});}
+|                   Lcurly Rcurly                                           { $$ = create_node("SwitchBlock", {$1, $2});}
 ;
 
-WhileStatementNoShortIf:    While Lparen Expression Rparen StatementNoShortIf   { $$ = create_node("WhileStatementNoShortIf", {$1, $2, $3, $4, $5});}
+SwitchRules:
+                    SwitchRules SwitchRule                                  { $$ = create_node("SwitchRules", {$1, $2});}
+|                   SwitchRule                                              { $$ = $1;}
 ;
 
-ForStatement:       BasicForStatement   { $$ = create_node("ForStatement", {$1});}
-|                   EnhancedForStatement    { $$ = create_node("ForStatement", {$1});}
+SwitchRule:
+                    SwitchLabel arrow_ Expression Semicolon                 { $$ = create_node("SwitchRule", {$1, $2, $3, $4});}
+|                   SwitchLabel arrow_ Block                                { $$ = create_node("SwitchRule", {$1, $2, $3});}
+|                   SwitchLabel arrow_ ThrowStatement                       { $$ = create_node("SwitchRule", {$1, $2, $3});}
 ;
 
-ForStatementNoShortIf:    BasicForStatementNoShortIf    { $$ = create_node("ForStatementNoShortIf", {$1});}
-|                   EnhancedForStatementNoShortIf   { $$ = create_node("ForStatementNoShortIf", {$1});}
+SwitchBlockStatementGroups:
+                    SwitchBlockStatementGroups SwitchBlockStatementGroup    { $$ = create_node("AssertStatement", {$1, $2});}
+|                   SwitchBlockStatementGroup                               { $$ = $1;}
 ;
 
-BasicForStatement:     For Lparen ForInitOpt Semicolon ExpressionOpts Semicolon ForUpdateOpts Rparen Statement  { $$ = create_node("BasicForStatement", {$1, $2, $3, $4, $5, $6, $7, $8});}
+SwitchBlockStatementGroup:
+                    SwitchLabelColons BlockStatements                       { $$ = create_node("SwitchBlockStatementGroup", {$1, $2});}
+
+SwitchLabelColons:
+                    SwitchLabelColons SwitchLabel Colon                     { $$ = create_node("SwitchLabelColons", {$1, $2, $3});}
+|                   SwitchLabel Colon                                       { $$ = create_node("SwitchLabelColons", {$1, $2});}
 ;
 
-BasicForStatementNoShortIf:    For Lparen ForInitOpt Semicolon ExpressionOpts Semicolon ForUpdateOpts Rparen StatementNoShortIf { $$ = create_node("BasicForStatementNoShortIf", {$1, $2, $3, $4, $5, $6, $7, $8});}
+SwitchLabel:
+                    case_ CaseConstants                                     { $$ = create_node("SwitchLabel", {$1, $2});}
+|                   default_                                                { $$ = $1;}
+
+CaseConstants:
+                    CaseConstants Comma CaseConstant                        { $$ = create_node("CaseConstants", {$1, $2, $3});}
+|                   CaseConstant                                            { $$ = $1;}
 ;
 
-ForInitOpt:    ForInit  { $$ = create_node("ForInitOpt", {$1});}
-|
+CaseConstant:
+                    ConditionalExpression                                   { $$ = $1;}
 ;
 
-ForInit:    StatementExpressionList { $$ = create_node("ForInit", {$1});}
-|           LocalVariableDeclaration    { $$ = create_node("ForInit", {$1});}
+WhileStatement:    While Lparen Expression Rparen Statement         {
+                                                                        $$ = create_node("WhileStatement", {$1, $2, $3, $4, $5});
+                                                                    }
 ;
 
-ForUpdateOpts:  ForUpdate   { $$ = create_node("ForUpdateOpts", {$1});}
-|
+WhileStatementNoShortIf:    While Lparen Expression Rparen StatementNoShortIf   {
+                                                                                    $$ = create_node("WhileStatementNoShortIf", {$1, $2, $3, $4, $5});
+                                                                                }
 ;
 
-ForUpdate:    StatementExpressionList   { $$ = create_node("ForUpdate", {$1});}
+DoStatement:
+    do_ Statement While Lparen Expression Rparen Semicolon                  { $$ = create_node("DoStatement", {$1, $2, $3, $4, $5, $6, $7});}
 ;
 
-StatementExpressionList:    StatementExpression { $$ = create_node("StatementExpressionList", {$1});}
+ForStatement:       BasicForStatement   {$$ = $1; }
+|                   EnhancedForStatement    {$$ = $1; }
+;
+
+ForStatementNoShortIf:    BasicForStatementNoShortIf    {$$ = $1; }
+|                   EnhancedForStatementNoShortIf   {$$ = $1; }
+;
+
+BasicForStatement:     For Lparen Semicolon Semicolon Rparen Statement  { $$ = create_node("BasicForStatement", {$1, $2, $3, $4, $5, $6});}
+|                      For Lparen ForInit Semicolon Semicolon Rparen Statement  { $$ = create_node("BasicForStatement", {$1, $2, $3, $4, $5, $6, $7});}
+|                      For Lparen Semicolon Expression Semicolon Rparen Statement  { $$ = create_node("BasicForStatement", {$1, $2, $3, $4, $5, $6, $7});}
+|                      For Lparen Semicolon Semicolon ForUpdate Rparen Statement  { $$ = create_node("BasicForStatement", {$1, $2, $3, $4, $5, $6, $7});}
+|                      For Lparen ForInit Semicolon Expression Semicolon Rparen Statement  { $$ = create_node("BasicForStatement", {$1, $2, $3, $4, $5, $6, $7, $8});}
+|                      For Lparen Semicolon Expression Semicolon ForUpdate Rparen Statement  { $$ = create_node("BasicForStatement", {$1, $2, $3, $4, $5, $6, $7, $8});}
+|                      For Lparen ForInit Semicolon Semicolon ForUpdate Rparen Statement  { $$ = create_node("BasicForStatement", {$1, $2, $3, $4, $5, $6, $7, $8});}
+|                      For Lparen ForInit Semicolon Expression Semicolon ForUpdate Rparen Statement  { $$ = create_node("BasicForStatement", {$1, $2, $3, $4, $5, $6, $7, $8, $9});}
+;
+
+BasicForStatementNoShortIf:    For Lparen Semicolon Semicolon Rparen StatementNoShortIf  { $$ = create_node("BasicForStatementNoShortIf", {$1, $2, $3, $4, $5, $6});}
+|                      For Lparen ForInit Semicolon Semicolon Rparen StatementNoShortIf  { $$ = create_node("BasicForStatementNoShortIf", {$1, $2, $3, $4, $5, $6, $7});}
+|                      For Lparen Semicolon Expression Semicolon Rparen StatementNoShortIf  { $$ = create_node("BasicForStatementNoShortIf", {$1, $2, $3, $4, $5, $6, $7});}
+|                      For Lparen Semicolon Semicolon ForUpdate Rparen StatementNoShortIf  { $$ = create_node("BasicForStatementNoShortIf", {$1, $2, $3, $4, $5, $6, $7});}
+|                      For Lparen ForInit Semicolon Expression Semicolon Rparen StatementNoShortIf  { $$ = create_node("BasicForStatementNoShortIf", {$1, $2, $3, $4, $5, $6, $7, $8});}
+|                      For Lparen Semicolon Expression Semicolon ForUpdate Rparen StatementNoShortIf  { $$ = create_node("BasicForStatementNoShortIf", {$1, $2, $3, $4, $5, $6, $7, $8});}
+|                      For Lparen ForInit Semicolon Semicolon ForUpdate Rparen StatementNoShortIf  { $$ = create_node("BasicForStatementNoShortIf", {$1, $2, $3, $4, $5, $6, $7, $8});}
+|                      For Lparen ForInit Semicolon Expression Semicolon ForUpdate Rparen StatementNoShortIf  { $$ = create_node("BasicForStatement", {$1, $2, $3, $4, $5, $6, $7, $8, $9});}
+;
+
+ForInit:    StatementExpressionList {$$ = $1; }
+|           LocalVariableDeclaration    {$$ = $1; }
+;
+
+ForUpdate:    StatementExpressionList   {$$ = $1; }
+;
+
+StatementExpressionList:    StatementExpression {$$ = $1; }
 |                           StatementExpression CommaStatementExpressions   { $$ = create_node("StatementExpressionList", {$1, $2});}
 ;
 
@@ -968,206 +1186,286 @@ EnhancedForStatement:    For Lparen LocalVariableDeclaration Colon Expression Rp
 EnhancedForStatementNoShortIf:    For Lparen LocalVariableDeclaration Colon Expression Rparen StatementNoShortIf    { $$ = create_node("EnhancedForStatementNoShortIf", {$1, $2, $3, $4, $5, $6, $7});}
 ;
 
-BreakStatement:    Break IdentifierOpts Semicolon   { $$ = create_node("BreakStatement", {$1, $2, $3});}
+BreakStatement:    Break Identifier Semicolon   { $$ = create_node("BreakStatement", {$1, $2, $3});}
+|                  Break Semicolon   { $$ = create_node("BreakStatement", {$1, $2});}
 ;
 
-ContinueStatement:    Continue IdentifierOpts Semicolon  { $$ = create_node("ContinueStatement", {$1, $2, $3});}
+YieldStatement:     yield_ Expression Semicolon     { $$ = create_node("YieldStatement", {$1, $2, $3});}
+;
+
+ContinueStatement:    Continue Identifier Semicolon  { $$ = create_node("ContinueStatement", {$1, $2, $3});}
+|                     Continue Semicolon  { $$ = create_node("ContinueStatement", {$1, $2});}
 ;
 
 ReturnStatement:
-    Return ExpressionOpts Semicolon { $$ = create_node("ReturnStatement", {$1, $2, $3});}
+    Return Expression Semicolon { $$ = create_node("Return", {$1, $2, $3});}
+|   Return  Semicolon { $$ = create_node("Return", {$1, $2});}
 ;
 
 ThrowStatement:    Throw Expression Semicolon   { $$ = create_node("ThrowStatement", {$1, $2, $3});}
 ;
 
-IdentifierOpts:     Identifier  { $$ = create_node("IdentifierOpts", {$1});}
-|
+TryStatement:
+                    try_ Block Catches          { $$ = create_node("TryStatement", {$1, $2, $3});}
+|                   try_ Block Catches Finally  { $$ = create_node("TryStatement", {$1, $2, $3, $4});}
+|                   try_ Block Finally          { $$ = create_node("TryStatement", {$1, $2, $3});}
 ;
+
+Catches:
+                    Catches CatchClause         { $$ = create_node("Catches", {$1, $2});}
+|                   CatchClause                 { $$ = $1;}
+;
+
+CatchClause:
+                    catch_ Lparen CatchFormalParameter Rparen Block { $$ = create_node("CatchClause", {$1, $2, $3, $4, $5});}
+
+CatchFormalParameter:
+                    CatchType VariableDeclaratorId              { $$ = create_node("CatchFormalParameter", {$1, $2});}
+|                   Final CatchType VariableDeclaratorId        { $$ = create_node("CatchFormalParameter", {$1, $2, $3});}
+
+CatchType:
+                    ClassOrInterfaceType { $$ = $1;}
+|                   ClassOrInterfaceType Bitwise_or CatchType           {
+                                                                            $$ = create_node("CatchType", {$1, $2, $3});
+                                                                        }
+;
+
+Finally:
+                    finally_ Block          { $$ = create_node("Finally", {$1, $2});}
+;
+
+
 
 // Non-Terminals for representing terminals
 
-Int : INT { $$ = create_leaf($1, "INT"); }
+Int : INT { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Long : LONG { $$ = create_leaf($1, "LONG"); }
+Long : LONG { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Byte : BYTE { $$ = create_leaf($1, "BYTE"); }
+Byte : BYTE { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Short : SHORT { $$ = create_leaf($1, "SHORT"); }
+Short : SHORT { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Char : CHAR { $$ = create_leaf($1, "CHAR"); }
+Char : CHAR { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Float : FLOAT { $$ = create_leaf($1, "FLOAT"); }
+Float : FLOAT { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Double : DOUBLE { $$ = create_leaf($1, "DOUBLE"); }
+Double : DOUBLE { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Boolean : BOOLEAN { $$ = create_leaf($1, "BOOLEAN"); }
+Boolean : BOOLEAN { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Var : VAR { $$ = create_leaf($1, "VAR"); }
+Var : VAR { $$ = create_leaf($1, "Keyword"); }
 ;
 
-If : IF { $$ = create_leaf($1, "IF"); }
+If : IF { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Else : ELSE { $$ = create_leaf($1, "ELSE"); }
+Else : ELSE { $$ = create_leaf($1, "Keyword"); }
 ;
 
-While : WHILE { $$ = create_leaf($1, "WHILE"); }
+While : WHILE { $$ = create_leaf($1, "Keyword"); }
 ;
 
-For : FOR { $$ = create_leaf($1, "FOR"); }
+For : FOR { $$ = create_leaf($1, "Keyword"); }
 ;
 
 
-Break : BREAK { $$ = create_leaf($1, "BREAK"); }
+Break : BREAK { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Continue : CONTINUE { $$ = create_leaf($1, "CONTINUE"); }
+Continue : CONTINUE { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Void : VOID { $$ = create_leaf($1, "VOID"); }
+Void : VOID { $$ = create_leaf($1, "Keyword"); }
 ;
 
-New : NEW { $$ = create_leaf($1, "NEW"); }
+New : NEW { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Return : RETURN { $$ = create_leaf($1, "RETURN"); }
+Return : RETURN { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Public : PUBLIC { $$ = create_leaf($1, "PUBLIC"); }
+Public : PUBLIC { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Private : PRIVATE { $$ = create_leaf($1, "PRIVATE"); }
+Private : PRIVATE { $$ = create_leaf($1, "Keyword"); }
 ;
 
 Class : CLASS { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Static : STATIC { $$ = create_leaf($1, "STATIC"); }
+Static : STATIC { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Final : FINAL { $$ = create_leaf($1, "FINAL"); }
-;
-
-
-Assert : ASSERT { $$ = create_leaf($1, "ASSERT"); }
+Final : FINAL { $$ = create_leaf($1, "Keyword"); }
 ;
 
 
-
-Plus : PLUS { $$ = create_leaf($1, "PLUS"); }
+Assert : ASSERT { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Minus : MINUS { $$ = create_leaf($1, "MINUS"); }
+This : THIS { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Div : DIV { $$ = create_leaf($1, "DIV"); }
+Instanceof : INSTANCEOF { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Modulo : MODULO { $$ = create_leaf($1, "MODULO"); }
+super_ : SUPER { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Increment : INCREMENT { $$ = create_leaf($1, "INCREMENT"); }
+Throw : THROW { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Decrement : DECREMENT { $$ = create_leaf($1, "DECREMENT"); }
+Implements : IMPLEMENTS { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Geq : GEQ { $$ = create_leaf($1, "GEQ"); }
+Interface : INTERFACE { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Leq : LEQ { $$ = create_leaf($1, "LEQ"); }
+Extends : EXTENDS { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Gt : GT { $$ = create_leaf($1, "GT"); }
+Package : PACKAGE { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Lt : LT { $$ = create_leaf($1, "LT"); }
+Import : IMPORT { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Neq : NEQ { $$ = create_leaf($1, "NEQ"); }
-;
+do_: DO { $$ = create_leaf($1, "Keyword");}
 
-Deq : DEQ { $$ = create_leaf($1, "DEQ"); }
-;
+switch_ : SWITCH { $$ =  create_leaf($1, "Keyword");}
 
-Bitwise_and : BITWISE_AND { $$ = create_leaf($1, "BITWISE_AND"); }
-;
+yield_ : YIELD  { $$ =  create_leaf($1, "Keyword");}
 
-Bitwise_or : BITWISE_OR { $$ = create_leaf($1, "BITWISE_OR"); }
-;
+try_ : TRY { $$ =  create_leaf($1, "Keyword");}
 
-Bitwise_xor : BITWISE_XOR { $$ = create_leaf($1, "BITWISE_XOR"); }
-;
+throws_ : THROWS { $$ =  create_leaf($1, "Keyword");}
 
-Bitwise_complement : BITWISE_COMPLEMENT { $$ = create_leaf($1, "BITWISE_COMPLEMENT"); }
-;
+catch_ : CATCH { $$ =  create_leaf($1, "Keyword");}
 
-Left_shift : LEFT_SHIFT { $$ = create_leaf($1, "LEFT_SHIFT"); }
-;
+finally_ : FINALLY { $$ =  create_leaf($1, "Keyword");}
 
-Right_shift : RIGHT_SHIFT { $$ = create_leaf($1, "RIGHT_SHIFT"); }
-;
+synchronized_ : SYNCHRONIZED { $$ = create_leaf($1, "Keyword"); }
 
-Unsigned_right_shift : UNSIGNED_RIGHT_SHIFT { $$ = create_leaf($1, "UNSIGNED_RIGHT_SHIFT"); }
-;
+case_ : CASE { $$ = create_leaf($1, "Keyword"); }
 
-And : AND { $$ = create_leaf($1, "AND"); }
-;
-
-Or : OR { $$ = create_leaf($1, "OR"); }
-;
-
-Not : NOT { $$ = create_leaf($1, "NOT"); }
-;
-
-AssignmentOperator:  ASSIGNMENT { $$ = create_leaf($1, "ASSIGNMENT"); }
-;
+default_ : DEFAULT { $$ = create_leaf($1, "Keyword"); }
 
 
-Double_colon : DOUBLE_COLON { $$ = create_leaf($1, "DOUBLE_COLON"); }
+Plus : PLUS { $$ = create_leaf($1, "Operator"); }
 ;
 
-Colon : COLON { $$ = create_leaf($1, "COLON"); }
+Minus : MINUS { $$ = create_leaf($1, "Operator"); }
 ;
 
-Qm : QM { $$ = create_leaf($1, "QM"); }
+Div : DIV { $$ = create_leaf($1, "Operator"); }
 ;
 
-Lparen : LPAREN { $$ = create_leaf($1, "LPAREN"); }
+Asterik : ASTERIK { $$ = create_leaf($1, "Operator"); }
 ;
 
-Rparen : RPAREN { $$ = create_leaf($1, "RPAREN"); }
+Modulo : MODULO { $$ = create_leaf($1, "Operator"); }
 ;
 
-Lcurly : LCURLY { $$ = create_leaf($1, "LCURLY"); }
+Increment : INCREMENT { $$ = create_leaf($1, "Operator"); }
 ;
 
-Rcurly : RCURLY { $$ = create_leaf($1, "RCURLY"); }
+Decrement : DECREMENT { $$ = create_leaf($1, "Operator"); }
 ;
 
-Lsquare : LSQUARE { $$ = create_leaf($1, "LSQUARE"); }
+Geq : GEQ { $$ = create_leaf($1, "Operator"); }
 ;
 
-Rsquare : RSQUARE { $$ = create_leaf($1, "RSQUARE"); }
+Leq : LEQ { $$ = create_leaf($1, "Operator"); }
 ;
 
-Semicolon : SEMICOLON { $$ = create_leaf($1, "SEMICOLON"); }
+Gt : GT { $$ = create_leaf($1, "Operator"); }
 ;
 
-Comma : COMMA { $$ = create_leaf($1, "COMMA"); }
+Lt : LT { $$ = create_leaf($1, "Operator"); }
 ;
 
-Dot : DOT { $$ = create_leaf($1, "DOT"); }
+Neq : NEQ { $$ = create_leaf($1, "Operator"); }
 ;
+
+Deq : DEQ { $$ = create_leaf($1, "Operator"); }
+;
+
+Bitwise_and : BITWISE_AND { $$ = create_leaf($1, "Operator"); }
+;
+
+Bitwise_or : BITWISE_OR { $$ = create_leaf($1, "Operator"); }
+;
+
+Bitwise_xor : BITWISE_XOR { $$ = create_leaf($1, "Operator"); }
+;
+
+Bitwise_complement : BITWISE_COMPLEMENT { $$ = create_leaf($1, "Operator"); }
+;
+
+Left_shift : LEFT_SHIFT { $$ = create_leaf($1, "Operator"); }
+;
+
+Right_shift : RIGHT_SHIFT { $$ = create_leaf($1, "Operator"); }
+;
+
+Unsigned_right_shift : UNSIGNED_RIGHT_SHIFT { $$ = create_leaf($1, "Operator"); }
+;
+
+And : AND { $$ = create_leaf($1, "Operator"); }
+;
+
+Or : OR { $$ = create_leaf($1, "Operator"); }
+;
+
+Not : NOT { $$ = create_leaf($1, "Operator"); }
+;
+
+AssignmentOperator:  ASSIGNMENT { $$ = create_leaf($1, "Operator"); }
+;
+
+Colon : COLON { $$ = create_leaf($1, "Operator"); }
+;
+
+Qm : QM { $$ = create_leaf($1, "Operator"); }
+;
+
+Lparen : LPAREN { $$ = create_leaf($1, "Separator"); }
+;
+
+Rparen : RPAREN { $$ = create_leaf($1, "Separator"); }
+;
+
+Lcurly : LCURLY { $$ = create_leaf($1, "Separator"); }
+;
+
+Rcurly : RCURLY { $$ = create_leaf($1, "Separator"); }
+;
+
+Lsquare : LSQUARE { $$ = create_leaf($1, "Separator"); }
+;
+
+Rsquare : RSQUARE { $$ = create_leaf($1, "Separator"); }
+;
+
+Semicolon : SEMICOLON { $$ = create_leaf($1, "Separator"); }
+;
+
+Comma : COMMA { $$ = create_leaf($1, "Separator"); }
+;
+
+Dot : DOT { $$ = create_leaf($1, "Separator"); }
+;
+
+arrow_ : ARROW { $$ = create_leaf($1, "Separator"); }
 
 Char_literal : CHAR_LITERAL { $$ = create_leaf($1, "CHAR_LITERAL"); }
 ;
@@ -1193,81 +1491,89 @@ Text_block : TEXT_BLOCK { $$ = create_leaf($1, "TEXT_BLOCK"); }
 Identifier : IDENTIFIER { $$ = create_leaf($1, "IDENTIFIER"); }
 ;
 
-This : THIS { $$ = create_leaf($1, "THIS"); }
-;
-
-Instanceof : INSTANCEOF { $$ = create_leaf($1, "INSTANCEOF"); }
-;
-
-super_ : SUPER { $$ = create_leaf($1, "SUPER"); }
-;
-
-Throw : THROW { $$ = create_leaf($1, "THROW"); }
-;
-
-Implements : IMPLEMENTS { $$ = create_leaf($1, "IMPLEMENTS"); }
-;
-
-Interface : INTERFACE { $$ = create_leaf($1, "INTERFACE"); }
-;
-
-Extends : EXTENDS { $$ = create_leaf($1, "EXTENDS"); }
-;
-
-Package : PACKAGE { $$ = create_leaf($1, "PACKAGE"); }
-;
-
-Import : IMPORT { $$ = create_leaf($1, "IMPORT"); }
-;
-
-Asterik : ASTERIK { $$ = create_leaf($1, "ASTERIK"); }
-;
-
-Diamond : DIAMOND { $$ = create_leaf($1, "DIAMOND"); }
-;
-
+endoffile : EOF_ { $$ = create_leaf("<EOF>", "EOF"); }
 
 %%
 
-// int main(int argc, char* argv[]) {
-//     if (argc != 2) {
-//         cout << "format: ./build/run <file name>" << endl;
-//         exit (1);
-//     }
-//     yyin = fopen(argv[1], "r");
+void handle_signal(int s) {
+    printf("Received signal %d\n", s);
 
-//     yydebug = 1;
+    fflush(stdout);
+    exit(1);
+}
 
-//     printf("digraph AST {\n");
-//     printf("node [shape=circle,fontname=\"Courier-Bold\",fontsize=16];\n");
-//     printf("edge [color=blue];\n");
 
-//     do {
-//         yyparse();
-//     } while(!feof(yyin));
 
-//     printf("}");
+int main(int argc, char *argv[]) {
 
-//     /* Print Stats*/
-//     /* print_stats(); */
+    argparse::ArgumentParser program("javap");
 
-//     return 0;
-// }
+    struct args *_args = new struct args;
 
-int main() {
-    printf("digraph AST {\n");
-    printf("node [shape=circle,fontname=\"Courier-Bold\",fontsize=12];\n");
-    printf("edge [color=blue];\n");
+
+    program.add_argument("--input")
+        .required()
+        .help("java file to parse");
+
+    program.add_argument("--output")
+        .required()
+        .help("output dot file");
+  
+    
+    program.add_argument("--verbose")
+        .help("increase output verbosity for parser")
+        .default_value(false)
+        .implicit_value(true);
+
+
+    try {
+        program.parse_args(argc, argv);
+    }
+    catch (const std::runtime_error &err) {
+        std::cerr << err.what() << std::endl;
+        std::cerr << program;
+        std::exit(1);
+    }
+
+
+    _args->input = (char*)(program.get<std::string>("--input").c_str());
+
+  
+
+    _args->output = (char*)(program.get<std::string>("--output").c_str());
+
+    if (program["--verbose"] == true) {
+        _args->verbose = true;
+    }
+
+
+    yydebug = 0;
+    
+    if (_args->verbose)
+        yydebug = 1;
+
+    
+    yyin = fopen(_args->input, "r");
+    
+    dotfile.open(_args->output);
+
+
+    dotfile << "digraph AST {\n";
+    dotfile << "node [fontname = courier, shape = box, colorscheme = paired6];\n";
+    dotfile << "edge [color=blue];\n";
 
     do {
         yyparse();
     } while(!feof(yyin));
 
-    printf("}");
+    dotfile << "}";
+
+    dotfile.close();
     return 0;
 }
 
 int yyerror(const char *s) {
     printf("syntax error: line %d: %s\n", yylineno, s);
+    dotfile.close();
     exit(1);
 }
