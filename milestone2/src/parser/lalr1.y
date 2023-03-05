@@ -29,6 +29,27 @@
 
     int yyerror(const char *);
 
+    struct symbol_struct {
+        char *type;
+        char *attr;
+        int scope;
+    };
+
+    /*
+    
+    
+    
+    
+    */
+
+    struct method_meta_struct {
+        char* method_name;
+        char *class_name;
+        map<string, *symbol_struct> *local_symbol;
+
+    };
+
+    void test 
     int create_node(char* label, vector<int> children_node_num){
         //A new node created with given label and edges from current node_num to all children_node_num
         dotfile << "node" << ++node_num << "[label=\"" << label << "\"];\n";
@@ -102,6 +123,38 @@
         dotfile.flush();
         return parent_node_num;
     }
+
+    
+
+
+    map<string, string> symbol_table;
+
+    // Define a function to add a symbol to the table
+    void add_symbol(string name, string type, int scope) {
+        // string key = name + "." + to_string(scope);
+        // if (symbol_table.count(key) > 0) {
+        //     // symbol already exists in this scope
+        //     // print error message and exit
+        //     printf("Error: symbol '%s' already declared in this scope\n", name.c_str());
+        //     exit(1);
+        // } else {
+        //     // add symbol to the table
+        //     symbol_table[key] = type;
+        // }
+    }
+
+    // Define a function to look up a symbol in the table
+    int lookup_symbol(string name, int scope) {
+        string key = name + "." + to_string(scope);
+        if (symbol_table.count(key) > 0) {
+            // symbol found in table, return its type
+            return symbol_table[key];
+        } else {
+            // symbol not found in table, print error message and exit
+            printf("Error: symbol '%s' not declared in this scope\n", name.c_str());
+            exit(1);
+        }
+}
 %}
 
 %define parse.error verbose
@@ -112,279 +165,11 @@
     char* str;
 }
 
-%token<str> INT LONG BYTE CHAR SHORT FLOAT DOUBLE BOOLEAN VAR
+%token<str> INT LONG BYTE CHAR SHORT FLOAT DOUBLE BOOLEAN VAR IF ELSE FOR WHILE BREAK CONTINUE VOID NEW RETURN PUBLIC PRIVATE CLASS STATIC FINAL SWITCH YIELD CATCH FINALLY SYNCHRONIZED ASSERT PLUS MINUS DIV MODULO INCREMENT DECREMENT GEQ LEQ GT LT NEQ DEQ BITWISE_AND BITWISE_OR BITWISE_XOR BITWISE_COMPLEMENT LEFT_SHIFT RIGHT_SHIFT UNSIGNED_RIGHT_SHIFT AND OR NOT ASSIGNMENT COLON QM LPAREN RPAREN LCURLY RCURLY LSQUARE RSQUARE SEMICOLON COMMA DOT ARROW CHAR_LITERAL BOOLEAN_LITERAL NULL_LITERAL INTEGER_LITERAL FP_LITERAL STRING TEXT_BLOCK IDENTIFIER THIS INSTANCEOF SUPER THROW THROWS EOF_ IMPLEMENTS INTERFACE EXTENDS PACKAGE IMPORT ASTERIK DO TRY CASE DEFAULT
 
-%token<str> IF ELSE FOR WHILE BREAK CONTINUE
+%left INCREMENT DECREMENT NOT BITWISE_COMPLEMENT ASTERIK DIV MODULO PLUS MINUS LEFT_SHIFT RIGHT_SHIFT UNSIGNED_RIGHT_SHIFT  GEQ LEQ GT LT NEQ DEQ BITWISE_AND BITWISE_XOR BITWISE_OR AND OR ASSIGNMENT
 
-%token<str> VOID NEW RETURN PUBLIC PRIVATE CLASS STATIC FINAL SWITCH YIELD CATCH FINALLY SYNCHRONIZED
-
-%token<str> ASSERT PLUS MINUS DIV MODULO INCREMENT DECREMENT GEQ LEQ GT LT NEQ DEQ BITWISE_AND BITWISE_OR BITWISE_XOR BITWISE_COMPLEMENT LEFT_SHIFT RIGHT_SHIFT UNSIGNED_RIGHT_SHIFT AND OR NOT ASSIGNMENT
-%token<str> COLON QM LPAREN RPAREN LCURLY RCURLY LSQUARE RSQUARE SEMICOLON COMMA DOT ARROW
-%token<str> CHAR_LITERAL BOOLEAN_LITERAL NULL_LITERAL INTEGER_LITERAL FP_LITERAL STRING TEXT_BLOCK
-
-%token<str> IDENTIFIER
-%token<str> THIS
-%token<str> INSTANCEOF
-%token<str> SUPER
-%token<str> THROW
-%token<str> THROWS
-%token<str> EOF_
-%token<str> IMPLEMENTS
-%token<str> INTERFACE
-%token<str> EXTENDS
-%token<str> PACKAGE
-%token<str> IMPORT
-%token<str> ASTERIK
-%token<str> DO
-%token<str> TRY
-%token<str> CASE
-%token<str> DEFAULT
-
-%left INCREMENT DECREMENT
-%left NOT BITWISE_COMPLEMENT
-%left ASTERIK DIV MODULO
-%left PLUS MINUS
-%left LEFT_SHIFT RIGHT_SHIFT UNSIGNED_RIGHT_SHIFT 
-%left GEQ LEQ GT LT NEQ DEQ
-%left BITWISE_AND
-%left BITWISE_XOR
-%left BITWISE_OR
-%left AND
-%left OR
-%left ASSIGNMENT
-
-
-%type<num> Program
-%type<num> CompilationUnit
-%type<num> ClassOrInterfaceDeclaration
-%type<num> ClassOrInterfaceDeclarations
-%type<num> PackageDeclaration
-%type<num> ImportDeclaration
-%type<num> Literal
-%type<num> UnannType
-%type<num> PrimitiveType
-%type<num> NumericType
-%type<num> IntegralType
-%type<num> FloatingPointType
-%type<num> ReferenceType 
-%type<num> ClassOrInterfaceType
-%type<num> ArrayType
-%type<num> Dims
-%type<num> TypeName
-%type<num> Modifiers
-%type<num> Modifier
-%type<num> ClassDeclaration
-%type<num> super_
-%type<num> Interfaces
-%type<num> InterfaceTypeList
-%type<num> ClassBody
-%type<num> ClassBodyDeclarations
-%type<num> ClassBodyDeclaration
-%type<num> ClassMemberDeclaration
-%type<num> FieldDeclaration
-%type<num> VariableDeclaratorList
-%type<num> VariableDeclarator
-%type<num> VariableDeclaratorId
-%type<num> VariableInitializer
-%type<num> MethodDeclaration
-%type<num> MethodHeader
-%type<num> Declarator
-%type<num> FormalParameterList
-%type<num> FormalParameter
-%type<num> MethodBody
-%type<num> StaticInitializer
-%type<num> ConstructorDeclaration
-%type<num> ConstructorBody
-%type<num> ExplicitConstructorInvocation
-%type<num> ArrayInitializer
-%type<num> VariableInitializerList
-%type<num> InterfaceDeclaration
-%type<num> InterfaceExtends
-%type<num> InterfaceBody
-%type<num> InterfaceMembers
-%type<num> InterfaceMemberDeclaration
-%type<num> ConstantDeclaration
-%type<num> InterfaceMethodDeclaration
-%type<num> Primary
-%type<num> PrimaryNoNewArray
-%type<num> ClassInstanceCreationExpression
-%type<num> FieldAccess
-%type<num> ArrayAccess
-%type<num> MethodInvocation
-%type<num> ArgumentList
-%type<num> ArrayCreationExpression
-%type<num> DimExprs
-%type<num> DimExpr
-%type<num> Expression
-%type<num> AssignmentExpression
-%type<num> Assignment
-%type<num> LeftHandSide
-%type<num> AssignmentOperator
-%type<num> ConditionalExpression
-%type<num> ConditionalOrExpression
-%type<num> ConditionalAndExpression
-%type<num> InclusiveOrExpression
-%type<num> ExclusiveOrExpression
-%type<num> AndExpression
-%type<num> EqualityExpression
-%type<num> RelationalExpression
-%type<num> ShiftExpression
-%type<num> AdditiveExpression
-%type<num> MultiplicativeExpression
-%type<num> UnaryExpression
-%type<num> PreIncrementExpression
-%type<num> PreDecrementExpression
-%type<num> UnaryExpressionNotPlusMinus
-%type<num> PostfixExpression
-%type<num> PostIncrementExpression
-%type<num> PostDecrementExpression
-%type<num> CastExpression
-%type<num> Block
-%type<num> BlockStatements
-%type<num> BlockStatement
-%type<num> Statement
-%type<num> StatementNoShortIf
-%type<num> StatementWithoutTrailingSubstatement
-%type<num> EmptyStatement
-%type<num> LabeledStatement
-%type<num> LabeledStatementNoShortIf
-%type<num> ExpressionStatement
-%type<num> StatementExpression
-%type<num> IfThenElseStatement
-%type<num> IfThenElseStatementNoShortIf
-%type<num> AssertStatement
-%type<num> WhileStatement
-%type<num> WhileStatementNoShortIf
-%type<num> ForStatement
-%type<num> ForStatementNoShortIf
-%type<num> BasicForStatement
-%type<num> BasicForStatementNoShortIf
-%type<num> ForInit
-%type<num> ForUpdate
-%type<num> StatementExpressionList
-%type<num> CommaStatementExpressions
-%type<num> EnhancedForStatement
-%type<num> EnhancedForStatementNoShortIf
-%type<num> BreakStatement
-%type<num> ContinueStatement
-%type<num> ReturnStatement
-%type<num> ThrowStatement
-%type<num> IfThenStatement
-%type<num> LocalVariableDeclaration
-%type<num> LocalVariableDeclarationStatement
-%type<num> Super
-%type<num> Int
-%type<num> Long
-%type<num> Byte
-%type<num> Char
-%type<num> Short
-%type<num> Float
-%type<num> Double
-%type<num> Boolean
-%type<num> Var
-%type<num> If
-%type<num> Else
-%type<num> For
-%type<num> While
-%type<num> Break
-%type<num> Continue
-%type<num> Void
-%type<num> New
-%type<num> Return
-%type<num> Public
-%type<num>  Private
-%type<num> Class
-%type<num> Static
-%type<num> Final
-%type<num> Assert
-%type<num> Plus
-%type<num> Minus
-%type<num> Div
-%type<num> Modulo
-%type<num> Increment
-%type<num> Decrement
-%type<num> Geq
-%type<num> Leq
-%type<num> Gt
-%type<num> Lt
-%type<num> Neq
-%type<num> Deq
-%type<num> Bitwise_and
-%type<num> Bitwise_or
-%type<num> Bitwise_xor
-%type<num> Bitwise_complement
-%type<num> Left_shift
-%type<num> Right_shift
-%type<num> Unsigned_right_shift
-%type<num> And
-%type<num> Or
-%type<num> Not
-/* %type<num> Double_colon */
-%type<num> Colon
-%type<num> Qm
-%type<num> Lparen
-%type<num> Rparen
-%type<num> Lcurly
-%type<num> Rcurly
-%type<num> Lsquare
-%type<num> Rsquare
-%type<num> Semicolon
-%type<num> Comma
-%type<num> Dot
-%type<num> Char_literal
-%type<num> Boolean_literal
-%type<num> Null_literal
-%type<num> Integer_literal
-%type<num> Fp_literal
-%type<num> String
-%type<num> Text_block
-%type<num> Identifier
-%type<num> This
-%type<num> Instanceof
-%type<num> Throw
-%type<num> Implements
-%type<num> Interface
-%type<num> Extends
-%type<num> Package
-%type<num> Import
-%type<num> Asterik
-/* %type<num> Diamond */
-%type<num> SynchronizedStatement
-%type<num> DoStatement
-%type<num> TryStatement
-%type<num> YieldStatement
-%type<num> SwitchBlock
-%type<num> SwitchBlockStatementGroup
-%type<num> SwitchBlockStatementGroups
-%type<num> SwitchLabel
-%type<num> SwitchLabelColons
-%type<num> SwitchRule
-%type<num> SwitchRules
-%type<num> SwitchStatement
-%type<num> CatchClause
-%type<num> Catches
-%type<num> CatchFormalParameter
-%type<num> CatchType
-%type<num> Finally
-%type<num> CaseConstant
-%type<num> CaseConstants
-%type<num> do_
-%type<num> switch_
-%type<num> yield_
-%type<num> try_
-%type<num> catch_
-%type<num> finally_
-%type<num> synchronized_
-%type<num> throws_
-%type<num> case_
-%type<num> default_
-%type<num> arrow_
-%type<num> endoffile
-%type<num> ImportDeclarations
-%type<num> Throws
-%type<num> ExceptionType
-%type<num> ExceptionTypeList
-%type<num> CommaExceptionTypes
+%type<num> Program CompilationUnit ClassOrInterfaceDeclaration ClassOrInterfaceDeclarations PackageDeclaration ImportDeclaration Literal UnannType PrimitiveType NumericType IntegralType FloatingPointType ReferenceType  ClassOrInterfaceType ArrayType Dims TypeName Modifiers Modifier ClassDeclaration super_ Interfaces InterfaceTypeList ClassBody ClassBodyDeclarations ClassBodyDeclaration ClassMemberDeclaration FieldDeclaration VariableDeclaratorList VariableDeclarator VariableDeclaratorId VariableInitializer MethodDeclaration MethodHeader Declarator FormalParameterList FormalParameter MethodBody StaticInitializer ConstructorDeclaration ConstructorBody ExplicitConstructorInvocation ArrayInitializer VariableInitializerList InterfaceDeclaration InterfaceExtends InterfaceBody InterfaceMembers InterfaceMemberDeclaration ConstantDeclaration InterfaceMethodDeclaration Primary PrimaryNoNewArray ClassInstanceCreationExpression FieldAccess ArrayAccess MethodInvocation ArgumentList ArrayCreationExpression DimExprs DimExpr Expression AssignmentExpression Assignment LeftHandSide AssignmentOperator ConditionalExpression ConditionalOrExpression ConditionalAndExpression InclusiveOrExpression ExclusiveOrExpression AndExpression EqualityExpression RelationalExpression ShiftExpression AdditiveExpression MultiplicativeExpression UnaryExpression PreIncrementExpression PreDecrementExpression UnaryExpressionNotPlusMinus PostfixExpression PostIncrementExpression PostDecrementExpression CastExpression Block BlockStatements BlockStatement Statement StatementNoShortIf StatementWithoutTrailingSubstatement EmptyStatement LabeledStatement LabeledStatementNoShortIf ExpressionStatement StatementExpression IfThenElseStatement IfThenElseStatementNoShortIf AssertStatement WhileStatement WhileStatementNoShortIf ForStatement ForStatementNoShortIf BasicForStatement BasicForStatementNoShortIf ForInit ForUpdate StatementExpressionList CommaStatementExpressions EnhancedForStatement EnhancedForStatementNoShortIf BreakStatement ContinueStatement ReturnStatement ThrowStatement IfThenStatement LocalVariableDeclaration LocalVariableDeclarationStatement Super Int Long Byte Char Short Float Double Boolean Var If Else For While Break Continue Void New Return Public  Private Class Static Final Assert Plus Minus Div Modulo Increment Decrement Geq Leq Gt Lt Neq Deq Bitwise_and Bitwise_or Bitwise_xor Bitwise_complement Left_shift Right_shift Unsigned_right_shift And Or Not Colon Qm Lparen Rparen Lcurly Rcurly Lsquare Rsquare Semicolon Comma Dot Char_literal Boolean_literal Null_literal Integer_literal Fp_literal String Text_block Identifier This Instanceof Throw Implements Interface Extends Package Import Asterik SynchronizedStatement DoStatement TryStatement YieldStatement SwitchBlock SwitchBlockStatementGroup SwitchBlockStatementGroups SwitchLabel SwitchLabelColons SwitchRule SwitchRules SwitchStatement CatchClause Catches CatchFormalParameter CatchType Finally CaseConstant CaseConstants do_ switch_ yield_ try_ catch_ finally_ synchronized_ throws_ case_ default_ arrow_ endoffile ImportDeclarations Throws ExceptionType ExceptionTypeList CommaExceptionTypes
 
 %start Program
 %%
