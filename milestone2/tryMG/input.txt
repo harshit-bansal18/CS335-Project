@@ -1,1 +1,80 @@
-2+3-4*5/3
+
+
+struct scope{
+    scope* parent;
+    map<string, key_attribute> table;
+    // here key represent keyword/id and value represent its attribute
+}
+
+struct key_attribute{
+    string nature; //variable/class/function/if-then-else
+    string type; //datatype/returntype of variable/class/function
+    scope* ptr; //ptr to function/class scope
+    vector<pair<string, string> > args; //arguments of function first string is type(int) second string is variable name(a)
+}
+
+
+if(nature == "variable"){
+    x=5;
+}
+
+
+class A{
+
+    class B {
+
+        int x,y;
+    }
+
+    A(){
+        B();
+        // local ini
+    }
+
+    public int f1(int a, int b) {
+        bhj
+    }
+
+    map<string, key_attribute> table;
+    // here key represent keyword/id and value represent its attribute
+}
+
+struct key_attribute{
+}
+
+class B {
+
+    int  x, y;
+
+    func f1(int a, int b){
+
+    }
+}
+
+func main(){
+    
+    // Not Possible
+    int j =5;
+    for(j=0;j<5;j++){
+        int i;
+        int j;
+        i=5;
+    }
+
+    // Possible
+    int j =5;
+    for(i=0;i<5;i++){
+        int j;
+        j=5;
+    }
+
+
+    int x=3;
+    if(y==5){
+        int x=9; { lookup(x, scope); }
+
+        printf("%d", x);
+    }
+
+}
+
