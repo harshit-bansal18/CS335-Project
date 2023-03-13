@@ -1,0 +1,33 @@
+A -> B   $$.type = $1.type
+
+A -> Lparen B Rparen    $$.type = $2.type
+
+A -> new B Lparen Rparen    $$.type = $2.type + "*"
+
+A -> new B Lparen C Rparen    $$.type = $2.type + "*"   $4.type = "int"
+
+A -> B Lsquare C Rsquare    $$.type = $1.type + "*"      $3.type = "int"
+
+A -> B Lparen Rparen    $$.type = $1.type    $1.nature = "function"     $1.argtype = ""
+
+A -> B Lparen C Rparen      $$.type = $1.type    $1.nature = "function"     $1.argtype = $3.type   This argtype will be string concatenation of arguments type with a " , " in between
+
+A -> B Dot C Lparen D Rparen    $$.type = $3.type    $1.nature = "class"    $3.nature = "function"    $3.argtype = $5.type
+
+// What does _super represent and how does it work?
+
+A -> B Dot C Lparen Rparen    $$.type = $3.type    $1.nature = "class"    $3.nature = "function"    $3.argtype = ""
+
+A -> B Comma C    $$.type = $1.type + " , " + $3.type
+
+ArrayCreationExpression -> new B C ArrayInitializer    $$.type = $2.type + $3.type
+
+ArrayCreationExpression -> new B C     $$.type = $2.type + $3.type
+
+ArrayCreationExpression -> new B C D    $$.type = $2.type + $3.type + $4.type
+
+A -> B C    $$.type = $1.type + $2.type
+
+A -> Lsquare B Rsquare      $$.type = "*"
+
+A -> B AssignmentOperator C     $1.type = 

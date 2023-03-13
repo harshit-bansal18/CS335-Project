@@ -13,14 +13,23 @@ class class_data {
     class_data    *parent;
     map<string, method_data*>  methods;
     map<string, symbol_data*> instance_vars;
-    map<string, class_data*> inner_clss;
+    map<string, class_data*> inner_class;
     int8_t modifier;
 
     class_data() {
         parent = NULL;
         methods.clear();
         instance_vars.clear();
-        inner_clss.clear();
+        inner_class.clear();
     };
 
+    bool add_instance_var(char*, symbol_data*);
+    bool add_method(char*, method_data*);
+    bool add_inner_cls(char*, class_data*);
+    char* generate_method_id(char*);
+    char* generate_inst_var_id(char*);
+    bool set_modifier();
+
 };
+
+

@@ -23,5 +23,7 @@ class symbol_data {
 
     symbol_data() {
 
-    }  
+    };
+
+    bool add_
 };

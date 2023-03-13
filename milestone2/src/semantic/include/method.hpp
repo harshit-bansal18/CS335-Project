@@ -16,6 +16,8 @@ struct scope {
     struct scope *parent;
     struct scope *child;
     map <string, symbol_data*> table;
+
+    bool add_var(char*, symbol_data*);
 };
 
 class method_data{
@@ -25,8 +27,12 @@ class method_data{
     int8_t modifier;
     map <char*, symbol_data*> table;
 
-    method_data() {
-
+    method_data(class_data* container_cls ) {
+        
     }
+
+    bool add_var(char*, symbol_data*);
+    char* generate_var_id(char*);
+    bool set_modifier();
 
 };

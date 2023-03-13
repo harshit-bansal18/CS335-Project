@@ -537,6 +537,7 @@ InterfaceMethodDeclaration:
 Primary:    PrimaryNoNewArray {$$ = $1; }
 |           ArrayCreationExpression {$$ = $1; }
 ;
+// A -> B   $$.type = $1.type
 
 PrimaryNoNewArray:  Literal {$$ = $1; }
 |                   This {$$ = $1; }
@@ -546,24 +547,25 @@ PrimaryNoNewArray:  Literal {$$ = $1; }
 |                   ArrayAccess {$$ = $1; }
 |                   MethodInvocation {$$ = $1; }
 ;
-
+// A -> Lparen B Rparen    $$.type = $2.type
 
 ClassInstanceCreationExpression: 
     New ClassOrInterfaceType Lparen Rparen {$$ = create_node("ClassInstanceCreationExpression", {$1, $2, $3, $4});}
 |   New ClassOrInterfaceType Lparen ArgumentList Rparen {$$ = create_node("ClassInstanceCreationExpression", {$1, $2, $3, $4, $5});}
 ;
-
-
+// A -> new B Lparen Rparen    $$.type = $2.type + "*"
+// A -> new B Lparen C Rparen    $$.type = $2.type + "*"   $4.type = "int"
 
 FieldAccess:    Primary Dot Identifier {$$ = create_node("FieldAccess", {$1, $2, $3});}
 |               super_ Dot Identifier {$$ = create_node("FieldAccess", {$1, $2, $3});}
 |               TypeName Dot super_ Dot Identifier {$$ = create_node("FieldAccess", {$1, $2, $3, $4, $5});}
 ;
-
+// ?????............????? 
 
 ArrayAccess:    TypeName Lsquare Expression Rsquare {$$ = create_node("ArrayAccess", {$1, $2, $3, $4});}
 |               PrimaryNoNewArray Lsquare Expression Rsquare  {$$ = create_node("ArrayAccess", {$1, $2, $3, $4});}
 ;
+// A -> B Lsquare C Rsquare    $$.type = $1.type + "*"      $3.type = "int"
 
 MethodInvocation:   TypeName Lparen Rparen {$$ = create_node("MethodInvocation", {$1, $2, $3});}
 |                   TypeName Lparen ArgumentList Rparen {$$ = create_node("MethodInvocation", {$1, $2, $3, $4});}
@@ -572,11 +574,15 @@ MethodInvocation:   TypeName Lparen Rparen {$$ = create_node("MethodInvocation",
 |                   super_ Dot Identifier Lparen Rparen {$$ = create_node("MethodInvocation", {$1, $2, $3, $4, $5});}
 |                   super_ Dot Identifier Lparen ArgumentList Rparen {$$ = create_node("MethodInvocation", {$1, $2, $3, $4, $5, $6});}
 ;
-
+// A -> B Lparen Rparen    $$.type = $1.type    $1.nature = "function"     $1.argtype = ""
+// A -> B Lparen C Rparen      $$.type = $1.type    $1.nature = "function"     $1.argtype = $3.type   This argtype will be string concatenation of arguments type with a " , " in between
+// A -> B Dot C Lparen D Rparen    $$.type = $3.type    $1.nature = "class"    $3.nature = "function"    $3.argtype = $5.type
+// A -> B Dot C Lparen Rparen    $$.type = $3.type    $1.nature = "class"    $3.nature = "function"    $3.argtype = ""
 
 ArgumentList:       Expression  {$$ = $1; }
 |                   ArgumentList Comma Expression { $$ = create_node("ArgumentList", {$1, $2, $3});}
 ;
+// A -> B Comma C    $$.argtype = $1.argtype + " , " + $3.type
 
 ArrayCreationExpression:    New PrimitiveType DimExprs Dims { $$ = create_node("ArrayCreationExpression", {$1, $2, $3, $4});}
 |                           New ClassOrInterfaceType DimExprs Dims { $$ = create_node("ArrayCreationExpression", {$1, $2, $3, $4});}
@@ -585,14 +591,19 @@ ArrayCreationExpression:    New PrimitiveType DimExprs Dims { $$ = create_node("
 |                           New PrimitiveType Dims ArrayInitializer { $$ = create_node("ArrayCreationExpression", {$1, $2, $3, $4});}
 |                           New ClassOrInterfaceType Dims ArrayInitializer { $$ = create_node("ArrayCreationExpression", {$1, $2, $3, $4});}
 ;
+// ArrayCreationExpression -> new B C ArrayInitializer    $$.type = $2.type + ("*")*(stringtoint($3.type))
+// ArrayCreationExpression -> new B C     $$.type = $2.type + ("*")*(stringtoint($3.type))
+// ArrayCreationExpression -> new B C D    $$.type = $2.type + ("*")*(stringtoint($3.type) + stringtoint($3.type))
+
 
 DimExprs:   DimExpr  {$$ = $1; }
 |           DimExprs DimExpr { $$ = create_node("DimExprs", {$1, $2});}
 ;
+// A -> B C    $$.type = $1.type + $2.type 
 
 DimExpr:    Lsquare Expression Rsquare { $$ = create_node("DimExpr", {$1, $2, $3});}
 ;
-
+// A -> Lsquare B Rsquare      $$.type = "*"
 
 Expression:  AssignmentExpression {$$ = $1; }
 
