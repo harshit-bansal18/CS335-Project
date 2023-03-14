@@ -4,7 +4,7 @@ using namespace std;
 
 struct stackentry {
     string token;           //key
-    int scope;      
+    int scope;              
     int modifier;           //public, private, static, final
     string argument_type;   //argument list of function
     string type;            // type for variable and return type for function
@@ -20,12 +20,6 @@ map< string, vector< stackentry > > symmbol_table_pass2;
 #define PRIVATE 0b10
 #define STATIC 0b100
 #define ABSTRACT 0b1000
-
-// unordered_map<string, int8_t> modifiers = {{"public", PUBLIC},
-//                                            {"private", PRIVATE},
-//                                            {"static", STATIC},
-//                                            {"abstract", ABSTRACT}};
-
 
 int8_t set_modifier(int8_t curr_modf, int8_t new_modf) {
     
@@ -45,6 +39,32 @@ map<string, int> offset_map ={{"none", 0},
                             {"float", 4}, 
                             {"double", 8}, 
                             {"boolean", 1}};
+
+
+bool check_return_type(string type1, string type2){
+    if(type1==type2)    return 1;
+    else                return 0;
+}
+
+bool check_function_in_class( vector< stackentry > &stack, string token, string argument_type, string return_type, string nature){
+    for( int i = stack.size()-1; i >= 0; i--) {
+        if(stack[i].token == token && stack[i].argument_type == argument_type && stack[i].type == return_type && stack[i].nature == nature){
+            return 1;
+        }
+    }
+    return 0;
+}
+
+stackentry find_field_in_class( vector< stackentry > &stack, string token){
+    for( int i = stack.size()-1; i >= 0; i--) {
+        if(stack[i].token == token && stack[i].nature!="function"){
+            return stack[i];
+        }
+    }
+    stackentry empty = {};
+    return empty;
+}
+
 
 void add_to_stack( vector< stackentry > &stack, string token, int scope, string type, int modifier, string nature, int offset) {
     stackentry entry;

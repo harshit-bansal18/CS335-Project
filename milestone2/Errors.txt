@@ -1,1 +1,0 @@
-offset of a class during declaration
