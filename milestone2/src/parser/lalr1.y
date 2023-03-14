@@ -172,8 +172,10 @@
 
 %right ASSIGNMENT ASSIGN
 
-%type<num> Program CompilationUnit ClassOrInterfaceDeclaration ClassOrInterfaceDeclarations PackageDeclaration ImportDeclaration Literal UnannType PrimitiveType NumericType IntegralType FloatingPointType ReferenceType  ClassOrInterfaceType ArrayType Dims TypeName Modifiers Modifier ClassDeclaration super_ Interfaces InterfaceTypeList ClassBody ClassBodyDeclarations ClassBodyDeclaration ClassMemberDeclaration FieldDeclaration VariableDeclaratorList VariableDeclarator VariableDeclaratorId VariableInitializer MethodDeclaration MethodHeader Declarator FormalParameterList FormalParameter MethodBody StaticInitializer ConstructorDeclaration ConstructorBody ExplicitConstructorInvocation ArrayInitializer VariableInitializerList InterfaceDeclaration InterfaceExtends InterfaceBody InterfaceMembers InterfaceMemberDeclaration ConstantDeclaration InterfaceMethodDeclaration Primary PrimaryNoNewArray ClassInstanceCreationExpression FieldAccess ArrayAccess MethodInvocation ArgumentList ArrayCreationExpression DimExprs DimExpr Expression AssignmentExpression Assignment Assign LeftHandSide AssignmentOperator ConditionalExpression ConditionalOrExpression ConditionalAndExpression InclusiveOrExpression ExclusiveOrExpression AndExpression EqualityExpression RelationalExpression ShiftExpression AdditiveExpression MultiplicativeExpression UnaryExpression PreIncrementExpression PreDecrementExpression UnaryExpressionNotPlusMinus PostfixExpression PostIncrementExpression PostDecrementExpression CastExpression Block BlockStatements BlockStatement Statement StatementNoShortIf StatementWithoutTrailingSubstatement EmptyStatement LabeledStatement LabeledStatementNoShortIf ExpressionStatement StatementExpression IfThenElseStatement IfThenElseStatementNoShortIf AssertStatement WhileStatement WhileStatementNoShortIf ForStatement ForStatementNoShortIf BasicForStatement BasicForStatementNoShortIf ForInit ForUpdate StatementExpressionList CommaStatementExpressions EnhancedForStatement EnhancedForStatementNoShortIf BreakStatement ContinueStatement ReturnStatement ThrowStatement IfThenStatement LocalVariableDeclaration LocalVariableDeclarationStatement Super Int Long Byte Char Short Float Double Boolean Var If Else For While Break Continue Void New Return Public  Private Class Static Final Assert Plus Minus Div Modulo Increment Decrement Geq Leq Gt Lt Neq Deq Bitwise_and Bitwise_or Bitwise_xor Bitwise_complement Left_shift Right_shift Unsigned_right_shift And Or Not Colon Qm Lparen Rparen Lcurly Rcurly Lsquare Rsquare Semicolon Comma Dot Char_literal Boolean_literal Null_literal Integer_literal Fp_literal String Text_block Identifier This Instanceof Throw Implements Interface Extends Package Import Asterik SynchronizedStatement DoStatement TryStatement YieldStatement SwitchBlock SwitchBlockStatementGroup SwitchBlockStatementGroups SwitchLabel SwitchLabelColons SwitchRule SwitchRules SwitchStatement CatchClause Catches CatchFormalParameter CatchType Finally CaseConstant CaseConstants do_ switch_ yield_ try_ catch_ finally_ synchronized_ throws_ case_ default_ arrow_ endoffile ImportDeclarations Throws ExceptionType ExceptionTypeList CommaExceptionTypes
+%type<num> Program CompilationUnit ClassOrInterfaceDeclaration ClassOrInterfaceDeclarations PackageDeclaration ImportDeclaration Literal UnannType PrimitiveType NumericType IntegralType FloatingPointType ReferenceType  ClassOrInterfaceType ArrayType Dims TypeName Modifiers ClassDeclaration super_ Interfaces InterfaceTypeList ClassBody ClassBodyDeclarations ClassBodyDeclaration ClassMemberDeclaration FieldDeclaration VariableDeclaratorList VariableDeclarator VariableDeclaratorId VariableInitializer MethodDeclaration MethodHeader Declarator FormalParameterList FormalParameter MethodBody StaticInitializer ConstructorDeclaration ConstructorBody ExplicitConstructorInvocation ArrayInitializer VariableInitializerList InterfaceDeclaration InterfaceExtends InterfaceBody InterfaceMembers InterfaceMemberDeclaration ConstantDeclaration InterfaceMethodDeclaration Primary PrimaryNoNewArray ClassInstanceCreationExpression FieldAccess ArrayAccess MethodInvocation ArgumentList ArrayCreationExpression DimExprs DimExpr Expression AssignmentExpression Assignment Assign LeftHandSide AssignmentOperator ConditionalExpression ConditionalOrExpression ConditionalAndExpression InclusiveOrExpression ExclusiveOrExpression AndExpression EqualityExpression RelationalExpression ShiftExpression AdditiveExpression MultiplicativeExpression UnaryExpression PreIncrementExpression PreDecrementExpression UnaryExpressionNotPlusMinus PostfixExpression PostIncrementExpression PostDecrementExpression CastExpression Block BlockStatements BlockStatement Statement StatementNoShortIf StatementWithoutTrailingSubstatement EmptyStatement LabeledStatement LabeledStatementNoShortIf ExpressionStatement StatementExpression IfThenElseStatement IfThenElseStatementNoShortIf AssertStatement WhileStatement WhileStatementNoShortIf ForStatement ForStatementNoShortIf BasicForStatement BasicForStatementNoShortIf ForInit ForUpdate StatementExpressionList CommaStatementExpressions EnhancedForStatement EnhancedForStatementNoShortIf BreakStatement ContinueStatement ReturnStatement ThrowStatement IfThenStatement LocalVariableDeclaration LocalVariableDeclarationStatement Super Int Long Byte Char Short Float Double Boolean Var If Else For While Break Continue Void New Return Class Assert Plus Minus Div Modulo Increment Decrement Geq Leq Gt Lt Neq Deq Bitwise_and Bitwise_or Bitwise_xor Bitwise_complement Left_shift Right_shift Unsigned_right_shift And Or Not Colon Qm Lparen Rparen Lcurly Rcurly Lsquare Rsquare Semicolon Comma Dot This Instanceof Throw Implements Interface Extends Package Import Asterik SynchronizedStatement DoStatement TryStatement YieldStatement SwitchBlock SwitchBlockStatementGroup SwitchBlockStatementGroups SwitchLabel SwitchLabelColons SwitchRule SwitchRules SwitchStatement CatchClause Catches CatchFormalParameter CatchType Finally CaseConstant CaseConstants do_ switch_ yield_ try_ catch_ finally_ synchronized_ throws_ case_ default_ arrow_ endoffile ImportDeclarations Throws ExceptionType ExceptionTypeList CommaExceptionTypes
 
+%type<str> Char_literal Boolean_literal Null_literal Integer_literal Fp_literal String Text_block Identifier
+%type<str> Public Private Static Final Modifier
 %start Program
 %%
 
@@ -1096,21 +1098,20 @@ New : NEW { $$ = create_leaf($1, "Keyword"); }
 Return : RETURN { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Public : PUBLIC { $$ = create_leaf($1, "Keyword"); }
+Public : PUBLIC { $$ = $1; }
 ;
 
-Private : PRIVATE { $$ = create_leaf($1, "Keyword"); }
+Private : PRIVATE { $$ = $1; }
 ;
 
 Class : CLASS { $$ = create_leaf($1, "Keyword"); }
 ;
 
-Static : STATIC { $$ = create_leaf($1, "Keyword"); }
+Static : STATIC { $$ = $1; }
 ;
 
-Final : FINAL { $$ = create_leaf($1, "Keyword"); }
+Final : FINAL { $$ = $1; }
 ;
-
 
 Assert : ASSERT { $$ = create_leaf($1, "Keyword"); }
 ;
@@ -1121,7 +1122,7 @@ This : THIS { $$ = create_leaf($1, "Keyword"); }
 Instanceof : INSTANCEOF { $$ = create_leaf($1, "Keyword"); }
 ;
 
-super_ : SUPER { $$ = create_leaf($1, "Keyword"); }
+super_ : SUPER { $$ = $1; }
 ;
 
 Throw : THROW { $$ = create_leaf($1, "Keyword"); }
@@ -1160,8 +1161,7 @@ synchronized_ : SYNCHRONIZED { $$ = create_leaf($1, "Keyword"); }
 
 case_ : CASE { $$ = create_leaf($1, "Keyword"); }
 
-default_ : DEFAULT { $$ = create_leaf($1, "Keyword"); }
-
+default_ : DEFAULT { $$ = $1; }
 
 Plus : PLUS { $$ = create_leaf($1, "Operator"); }
 ;
@@ -1272,28 +1272,28 @@ Dot : DOT { $$ = create_leaf($1, "Separator"); }
 
 arrow_ : ARROW { $$ = create_leaf($1, "Separator"); }
 
-Char_literal : CHAR_LITERAL { $$ = create_leaf($1, "CHAR_LITERAL"); }
+Char_literal : CHAR_LITERAL { $$ = $1; }
 ;
 
-Boolean_literal : BOOLEAN_LITERAL { $$ = create_leaf($1, "BOOLEAN_LITERAL"); }
+Boolean_literal : BOOLEAN_LITERAL { $$ = $1; }
 ;
 
-Null_literal : NULL_LITERAL { $$ = create_leaf($1, "NULL_LITERAL"); }
+Null_literal : NULL_LITERAL { $$ = $1; }
 ;
 
-Integer_literal : INTEGER_LITERAL { $$ = create_leaf($1, "INTEGER_LITERAL"); }
+Integer_literal : INTEGER_LITERAL { $$ = $1; }
 ;
 
-Fp_literal : FP_LITERAL { $$ = create_leaf($1, "FP_LITERAL"); }
+Fp_literal : FP_LITERAL { $$ = $1; }
 ;
 
-String : STRING { $$ = create_leaf($1, "STRING"); }
+String : STRING { $$ = $1; }
 ;
 
-Text_block : TEXT_BLOCK { $$ = create_leaf($1, "TEXT_BLOCK"); }
+Text_block : TEXT_BLOCK { $$ = $1; }
 ;
 
-Identifier : IDENTIFIER { $$ = create_leaf($1, "IDENTIFIER"); }
+Identifier : IDENTIFIER { $$ = $1;}
 ;
 
 endoffile : EOF_ { $$ = create_leaf("<EOF>", "EOF"); }

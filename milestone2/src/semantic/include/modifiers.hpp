@@ -1,4 +1,4 @@
-#include <unordered_map.h>
+#include <unordered_map>
 #include <string.h>
 
 #define ACCESS 0b10
@@ -9,7 +9,7 @@
 
 using namespace std;
 
-unordered_map<string, int8_t> modifiers = {{"public", ACCESS}, {"private", ACCESS},,
+unordered_map<string, int8_t> modifiers = {{"public", ACCESS}, {"private", ACCESS},
                                             {"static", STATIC},
                                             {"abstract", ABSTRACT}};
                                              

@@ -15,6 +15,7 @@ using namespace std;
 class symbol_data {
     public:
 
+
     method_data *container_mthd;
 
     string lexeme;
@@ -22,8 +23,11 @@ class symbol_data {
     int8_t modifier;
     type_t type;
 
-    symbol_data(string _lexeme, int _scope, type_t _type, int8_t _modifier) {
-        container_mthd = current_method;
+    symbol_data(string _lexeme, int _scope, type_t _type, int8_t _modifier, bool is_ins_var) {
+        if(is_ins_var)
+            container_mthd = NULL;
+        else 
+            container_mthd = current_method;
 
         lexeme = _lexeme;
         scope = _scope;
@@ -31,6 +35,5 @@ class symbol_data {
         modifier = _modifier;
     };
 
-    // This will check if the variable use is allowed at current point in program
-    bool check_valid();
+    bool set_modifier(int8_t);
 };

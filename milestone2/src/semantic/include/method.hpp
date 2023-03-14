@@ -37,6 +37,7 @@ class method_data{
 
     bool add_var(string, symbol_data*);
     string generate_var_id(string);
-    bool set_modifier();
+    bool set_modifier(int8_t);
+    bool check_valid(string);
 
 };
