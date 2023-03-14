@@ -28,6 +28,8 @@ class method_data{
     struct scope *tmp_scope;
     int8_t modifier;
     map <string, symbol_data*> table;
+    list<type_t> args;
+    type_t return_type;
 
     method_data(int8_t modifier_) {
         container_cls = current_class;

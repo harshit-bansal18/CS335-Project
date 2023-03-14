@@ -21,9 +21,9 @@ class symbol_data {
     string lexeme;
     int scope;
     int8_t modifier;
-    type_t type;
+    string type;
 
-    symbol_data(string _lexeme, int _scope, type_t _type, int8_t _modifier, bool is_ins_var) {
+    symbol_data(string _lexeme, int _scope, string _type, int8_t _modifier, bool is_ins_var) {
         if(is_ins_var)
             container_mthd = NULL;
         else 

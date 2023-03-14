@@ -10,6 +10,7 @@ using namespace std;
 class class_data {
     public:
     string   id;
+    class_data *container_cls; // for inner classes
     class_data    *parent;
     map<string, method_data*>  methods;
     map<string, symbol_data*> instance_vars;
@@ -26,9 +27,9 @@ class class_data {
     bool add_instance_var(string, symbol_data*);
     bool add_method(string, method_data*);
     bool add_inner_cls(string, class_data*);
-    string generate_method_id(string);
-    string generate_inst_var_id(string);
+    string generate_id(string);
     bool set_modifier(int8_t);
+    void add_inner_class(int modifiers, char* name);
 };
 
 

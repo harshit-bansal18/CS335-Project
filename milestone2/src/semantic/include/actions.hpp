@@ -6,8 +6,6 @@ using namespace std;
 
 typedef int type_t;
 
-class_data* current_class;
-method_data* current_method;
 int scope = 0;
 
 void incr_scope(){ /* go to next scope */
@@ -23,6 +21,8 @@ int set_modifiers(int modifier, char* val){
 
     if(val == "public")
         mod_val = 1;
-    if(va)
+    if(val == "private")
+        mod_val = 2;
+    if(val ==)
 }
 

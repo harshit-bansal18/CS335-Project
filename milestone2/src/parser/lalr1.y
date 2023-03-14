@@ -31,7 +31,7 @@
     int yyerror(const char *);
 
     struct stackentry {
-        string token;           //key
+        string id;           //key
         int scope;      
         int modifier;           //public, private, static, final
         string argument_type;   //argument list of function
@@ -197,29 +197,29 @@ Literal:    Integer_literal {$$ = $1;}
     int, long, float, char, double, char, byte, short
 */
 UnannType:
-    PrimitiveType   {$$ = $1; }
-|   ReferenceType   {$$ = $1; }
+    PrimitiveType   {$$.type = $1.type; }
+|   ReferenceType   {$$.type = $1.type; }
 ;
 
 PrimitiveType:      
-    NumericType {$$ = $1; }
-|   Boolean  {$$ = $1; }
+    NumericType {$$.type = $1.type; }
+|   Boolean  {$$.type = $1.type; }
 ;
 
 NumericType:        
-    IntegralType {$$ = $1; }
-|   FloatingPointType  {$$ = $1; }
+    IntegralType {$$.type = $1.type; }
+|   FloatingPointType  {$$.type = $1.type; }
 ;
 
-IntegralType:       Byte  {$$ = $1; }
-|                   Short  {$$ = $1; }
-|                   Int  {$$ = $1; }
-|                   Long  {$$ = $1; }
-|                   Char {$$ = $1; }
+IntegralType:       Byte  {$$.type = $1.type; }
+|                   Short  {$$.type = $1.type; }
+|                   Int  {$$.type = $1.type; }
+|                   Long  {$$.type = $1.type; }
+|                   Char {$$.type = $1.type; }
 ;
 
-FloatingPointType:    Float { $$ = $1; }
-|                     Double { $$ = $1; }
+FloatingPointType:    Float { $$.type = $1.type; }
+|                     Double { $$.type = $1.type; }
 ;
 
 /*
@@ -227,23 +227,23 @@ FloatingPointType:    Float { $$ = $1; }
     *   ArrayType ()
 */
 ReferenceType:
-    ClassOrInterfaceType {$$ = $1; }
-|   ArrayType {$$ = $1; }
+    ClassOrInterfaceType {$$.type = $1.type; }
+|   ArrayType {$$.type = $1.type; }
 ;
 
 ClassOrInterfaceType:
-    TypeName    {$$ = $1; }
+    TypeName    {$$.type = $1.type; }
 ;
 
 
 ArrayType:
-    PrimitiveType Dims {$$ = create_node("ArrayType", {$1, $2});}
-|   TypeName Dims    {$$ = create_node("ArrayType", {$1, $2});}
+    PrimitiveType Dims {$$ = $1.type + $2.type;}
+|   TypeName Dims    {$$.type = $1.type+$2.type;}
 ;
 
 Dims:
-    Lsquare Rsquare Dims  {$$ = create_node("Dims", {$1, $2, $3});}
-|   Lsquare Rsquare  {$$ = create_node("Dims", {$1, $2});}
+    Lsquare Rsquare Dims  {$$.type = $3.type+"*";}
+|   Lsquare Rsquare  {$$.type = "*";}
 ;
 
 
@@ -258,8 +258,8 @@ Dims:
     Replace them with TypenName
 */
 TypeName:
-    Identifier  {$$ = $1; }
-|   TypeName Dot Identifier {$$ = create_node("Dims", {$1, $2 , $3});}
+    Identifier  { $$.type = $1.type;}
+|   TypeName Dot Identifier { $$.type = $1.type+"."+$3.type; }
 ;
 
 
@@ -286,7 +286,7 @@ Modifier:
 
 
 ClassDeclaration:
-    Modifiers Class Identifier ClassBody {$$ = create_node("ClassDeclaration", {$1, $2, $3, $4});}
+    Modifiers Class Identifier {create_class_entry($1.modifier, $3.id);} ClassBody {return_from_class(); $$ = create_node("ClassDeclaration", {$1, $2, $3, $4});}
 |   Class Identifier ClassBody {$$ = create_node("ClassDeclaration", {$1, $2, $3});}
 |   Modifiers Class Identifier Interfaces ClassBody {$$ = create_node("ClassDeclaration", {$1, $2, $3, $4, $5});}
 |   Class Identifier Interfaces ClassBody {$$ = create_node("ClassDeclaration", {$1, $2, $3, $4});}
@@ -335,8 +335,8 @@ ClassMemberDeclaration:
 ;
 
 FieldDeclaration:
-    Modifiers UnannType VariableDeclaratorList Semicolon {$$ = create_node("FieldDeclaration", {$1, $2, $3, $4});}
-|   UnannType VariableDeclaratorList Semicolon {$$ = create_node("FieldDeclaration", {$1, $2, $3});}
+    Modifiers {global_modifier = $1.modifier;} UnannType {global_type = $2.type; } VariableDeclaratorList Semicolon {$$ = create_node("FieldDeclaration", {$1, $2, $3, $4});}
+|   UnannType { global_type = $2.type } VariableDeclaratorList Semicolon {$$ = create_node("FieldDeclaration", {$1, $2, $3});}
 ;
 
 VariableDeclaratorList:
@@ -345,16 +345,17 @@ VariableDeclaratorList:
 ;
 
 VariableDeclarator:
-    VariableDeclaratorId Assign VariableInitializer             {
+    VariableDeclaratorId Assign VariableInitializer             {   
+                                                                    current_class.add_instance_var(global_modifier, global_type, $1.id);
                                                                     create_edges($2, {$1, $3});
                                                                     $$ = $2;
                                                                 }
-|   VariableDeclaratorId {$$ = $1; }
+|   VariableDeclaratorId {current_class.add_instance_var(global_modifier, global_type, $1.id);}
 ;
 
 VariableDeclaratorId:
-    VariableDeclaratorId Lsquare Rsquare {$$ = create_node("VariableDeclaratorId", {$1, $2, $3});}
-|   Identifier {$$ = $1; }
+    VariableDeclaratorId Lsquare Rsquare {$$.type = global_type+"*"}
+|   Identifier {$$.type = global_type;}
 ;
 
 VariableInitializer:
