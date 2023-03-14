@@ -17,6 +17,7 @@
     extern "C" FILE *yyin;
     extern "C" int yylineno;
 
+
     struct args {
         char *input;
         char *output;
@@ -165,11 +166,13 @@
     char* str;
 }
 
-%token<str> INT LONG BYTE CHAR SHORT FLOAT DOUBLE BOOLEAN VAR IF ELSE FOR WHILE BREAK CONTINUE VOID NEW RETURN PUBLIC PRIVATE CLASS STATIC FINAL SWITCH YIELD CATCH FINALLY SYNCHRONIZED ASSERT PLUS MINUS DIV MODULO INCREMENT DECREMENT GEQ LEQ GT LT NEQ DEQ BITWISE_AND BITWISE_OR BITWISE_XOR BITWISE_COMPLEMENT LEFT_SHIFT RIGHT_SHIFT UNSIGNED_RIGHT_SHIFT AND OR NOT ASSIGNMENT COLON QM LPAREN RPAREN LCURLY RCURLY LSQUARE RSQUARE SEMICOLON COMMA DOT ARROW CHAR_LITERAL BOOLEAN_LITERAL NULL_LITERAL INTEGER_LITERAL FP_LITERAL STRING TEXT_BLOCK IDENTIFIER THIS INSTANCEOF SUPER THROW THROWS EOF_ IMPLEMENTS INTERFACE EXTENDS PACKAGE IMPORT ASTERIK DO TRY CASE DEFAULT
+%token<str> INT LONG BYTE CHAR SHORT FLOAT DOUBLE BOOLEAN VAR IF ELSE FOR WHILE BREAK CONTINUE VOID NEW RETURN PUBLIC PRIVATE CLASS STATIC FINAL SWITCH YIELD CATCH FINALLY SYNCHRONIZED ASSERT PLUS MINUS DIV MODULO INCREMENT DECREMENT GEQ LEQ GT LT NEQ DEQ BITWISE_AND BITWISE_OR BITWISE_XOR BITWISE_COMPLEMENT LEFT_SHIFT RIGHT_SHIFT UNSIGNED_RIGHT_SHIFT AND OR NOT ASSIGNMENT ASSIGN COLON QM LPAREN RPAREN LCURLY RCURLY LSQUARE RSQUARE SEMICOLON COMMA DOT ARROW CHAR_LITERAL BOOLEAN_LITERAL NULL_LITERAL INTEGER_LITERAL FP_LITERAL STRING TEXT_BLOCK IDENTIFIER THIS INSTANCEOF SUPER THROW THROWS EOF_ IMPLEMENTS INTERFACE EXTENDS PACKAGE IMPORT ASTERIK DO TRY CASE DEFAULT
 
-%left INCREMENT DECREMENT NOT BITWISE_COMPLEMENT ASTERIK DIV MODULO PLUS MINUS LEFT_SHIFT RIGHT_SHIFT UNSIGNED_RIGHT_SHIFT  GEQ LEQ GT LT NEQ DEQ BITWISE_AND BITWISE_XOR BITWISE_OR AND OR ASSIGNMENT
+%left INCREMENT DECREMENT NOT BITWISE_COMPLEMENT ASTERIK DIV MODULO PLUS MINUS LEFT_SHIFT RIGHT_SHIFT UNSIGNED_RIGHT_SHIFT  GEQ LEQ GT LT NEQ DEQ BITWISE_AND BITWISE_XOR BITWISE_OR AND OR
 
-%type<num> Program CompilationUnit ClassOrInterfaceDeclaration ClassOrInterfaceDeclarations PackageDeclaration ImportDeclaration Literal UnannType PrimitiveType NumericType IntegralType FloatingPointType ReferenceType  ClassOrInterfaceType ArrayType Dims TypeName Modifiers Modifier ClassDeclaration super_ Interfaces InterfaceTypeList ClassBody ClassBodyDeclarations ClassBodyDeclaration ClassMemberDeclaration FieldDeclaration VariableDeclaratorList VariableDeclarator VariableDeclaratorId VariableInitializer MethodDeclaration MethodHeader Declarator FormalParameterList FormalParameter MethodBody StaticInitializer ConstructorDeclaration ConstructorBody ExplicitConstructorInvocation ArrayInitializer VariableInitializerList InterfaceDeclaration InterfaceExtends InterfaceBody InterfaceMembers InterfaceMemberDeclaration ConstantDeclaration InterfaceMethodDeclaration Primary PrimaryNoNewArray ClassInstanceCreationExpression FieldAccess ArrayAccess MethodInvocation ArgumentList ArrayCreationExpression DimExprs DimExpr Expression AssignmentExpression Assignment LeftHandSide AssignmentOperator ConditionalExpression ConditionalOrExpression ConditionalAndExpression InclusiveOrExpression ExclusiveOrExpression AndExpression EqualityExpression RelationalExpression ShiftExpression AdditiveExpression MultiplicativeExpression UnaryExpression PreIncrementExpression PreDecrementExpression UnaryExpressionNotPlusMinus PostfixExpression PostIncrementExpression PostDecrementExpression CastExpression Block BlockStatements BlockStatement Statement StatementNoShortIf StatementWithoutTrailingSubstatement EmptyStatement LabeledStatement LabeledStatementNoShortIf ExpressionStatement StatementExpression IfThenElseStatement IfThenElseStatementNoShortIf AssertStatement WhileStatement WhileStatementNoShortIf ForStatement ForStatementNoShortIf BasicForStatement BasicForStatementNoShortIf ForInit ForUpdate StatementExpressionList CommaStatementExpressions EnhancedForStatement EnhancedForStatementNoShortIf BreakStatement ContinueStatement ReturnStatement ThrowStatement IfThenStatement LocalVariableDeclaration LocalVariableDeclarationStatement Super Int Long Byte Char Short Float Double Boolean Var If Else For While Break Continue Void New Return Public  Private Class Static Final Assert Plus Minus Div Modulo Increment Decrement Geq Leq Gt Lt Neq Deq Bitwise_and Bitwise_or Bitwise_xor Bitwise_complement Left_shift Right_shift Unsigned_right_shift And Or Not Colon Qm Lparen Rparen Lcurly Rcurly Lsquare Rsquare Semicolon Comma Dot Char_literal Boolean_literal Null_literal Integer_literal Fp_literal String Text_block Identifier This Instanceof Throw Implements Interface Extends Package Import Asterik SynchronizedStatement DoStatement TryStatement YieldStatement SwitchBlock SwitchBlockStatementGroup SwitchBlockStatementGroups SwitchLabel SwitchLabelColons SwitchRule SwitchRules SwitchStatement CatchClause Catches CatchFormalParameter CatchType Finally CaseConstant CaseConstants do_ switch_ yield_ try_ catch_ finally_ synchronized_ throws_ case_ default_ arrow_ endoffile ImportDeclarations Throws ExceptionType ExceptionTypeList CommaExceptionTypes
+%right ASSIGNMENT ASSIGN
+
+%type<num> Program CompilationUnit ClassOrInterfaceDeclaration ClassOrInterfaceDeclarations PackageDeclaration ImportDeclaration Literal UnannType PrimitiveType NumericType IntegralType FloatingPointType ReferenceType  ClassOrInterfaceType ArrayType Dims TypeName Modifiers Modifier ClassDeclaration super_ Interfaces InterfaceTypeList ClassBody ClassBodyDeclarations ClassBodyDeclaration ClassMemberDeclaration FieldDeclaration VariableDeclaratorList VariableDeclarator VariableDeclaratorId VariableInitializer MethodDeclaration MethodHeader Declarator FormalParameterList FormalParameter MethodBody StaticInitializer ConstructorDeclaration ConstructorBody ExplicitConstructorInvocation ArrayInitializer VariableInitializerList InterfaceDeclaration InterfaceExtends InterfaceBody InterfaceMembers InterfaceMemberDeclaration ConstantDeclaration InterfaceMethodDeclaration Primary PrimaryNoNewArray ClassInstanceCreationExpression FieldAccess ArrayAccess MethodInvocation ArgumentList ArrayCreationExpression DimExprs DimExpr Expression AssignmentExpression Assignment Assign LeftHandSide AssignmentOperator ConditionalExpression ConditionalOrExpression ConditionalAndExpression InclusiveOrExpression ExclusiveOrExpression AndExpression EqualityExpression RelationalExpression ShiftExpression AdditiveExpression MultiplicativeExpression UnaryExpression PreIncrementExpression PreDecrementExpression UnaryExpressionNotPlusMinus PostfixExpression PostIncrementExpression PostDecrementExpression CastExpression Block BlockStatements BlockStatement Statement StatementNoShortIf StatementWithoutTrailingSubstatement EmptyStatement LabeledStatement LabeledStatementNoShortIf ExpressionStatement StatementExpression IfThenElseStatement IfThenElseStatementNoShortIf AssertStatement WhileStatement WhileStatementNoShortIf ForStatement ForStatementNoShortIf BasicForStatement BasicForStatementNoShortIf ForInit ForUpdate StatementExpressionList CommaStatementExpressions EnhancedForStatement EnhancedForStatementNoShortIf BreakStatement ContinueStatement ReturnStatement ThrowStatement IfThenStatement LocalVariableDeclaration LocalVariableDeclarationStatement Super Int Long Byte Char Short Float Double Boolean Var If Else For While Break Continue Void New Return Public  Private Class Static Final Assert Plus Minus Div Modulo Increment Decrement Geq Leq Gt Lt Neq Deq Bitwise_and Bitwise_or Bitwise_xor Bitwise_complement Left_shift Right_shift Unsigned_right_shift And Or Not Colon Qm Lparen Rparen Lcurly Rcurly Lsquare Rsquare Semicolon Comma Dot Char_literal Boolean_literal Null_literal Integer_literal Fp_literal String Text_block Identifier This Instanceof Throw Implements Interface Extends Package Import Asterik SynchronizedStatement DoStatement TryStatement YieldStatement SwitchBlock SwitchBlockStatementGroup SwitchBlockStatementGroups SwitchLabel SwitchLabelColons SwitchRule SwitchRules SwitchStatement CatchClause Catches CatchFormalParameter CatchType Finally CaseConstant CaseConstants do_ switch_ yield_ try_ catch_ finally_ synchronized_ throws_ case_ default_ arrow_ endoffile ImportDeclarations Throws ExceptionType ExceptionTypeList CommaExceptionTypes
 
 %start Program
 %%
@@ -380,7 +383,7 @@ VariableDeclaratorList:
 ;
 
 VariableDeclarator:
-    VariableDeclaratorId AssignmentOperator VariableInitializer {
+    VariableDeclaratorId Assign VariableInitializer             {
                                                                     create_edges($2, {$1, $3});
                                                                     $$ = $2;
                                                                 }
@@ -614,6 +617,10 @@ AssignmentExpression:
 
 Assignment:
     LeftHandSide AssignmentOperator Expression  {
+                                                    create_edges($2, {$1, $3});
+                                                    $$ = $2;
+                                                }
+    LeftHandSide Assign Expression              {
                                                     create_edges($2, {$1, $3});
                                                     $$ = $2;
                                                 }
@@ -1227,6 +1234,8 @@ Not : NOT { $$ = create_leaf($1, "Operator"); }
 
 AssignmentOperator:  ASSIGNMENT { $$ = create_leaf($1, "Operator"); }
 ;
+
+Assign: ASSIGN { $$ = create_leaf($1, "Operator"); }
 
 Colon : COLON { $$ = create_leaf($1, "Operator"); }
 ;

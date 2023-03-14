@@ -406,7 +406,13 @@ EOL_COMMENT         \/\/[^\n\r]*
                                             return NOT;
                                       }
 
-"="|"+="|"-="|"*="|"/="|"&="|"%="|">>="|"<<="|">>>="|"|="|"^="         {
+"="                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return ASSIGN;
+                                      }
+
+"+="|"-="|"*="|"/="|"&="|"%="|">>="|"<<="|">>>="|"|="|"^="         {
                                                                             yylval.str = yytext;
                                                                             check_for_null(yylval.str);
                                                                             return ASSIGNMENT;
