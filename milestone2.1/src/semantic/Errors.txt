@@ -1,2 +1,5 @@
 offset of a class during declaration
 Line 272 TypeName
+Line 419 Throws
+Method Declaration change OPEN_FUNCTION to FUNCTION
+Return type not checking for functions

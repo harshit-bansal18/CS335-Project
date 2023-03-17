@@ -14,4 +14,6 @@ int main(){
         j++;
         printf("%d ", j);
     }
+
+    string s = "";
 }

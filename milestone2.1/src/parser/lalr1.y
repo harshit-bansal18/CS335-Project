@@ -7,113 +7,37 @@
     #include <iomanip>
     #include <vector>
     #include <fstream>
-    #include <argparse/argparse.hpp>
-    
+    // #include <argparse/argparse.hpp>
+    #ifndef SYMBOL_TABLE_H
+        #include "symbol_table.hpp"
+    #endif
+
     #define YYDEBUG 1
     using namespace std;
-
 
     extern "C" int yylex();
     extern "C" FILE *yyin;
     extern "C" int yylineno;
 
-    static int node_num=-1, scope=0;
+    extern int current_scope, offset;
+
+    extern map< string, vector< stackentry* > > symmbol_table_pass1;
+    extern map< string, vector< stackentry* > > symmbol_table_pass2;
+
+    extern vector< stackentry* > temp_stack,current_stack;
+
+    extern int8_t global_modifier;
+    extern string global_type;
+    extern string current_class;
+    extern string current_method; 
+    extern int pass_no;
+
+    static int node_num=-1;
 
     ofstream dotfile;
 
     int yyerror(const char *);
-
-
-
-    struct stackentry {
-        string token;           //key
-        int scope;      
-        int modifier;           //public, private, static, final
-        string argument_type;   //argument list of function
-        string type;            // type for variable and return type for function
-        string nature;          // class or function or variable etc.
-        int offset;
-        int lineno;
-    };
-
-    string current_class="";
-
-
-
-
-    int create_node(char* label, vector<int> children_node_num){
-        //A new node created with given label and edges from current node_num to all children_node_num
-        dotfile << "node" << ++node_num << "[label=\"" << label << "\"];\n";
-        for (auto& child : children_node_num){
-            dotfile << "node" << node_num << " -> node" << child << ";\n";
-        }
-        dotfile.flush();
-        return node_num;
-    }
-
-    int create_leaf(char* lexeme, char* token){
-
-        if(strcmp(token, "STRING")==0){    
-            
-            dotfile << "node" << ++node_num << "[label=\"" << token << "(";
-
-            dotfile << "\\\""; lexeme++;
-
-            while(lexeme[0] != '"'){
-                if(lexeme[0] == '\\'){
-                    dotfile << "\\\\";
-                }
-                else{
-                    dotfile << lexeme[0];
-                }
-                lexeme++;
-            }
-
-            dotfile << "\\\"";
-            
-            dotfile << ")\"];\n";
-
-        }
-        else if(strcmp(token, "TEXT_BLOCK")==0){   
-
-
-            dotfile << "node" << ++node_num << "[label=\"" << token << "(";
-
-            dotfile << "\\\""; lexeme++;   dotfile << "\\\""; lexeme++;  dotfile << "\\\""; lexeme++;
-
-            while(lexeme[0] != '"' && lexeme[1] != '"' && lexeme[2] != '"'){
-                if(lexeme[0] == '\\'){
-                    dotfile << "\\\\";
-                }
-                else if(lexeme[0] == '"'){
-                    dotfile << "\\\"";
-                }
-                else{
-                    dotfile << lexeme[0];
-                }
-                lexeme++;
-            }
-            
-            dotfile << "\\\"" ; dotfile << "\\\""; dotfile << "\\\"";
-
-            dotfile << ")\"];\n";
-                   
-            
-        }
-        else
-            dotfile << "node" << ++node_num << "[label=\"" << token << "(" << lexeme << ")\"];\n";
-        
-        dotfile.flush();
-        return node_num;
-    }
-
-    int create_edges(int parent_node_num, vector<int> children_node_num){
-        for (auto& child : children_node_num){
-            dotfile << "node" << parent_node_num << "-> node" << child << ";\n";
-        }
-        dotfile.flush();
-        return parent_node_num;
-    }
+    
 
 %}
 
@@ -121,18 +45,293 @@
 
 %union {
     int num;
+    int8_t b_no;
     double float_num;
     char* str;
-    struct stackentry stack_entry;
+    struct stackentry* stack_entry;
+    // Type *type_;
 }
 
-%token<str> INT LONG BYTE CHAR SHORT FLOAT DOUBLE BOOLEAN VAR IF ELSE FOR WHILE BREAK CONTINUE VOID NEW RETURN PUBLIC PRIVATE CLASS STATIC FINAL SWITCH YIELD CATCH FINALLY SYNCHRONIZED ASSERT PLUS MINUS DIV MODULO INCREMENT DECREMENT GEQ LEQ GT LT NEQ DEQ BITWISE_AND BITWISE_OR BITWISE_XOR BITWISE_COMPLEMENT LEFT_SHIFT RIGHT_SHIFT UNSIGNED_RIGHT_SHIFT AND OR NOT ASSIGNMENT ASSIGN COLON QM LPAREN RPAREN LCURLY RCURLY LSQUARE RSQUARE SEMICOLON COMMA DOT ARROW CHAR_LITERAL BOOLEAN_LITERAL NULL_LITERAL INTEGER_LITERAL FP_LITERAL STRING TEXT_BLOCK IDENTIFIER THIS INSTANCEOF SUPER THROW THROWS EOF_ IMPLEMENTS INTERFACE EXTENDS PACKAGE IMPORT ASTERIK DO TRY CASE DEFAULT
+%token<str> INT LONG BYTE CHAR SHORT FLOAT DOUBLE BOOLEAN VAR
 
-%left INCREMENT DECREMENT NOT BITWISE_COMPLEMENT ASTERIK DIV MODULO PLUS MINUS LEFT_SHIFT RIGHT_SHIFT UNSIGNED_RIGHT_SHIFT  GEQ LEQ GT LT NEQ DEQ BITWISE_AND BITWISE_XOR BITWISE_OR AND OR
+%token<str> IF ELSE FOR WHILE BREAK CONTINUE
 
+%token<str> VOID NEW RETURN PUBLIC PRIVATE CLASS STATIC FINAL SWITCH YIELD CATCH FINALLY SYNCHRONIZED
+
+%token<str> ASSERT PLUS MINUS DIV MODULO INCREMENT DECREMENT GEQ LEQ GT LT NEQ DEQ BITWISE_AND BITWISE_OR BITWISE_XOR BITWISE_COMPLEMENT LEFT_SHIFT RIGHT_SHIFT UNSIGNED_RIGHT_SHIFT AND OR NOT ASSIGNMENT
+%token<str> COLON QM LPAREN RPAREN LCURLY RCURLY LSQUARE RSQUARE SEMICOLON COMMA DOT ARROW
+%token<str> CHAR_LITERAL BOOLEAN_LITERAL NULL_LITERAL INTEGER_LITERAL FP_LITERAL STRING TEXT_BLOCK
+
+%token<str> IDENTIFIER
+%token<str> THIS
+%token<str> INSTANCEOF
+%token<str> SUPER
+%token<str> THROW
+%token<str> THROWS
+%token<str> EOF_
+%token<str> IMPLEMENTS
+%token<str> INTERFACE
+%token<str> EXTENDS
+%token<str> PACKAGE
+%token<str> IMPORT
+%token<str> ASTERIK
+%token<str> DO
+%token<str> TRY
+%token<str> CASE
+%token<str> DEFAULT
+
+%left INCREMENT DECREMENT
+%left NOT BITWISE_COMPLEMENT
+%left ASTERIK DIV MODULO
+%left PLUS MINUS
+%left LEFT_SHIFT RIGHT_SHIFT UNSIGNED_RIGHT_SHIFT 
+%left GEQ LEQ GT LT NEQ DEQ
+%left BITWISE_AND
+%left BITWISE_XOR
+%left BITWISE_OR
+%left AND
+%left OR
 %right ASSIGNMENT ASSIGN
 
-%type<stack_entry> Program CompilationUnit ClassOrInterfaceDeclaration ClassOrInterfaceDeclarations PackageDeclaration ImportDeclaration Literal UnannType PrimitiveType NumericType IntegralType FloatingPointType ReferenceType  ClassOrInterfaceType ArrayType Dims TypeName Modifiers ClassDeclaration super_ Interfaces InterfaceTypeList ClassBody ClassBodyDeclarations ClassBodyDeclaration ClassMemberDeclaration FieldDeclaration VariableDeclaratorList VariableDeclarator VariableDeclaratorId VariableInitializer MethodDeclaration MethodHeader Declarator FormalParameterList FormalParameter MethodBody StaticInitializer ConstructorDeclaration ConstructorBody ExplicitConstructorInvocation ArrayInitializer VariableInitializerList InterfaceDeclaration InterfaceExtends InterfaceBody InterfaceMembers InterfaceMemberDeclaration InterfaceMethodDeclaration Primary PrimaryNoNewArray ClassInstanceCreationExpression FieldAccess ArrayAccess MethodInvocation ArgumentList ArrayCreationExpression DimExprs DimExpr Expression AssignmentExpression Assignment Assign LeftHandSide AssignmentOperator ConditionalExpression ConditionalOrExpression ConditionalAndExpression InclusiveOrExpression ExclusiveOrExpression AndExpression EqualityExpression RelationalExpression ShiftExpression AdditiveExpression MultiplicativeExpression UnaryExpression PreIncrementExpression PreDecrementExpression UnaryExpressionNotPlusMinus PostfixExpression PostIncrementExpression PostDecrementExpression CastExpression Block BlockStatements BlockStatement Statement StatementNoShortIf StatementWithoutTrailingSubstatement EmptyStatement LabeledStatement LabeledStatementNoShortIf ExpressionStatement StatementExpression IfThenElseStatement IfThenElseStatementNoShortIf AssertStatement WhileStatement WhileStatementNoShortIf ForStatement ForStatementNoShortIf BasicForStatement BasicForStatementNoShortIf ForInit ForUpdate StatementExpressionList CommaStatementExpressions EnhancedForStatement EnhancedForStatementNoShortIf BreakStatement ContinueStatement ReturnStatement ThrowStatement IfThenStatement LocalVariableDeclaration LocalVariableDeclarationStatement Super Int Long Byte Char Short Float Double Boolean Var If Else For While Break Continue Void New Return Class Assert Plus Minus Div Modulo Increment Decrement Geq Leq Gt Lt Neq Deq Bitwise_and Bitwise_or Bitwise_xor Bitwise_complement Left_shift Right_shift Unsigned_right_shift And Or Not Colon Qm Lparen Rparen Lcurly Rcurly Lsquare Rsquare Semicolon Comma Dot This Instanceof Throw Implements Interface Extends Package Import Asterik SynchronizedStatement DoStatement TryStatement YieldStatement SwitchBlock SwitchBlockStatementGroup SwitchBlockStatementGroups SwitchLabel SwitchLabelColons SwitchRule SwitchRules SwitchStatement CatchClause Catches CatchFormalParameter CatchType Finally CaseConstant CaseConstants do_ switch_ yield_ try_ catch_ finally_ synchronized_ throws_ case_ default_ arrow_ endoffile ImportDeclarations Throws ExceptionType ExceptionTypeList CommaExceptionTypes Char_literal Boolean_literal Null_literal Integer_literal Fp_literal String Text_block Identifier Public Private Static Final Modifier
+%type<stack_entry> Program
+%type<stack_entry> CompilationUnit
+%type<stack_entry> ClassOrInterfaceDeclaration
+%type<stack_entry> ClassOrInterfaceDeclarations
+%type<stack_entry> PackageDeclaration
+%type<stack_entry> ImportDeclaration
+%type<stack_entry> Literal
+%type<stack_entry> UnannType
+%type<stack_entry> PrimitiveType
+%type<stack_entry> NumericType
+%type<stack_entry> IntegralType
+%type<stack_entry> FloatingPointType
+%type<stack_entry> ReferenceType
+%type<stack_entry> ClassOrInterfaceType
+%type<stack_entry> ArrayType
+%type<stack_entry> Dims
+%type<stack_entry> TypeName
+%type<stack_entry> ClassDeclaration
+%type<stack_entry> super_
+%type<stack_entry> ClassBody
+%type<stack_entry> ClassBodyDeclarations
+%type<stack_entry> ClassBodyDeclaration
+%type<stack_entry> ClassMemberDeclaration
+%type<stack_entry> FieldDeclaration
+%type<stack_entry> VariableDeclaratorList
+%type<stack_entry> VariableDeclarator
+%type<stack_entry> VariableDeclaratorId
+%type<stack_entry> VariableInitializer
+%type<stack_entry> MethodDeclaration
+%type<stack_entry> MethodHeader
+%type<stack_entry> Declarator
+%type<stack_entry> FormalParameterList
+%type<stack_entry> FormalParameter
+%type<stack_entry> MethodBody
+%type<stack_entry> StaticInitializer
+%type<stack_entry> ConstructorDeclaration
+%type<stack_entry> ConstructorBody
+%type<stack_entry> ExplicitConstructorInvocation
+%type<stack_entry> ArrayInitializer
+%type<stack_entry> VariableInitializerList
+%type<stack_entry> InterfaceDeclaration
+%type<stack_entry> InterfaceExtends
+%type<stack_entry> InterfaceBody
+%type<stack_entry> InterfaceMembers
+%type<stack_entry> InterfaceMemberDeclaration
+%type<stack_entry> InterfaceMethodDeclaration
+%type<stack_entry> Primary
+%type<stack_entry> PrimaryNoNewArray
+%type<stack_entry> ClassInstanceCreationExpression
+%type<stack_entry> FieldAccess
+%type<stack_entry> ArrayAccess
+%type<stack_entry> MethodInvocation
+%type<stack_entry> ArgumentList
+%type<stack_entry> ArrayCreationExpression
+%type<stack_entry> DimExprs
+%type<stack_entry> DimExpr
+%type<stack_entry> Expression
+%type<stack_entry> AssignmentExpression
+%type<stack_entry> Assignment
+%type<stack_entry> Assign
+%type<stack_entry> LeftHandSide
+%type<stack_entry> AssignmentOperator
+%type<stack_entry> ConditionalExpression
+%type<stack_entry> ConditionalOrExpression
+%type<stack_entry> ConditionalAndExpression
+%type<stack_entry> InclusiveOrExpression
+%type<stack_entry> ExclusiveOrExpression
+%type<stack_entry> AndExpression
+%type<stack_entry> EqualityExpression
+%type<stack_entry> RelationalExpression
+%type<stack_entry> ShiftExpression
+%type<stack_entry> AdditiveExpression
+%type<stack_entry> MultiplicativeExpression
+%type<stack_entry> UnaryExpression
+%type<stack_entry> PreIncrementExpression
+%type<stack_entry> PreDecrementExpression
+%type<stack_entry> UnaryExpressionNotPlusMinus
+%type<stack_entry> PostfixExpression
+%type<stack_entry> PostIncrementExpression
+%type<stack_entry> PostDecrementExpression
+%type<stack_entry> CastExpression
+%type<stack_entry> Block
+%type<stack_entry> BlockStatements
+%type<stack_entry> BlockStatement
+%type<stack_entry> Statement
+%type<stack_entry> StatementNoShortIf
+%type<stack_entry> StatementWithoutTrailingSubstatement
+%type<stack_entry> EmptyStatement
+%type<stack_entry> LabeledStatement
+%type<stack_entry> LabeledStatementNoShortIf
+%type<stack_entry> ExpressionStatement
+%type<stack_entry> StatementExpression
+%type<stack_entry> IfThenElseStatement
+%type<stack_entry> IfThenElseStatementNoShortIf
+%type<stack_entry> AssertStatement
+%type<stack_entry> WhileStatement
+%type<stack_entry> WhileStatementNoShortIf
+%type<stack_entry> ForStatement
+%type<stack_entry> ForStatementNoShortIf
+%type<stack_entry> BasicForStatement
+%type<stack_entry> BasicForStatementNoShortIf
+%type<stack_entry> ForInit
+%type<stack_entry> ForUpdate
+%type<stack_entry> StatementExpressionList
+%type<stack_entry> CommaStatementExpressions
+%type<stack_entry> EnhancedForStatement
+%type<stack_entry> EnhancedForStatementNoShortIf
+%type<stack_entry> BreakStatement
+%type<stack_entry> ContinueStatement
+%type<stack_entry> ReturnStatement
+%type<stack_entry> IfThenStatement
+%type<stack_entry> LocalVariableDeclaration
+%type<stack_entry> LocalVariableDeclarationStatement
+%type<stack_entry> Int
+%type<stack_entry> Long
+%type<stack_entry> Byte
+%type<stack_entry> Char
+%type<stack_entry> Short
+%type<stack_entry> Float
+%type<stack_entry> Double
+%type<stack_entry> Boolean
+%type<stack_entry> Var
+%type<stack_entry> If
+%type<stack_entry> Else
+%type<stack_entry> For
+%type<stack_entry> While
+%type<stack_entry> Break
+%type<stack_entry> Continue
+%type<stack_entry> Void
+%type<stack_entry> New
+%type<stack_entry> Return
+%type<stack_entry> Class
+%type<stack_entry> Assert
+%type<stack_entry> Plus
+%type<stack_entry> Minus
+%type<stack_entry> Div
+%type<stack_entry> Modulo
+%type<stack_entry> Increment
+%type<stack_entry> Decrement
+%type<stack_entry> Geq
+%type<stack_entry> Leq
+%type<stack_entry> Gt
+%type<stack_entry> Lt
+%type<stack_entry> Neq
+%type<stack_entry> Deq
+%type<stack_entry> Bitwise_and
+%type<stack_entry> Bitwise_or
+%type<stack_entry> Bitwise_xor
+%type<stack_entry> Bitwise_complement
+%type<stack_entry> Left_shift
+%type<stack_entry> Right_shift
+%type<stack_entry> Unsigned_right_shift
+%type<stack_entry> And
+%type<stack_entry> Or
+%type<stack_entry> Not
+%type<stack_entry> Colon
+%type<stack_entry> Qm
+%type<stack_entry> Lparen
+%type<stack_entry> Rparen
+%type<stack_entry> Lcurly
+%type<stack_entry> Rcurly
+%type<stack_entry> Lsquare
+%type<stack_entry> Rsquare
+%type<stack_entry> Semicolon
+%type<stack_entry> Comma
+%type<stack_entry> Dot
+%type<stack_entry> This
+%type<stack_entry> Instanceof
+%type<stack_entry> Throw
+%type<stack_entry> Implements
+%type<stack_entry> Interface
+%type<stack_entry> Extends
+%type<stack_entry> Package
+%type<stack_entry> Import
+%type<stack_entry> Asterik
+%type<stack_entry> SynchronizedStatement
+%type<stack_entry> DoStatement
+%type<stack_entry> TryStatement
+%type<stack_entry> SwitchBlock
+%type<stack_entry> SwitchBlockStatementGroup
+%type<stack_entry> SwitchBlockStatementGroups
+%type<stack_entry> SwitchLabel
+%type<stack_entry> SwitchLabelColons
+%type<stack_entry> SwitchRule
+%type<stack_entry> SwitchRules
+%type<stack_entry> SwitchStatement
+%type<stack_entry> CatchClause
+%type<stack_entry> Catches
+%type<stack_entry> CatchFormalParameter
+%type<stack_entry> CatchType
+%type<stack_entry> Finally
+%type<stack_entry> CaseConstant
+%type<stack_entry> CaseConstants
+%type<stack_entry> do_
+%type<stack_entry> switch_
+%type<stack_entry> yield_
+%type<stack_entry> try_
+%type<stack_entry> catch_
+%type<stack_entry> finally_
+%type<stack_entry> synchronized_
+%type<stack_entry> throws_
+%type<stack_entry> case_
+%type<stack_entry> default_
+%type<stack_entry> arrow_
+%type<stack_entry> endoffile
+%type<stack_entry> ImportDeclarations
+%type<stack_entry> Throws
+%type<stack_entry> ExceptionType
+%type<stack_entry> ExceptionTypeList
+%type<stack_entry> CommaExceptionTypes
+%type<stack_entry> Char_literal
+%type<stack_entry> Boolean_literal
+%type<stack_entry> Null_literal
+%type<stack_entry> Integer_literal
+%type<stack_entry> Fp_literal
+%type<stack_entry> String
+%type<stack_entry> Text_block
+%type<stack_entry> Identifier
+%type<stack_entry> Public
+%type<stack_entry> Private
+%type<stack_entry> Static
+%type<stack_entry> Final
+%type<stack_entry> Interfaces
+%type<stack_entry> InterfaceTypeList
+%type<stack_entry> ThrowStatement
+%type<stack_entry> YieldStatement
+%type<stack_entry> Super 
+
+%type<b_no> Modifier
+%type<b_no> Modifiers
+/* %type<type_> UnannType
+%type<type_> PrimitiveType
+%type<type_> NumericType
+%type<type_> IntegralType
+%type<type_> FloatingPointType
+%type<type_> ReferenceType
+%type<type_> ClassOrInterfaceType
+%type<type_> ArrayType
+%type<type_> Dims */
 
 %start Program
 %%
@@ -232,30 +431,33 @@ ReferenceType:
 ClassOrInterfaceType:
     // TypeName     {  }
     Identifier      { 
-                        if(symmbol_table_pass1.find(($1).token) == symmbol_table_pass1.end()){
-                            cerr<<"Error: Cannot find class "<<($1).token<<endl;
-                            exit(1);
-                        }
-                        ($$).type = ($1).token;
+                        $$ = ClassOrInterfaceType($1);
                     }
 ;
 
-
 ArrayType:
-    PrimitiveType Dims { ($$).type = ($1).type+($2).type; }
+    PrimitiveType Dims {    
+                            struct stackentry* entry = new_entry();
+                            entry->type = ($1)->type+($2)->type; 
+                            $$ = entry; 
+                       }
 // |   TypeName Dims    { ($$).type}
 |   Identifier Dims {  
-                        if(symmbol_table_pass1.find(($1).token) == symmbol_table_pass1.end()){
-                            cerr<<"Error: Cannot find class "<<($1).token<<endl;
-                            exit(1);
-                        }
-                        ($$).type = ($1).token + ($2).type; 
+                        $$ = ArrayType($1, $2, 2);
                     }
 ;
 
 Dims:
-    Lsquare Rsquare Dims  { ($$).type = ($3).type + "*";}
-|   Lsquare Rsquare  { ($$).type = "*";  }
+    Lsquare Rsquare Dims  {     
+                                struct stackentry* entry = new_entry();
+                                entry->type = ($3)->type + "*"; 
+                                $$ = entry; 
+                        }
+|   Lsquare Rsquare { 
+                        struct stackentry* entry = new_entry();
+                        entry->type = "*"; 
+                        $$ = entry; 
+                    }
 ;
 
 
@@ -271,14 +473,12 @@ Dims:
 */
 TypeName:
     Identifier  { 
-                    
+                    $$ = $1;
                 }
-|   TypeName Dot Identifier { 
-                                $$ = find_field_in_class(symmbol_table_pass1[($1).type], ($3).token);
-                                if($$.token == ""){
-                                    cerr<<"Error: Cannot find field "<<($3).token<<" in class "<<symmbol_table_pass1[($1).type].name<<endl;
-                                    exit(1);
-                                }
+|   TypeName Dot Identifier {   
+                                struct stackentry* entry = new_entry();
+                                entry->token = ($1)->token + "." + ($3)->token;
+                                $$ = entry;
                             }
 ;
 
@@ -287,16 +487,28 @@ TypeName:
 
 
 Modifiers:
-    Modifier { ($$).modifier =  set_modifier(0, ($1).modifier);}
-|   Modifiers Modifier { ($$).modifier =  set_modifier(($1).modifier, ($2).modifier); }
+    Modifier {  
+                $$ = set_modifier(0, $1);
+            }
+|   Modifiers Modifier  { 
+                            $$ = set_modifier($1, $2);
+                        }
 ;
 
 // *************Need to confirm it *******
 Modifier:
-    Public      { $$.modifier = __PUBLIC; } 
-|   Private     { $$.modifier = __PRIVATE; }
-|   Static      { $$.modifier = __STATIC; }
-|   Final       { $$.modifier = __FINAL; }
+    Public      { 
+                    $$ = __PUBLIC;
+                } 
+|   Private     { 
+                    $$ = __PRIVATE;    
+                }
+|   Static      { 
+                    $$ = __STATIC;    
+                }
+|   Final       { 
+                    $$ = __FINAL;    
+                }
 ;
 
 /*
@@ -306,8 +518,21 @@ Modifier:
 
 
 ClassDeclaration:
-    Modifiers Class Identifier {add_class(($1).modifier, ($3).token); current_class = ($3).token } ClassBody { current_class = ""; }
-|   Class Identifier {add_class(0b0, ($2).token);} ClassBody { }
+    Modifiers Class Identifier { add_class($1, ($3)->token); current_class = ($3)->token; } ClassBody { current_class = ""; }
+|   Class Identifier { add_class(0b0, ($2)->token); current_class = ($2)->token; } ClassBody { current_class = ""; }
+;
+
+Super:
+    Extends ClassOrInterfaceType
+;
+
+Interfaces:
+    Implements InterfaceTypeList
+;
+
+InterfaceTypeList:
+    ClassOrInterfaceType
+|   InterfaceTypeList Comma ClassOrInterfaceType
 ;
 
 ClassBody:
@@ -336,8 +561,8 @@ ClassMemberDeclaration:
 ;
 
 FieldDeclaration:
-    Modifiers {global_modifier = ($1).modifier;} UnannType {global_type = ($2).type;} VariableDeclaratorList Semicolon { global_modifier = ""; global_type =""; }
-|   UnannType {global_type = ($1).type;} VariableDeclaratorList Semicolon { global_modifier = ""; global_type =""; }
+    Modifiers {global_modifier = $1; } UnannType { global_type = ($3)->type; } VariableDeclaratorList Semicolon { global_modifier = 0b0; global_type =""; }
+|   UnannType {global_type = ($1)->type;  } VariableDeclaratorList Semicolon { global_modifier = 0b0; global_type =""; }
 ;
 
 VariableDeclaratorList:
@@ -345,27 +570,33 @@ VariableDeclaratorList:
 |   VariableDeclarator { }
 ;
 
+// used to declare instance variables of class, hence will be invoked in both passes.
 VariableDeclarator:
-    VariableDeclaratorId Assign VariableInitializer { 
-                                                        add_variable(($1).token, global_modifier, ($1).type);
-                                                        if(!check_return_type(($1).type),($2).type){
-                                                            cerr<<"Error: Cannot assign "<<($2).type<<" to "<<($1).type<<endl;
-                                                            exit(1);
-                                                        }
+    VariableDeclaratorId Assign VariableInitializer {    
+                                                        if((pass_no==1 && current_scope==0) || pass_no==2) VariableDeclarator($1, $3, 1);
                                                     }
 |   VariableDeclaratorId { 
-                            add_variable(($1).token, global_modifier, ($1).type); 
+                            if((pass_no==1 && current_scope==0) || pass_no==2) VariableDeclarator($1, NULL, 2);
                          }
 ;
 
 VariableDeclaratorId:
-    VariableDeclaratorId  Lsquare Rsquare { 
-                                            ($$).token = ($1).token;
-                                            ($$).type = ($1).type + "*";
+    VariableDeclaratorId  Lsquare Rsquare {     
+                                                if((pass_no==1 && current_scope==0) || pass_no==2) {
+                                                    struct stackentry* entry = new_entry();
+                                                    entry->token = ($1)->token;
+                                                    entry->type = ($1)->type + "*";
+                                                    $$ = entry;
+                                                }
+                                                 
                                           }
-|   Identifier { 
-                    ($$).type = global_type;
-                    ($$).token = ($1).token;
+|   Identifier  {    
+                    if((pass_no==1 && current_scope==0) || pass_no==2) {
+                        struct stackentry* entry = new_entry();
+                        entry->token = ($1)->token;
+                        entry->type = global_type;
+                        $$ = entry;
+                    } 
                 }
 ;
 
@@ -378,59 +609,75 @@ VariableInitializer:
 
 
 MethodDeclaration:
-    MethodHeader {
-                    add_function(($1).token, ($1).argument_type, ($1).type, ($1).modifier);
-                    
+    MethodHeader{
+                    add_function(($1)->token, ($1)->argument_type, ($1)->type, $1);   
                 } MethodBody { }
 ;
 
 MethodHeader:
     Modifiers UnannType Declarator      { 
-                                            ($$).modifier = ($1).modifier; 
-                                            ($$).type = ($2).type; 
-                                            ($$).token = ($3).token; 
-                                            ($$).argument_type = ($3).argument_type;
+                                            struct stackentry* entry = new_entry();
+                                            entry->modifier = $1; 
+                                            entry->type = ($2)->type; 
+                                            entry->token = ($3)->token; 
+                                            entry->argument_type = ($3)->argument_type;
+                                            $$ = entry; 
                                         }
 |   UnannType Declarator                  { 
-                                            ($$).type = ($1).type; 
-                                            ($$).token = ($2).token; 
-                                            ($$).argument_type = ($2).argument_type;
+                                            struct stackentry* entry = new_entry();
+                                            entry->type = ($1)->type; 
+                                            entry->token = ($2)->token; 
+                                            entry->argument_type = ($2)->argument_type;
+                                            $$ = entry;
                                           }
 |   Modifiers Void Declarator             { 
-                                            ($$).modifier = ($1).modifier; 
-                                            ($$).type = "void"; 
-                                            ($$).token = ($3).token; 
-                                            ($$).argument_type = ($3).argument_type;
+                                            struct stackentry* entry = new_entry();
+                                            entry->modifier = $1; 
+                                            entry->type = VOID; 
+                                            entry->token = ($3)->token; 
+                                            entry->argument_type = ($3)->argument_type;
+                                            $$ = entry;
                                           }
 |   Void Declarator                       { 
-                                            ($$).modifier = ($1).modifier; 
-                                            ($$).type = ($2).type; 
-                                            ($$).token = ($3).token; 
-                                            ($$).argument_type = ($3).argument_type;
+                                            struct stackentry* entry = new_entry();
+                                            entry->type = VOID; 
+                                            entry->token = ($2)->token; 
+                                            entry->argument_type = ($2)->argument_type;
+                                            $$ = entry;
                                           }
 |   Modifiers UnannType Declarator Throws { 
-                                            ($$).modifier = ($1).modifier; 
-                                            ($$).type = ($2).type; 
-                                            ($$).token = ($3).token; 
-                                            ($$).argument_type = ($3).argument_type;
+                                            struct stackentry* entry = new_entry();
+                                            entry->modifier = $1; 
+                                            entry->type = ($2)->type; 
+                                            entry->token = ($3)->token; 
+                                            entry->argument_type = ($3)->argument_type;
+                                            $$ = entry;
+                                            // Throws ???????????????????????????????????????
                                           }
 |   UnannType Declarator Throws           { 
-                                            ($$).modifier = ($1).modifier; 
-                                            ($$).type = ($2).type; 
-                                            ($$).token = ($3).token; 
-                                            ($$).argument_type = ($3).argument_type;
+                                            struct stackentry* entry = new_entry();
+                                            entry->type = ($1)->type; 
+                                            entry->token = ($2)->token; 
+                                            entry->argument_type = ($2)->argument_type;
+                                            $$ = entry;
+                                            // Throws ???????????????????????????????????????
                                           }
 |   Modifiers Void Declarator Throws      { 
-                                            ($$).modifier = ($1).modifier; 
-                                            ($$).type = ($2).type; 
-                                            ($$).token = ($3).token; 
-                                            ($$).argument_type = ($3).argument_type;
+                                            struct stackentry* entry = new_entry();
+                                            entry->modifier = $1; 
+                                            entry->type = VOID; 
+                                            entry->token = ($3)->token; 
+                                            entry->argument_type = ($3)->argument_type;
+                                            $$ = entry;
+                                            // Throws ???????????????????????????????????????
                                           }
 |   Void Declarator Throws                { 
-                                            ($$).modifier = ($1).modifier; 
-                                            ($$).type = ($2).type; 
-                                            ($$).token = ($3).token; 
-                                            ($$).argument_type = ($3).argument_type;
+                                            struct stackentry* entry = new_entry();
+                                            entry->type = VOID; 
+                                            entry->token = ($2)->token; 
+                                            entry->argument_type = ($2)->argument_type;
+                                            $$ = entry;
+                                            // Throws ???????????????????????????????????????
                                           }
 ;
 
@@ -453,21 +700,39 @@ ExceptionType:
     Added in place  of MethodDeclarator and ConstructorDeclarator
 */
 Declarator:
-    Identifier { ($$).scope = current_scope; ($$).token =($1).token; } Lparen {current_scope++;} Rparen {current_scope--;} 
-|   Identifier { ($$).scope = current_scope; ($$).token =($1).token; } Lparen {current_scope++;} FormalParameterList { ($$).argument_type = ($3).argument_type; } Rparen {current_scope--;}
+    Identifier Lparen Rparen {
+                                struct stackentry* entry = new_entry();
+                                entry->token = ($1)->token; 
+                                $$ = entry;
+                             }
+|   Identifier Lparen FormalParameterList Rparen {
+                                                    struct stackentry* entry = new_entry();
+                                                    entry->token =($1)->token; 
+                                                    entry->argument_type = ($3)->argument_type;
+                                                    $$ = entry;
+                                                 }
 ;
 
 FormalParameterList:
-    FormalParameterList Comma FormalParameter {  }
-|   FormalParameter { }
+    FormalParameterList Comma FormalParameter {     
+                                                struct stackentry* entry = new_entry(); 
+                                                entry->argument_type = ($1)->argument_type + "," + ($3)->argument_type;
+                                                $$ = entry;
+                                             }
+|   FormalParameter {   
+                        struct stackentry* entry = new_entry(); 
+                        entry->argument_type = ($1)->argument_type;
+                        $$ = entry;
+                    }
 ;
 
 FormalParameter:
-    UnannType {global_type = ($1).type;} VariableDeclaratorId { 
+    UnannType {global_type = ($1)->type;} VariableDeclaratorId { 
                                                                     global_type = ""; 
-                                                                    ($$).argument_type = ($2).type;
-                                                                    // add_variable(($2).token, "", ($2).type);
-                                                                    temp_stack.push_back($2);
+                                                                    struct stackentry* entry = new_entry(); 
+                                                                    entry->argument_type = ($3)->type;
+                                                                    $$ = entry;
+                                                                    temp_stack.push_back($3);
                                                                } 
 ;
 
@@ -481,8 +746,12 @@ StaticInitializer:
 ;
 
 ConstructorDeclaration:
-    Modifiers Declarator ConstructorBody { }
-|   Declarator ConstructorBody { }
+    Modifiers Declarator { add_constructor(($2)->token, ($2)->argument_type, "", $1, ($2)->scope); } ConstructorBody {          
+                                                                                                                                ConstructorDeclaration();
+                                                                                                                             }
+|   Declarator { add_constructor(($1)->token, ($1)->argument_type, "", (int8_t) 0, ($1)->scope); } ConstructorBody           { 
+                                                                                                                                ConstructorDeclaration();
+                                                                                                                             }
 ;
 
 /*
@@ -496,29 +765,60 @@ ConstructorDeclaration:
 
 // ExplicitInvocation missed for now (this, super)
 ConstructorBody:
-    Lcurly BlockStatements Rcurly { }
-|   Lcurly ExplicitConstructorInvocation BlockStatements Rcurly { }
-|   Lcurly ExplicitConstructorInvocation Rcurly { }
-|   Lcurly Rcurly { }
+    Lcurly { current_scope++; } BlockStatements Rcurly { if(pass_no == 2) { clear_current_scope(symmbol_table_pass2[current_class], current_scope);} current_scope--;  }
+|   Lcurly { current_scope++; } ExplicitConstructorInvocation BlockStatements Rcurly { if(pass_no == 2) { clear_current_scope(symmbol_table_pass2[current_class], current_scope);} current_scope--; }
+|   Lcurly { current_scope++; } ExplicitConstructorInvocation Rcurly { if(pass_no == 2) { clear_current_scope(symmbol_table_pass2[current_class], current_scope);} current_scope--;  }
+|   Lcurly { current_scope++; } Rcurly { if(pass_no == 2) { clear_current_scope(symmbol_table_pass2[current_class], current_scope);} current_scope--;  }
 ;
 
 ExplicitConstructorInvocation:
-    This Lparen Rparen { }
-|   This Lparen ArgumentList Rparen { }
+    This Lparen Rparen  {
+                            // This is the default constructor of a class, hence always exists, no need to check anything
+                        }
+|   This Lparen ArgumentList Rparen {
+                                        // Check if any constructor exists with the same argument type
+                                        if(pass_no == 2){
+                                            if(check_function_in_class( symmbol_table_pass1[current_class], current_class, ($3)->argument_type, CONSTRUCTOR) == ""){
+                                                cerr << "Line No: " <<  yylineno  << "No such constructor present in class\n";
+                                                exit(-1);
+                                            }
+                                        }
+                                    }
 |   super_ Lparen Rparen { }
 |   super_ Lparen ArgumentList Rparen { }
 ;
 
-ArrayInitializer:
-    Lcurly VariableInitializerList Rcurly { }
-|   Lcurly Rcurly { }
-|   Lcurly VariableInitializerList Comma Rcurly { }
-|   Lcurly Comma Rcurly { }
+ArrayInitializer: // int a[] = {2,3,4,5,6};
+    Lcurly VariableInitializerList Rcurly { $$ = $2; }         //type wont remain same
+|   Lcurly Rcurly { /*empty array*/
+                    struct stackentry* entry = new_entry(); 
+                    entry->type = "";
+                    $$ = entry;
+                 }
+|   Lcurly VariableInitializerList Comma Rcurly { $$ = $2; }
+|   Lcurly Comma Rcurly {
+                            struct stackentry* entry = new_entry(); 
+                            entry->type = "";
+                            $$ = entry;
+                        }
 ;
 
 VariableInitializerList:
-    VariableInitializerList Comma VariableInitializer { }
-|   VariableInitializer { }
+    VariableInitializerList Comma VariableInitializer {     
+                                                            if(($1)->type == __BOOLEAN || ($3)->type == __BOOLEAN) {
+                                                                if(($1)->type == __BOOLEAN)
+                                                                    $$ = $1;
+                                                                else 
+                                                                    $$ = $3;
+                                                            } else {
+                                                                if(check_return_type(($1)->type,($3)->type)){
+                                                                    $$ = $1;
+                                                                } else {
+                                                                    $$ = $3;
+                                                                }
+                                                            }
+                                                      }
+|   VariableInitializer { $$ = $1; }
 ;
 
 /*     Productions from Chapter 9 - Interfaces      */
@@ -561,6 +861,7 @@ Primary:    PrimaryNoNewArray { $$ = $1; }
 |           ArrayCreationExpression { $$ = $1; }
 ;
 
+// $$.type exists
 PrimaryNoNewArray:  Literal { $$ = $1; }
 |                   This { $$ = $1; }
 |                   Lparen Expression Rparen { $$ = $2; }
@@ -571,59 +872,100 @@ PrimaryNoNewArray:  Literal { $$ = $1; }
 ;
 
 ClassInstanceCreationExpression: 
-    New ClassOrInterfaceType Lparen Rparen  { 
-                                                ($$).type = ($2).type; 
+    New ClassOrInterfaceType Lparen Rparen  {   
+                                                struct stackentry* entry = new_entry(); 
+                                                entry->type = ($2)->type;
+                                                $$ = entry; 
                                             }
 |   New ClassOrInterfaceType Lparen ArgumentList Rparen {
-                                                            ($$).type = ($2).type;
-
-                                                            if(!check_function_in_class(symmbol_table_pass1[($2).token], ($2).token, ($4).type, "null", "function") ){
-                                                                cerr<<"Unknown constructor used"<<endl;
+                                                            if(check_function_in_class(symmbol_table_pass1[($2)->type], ($2)->type, ($4)->argument_type, CONSTRUCTOR) == ""){
+                                                                cerr << "Line No: " <<  yylineno <<"Unknown constructor used"<<endl;
                                                                 exit(1);
                                                             }
+
+                                                            struct stackentry* entry = new_entry(); 
+                                                            entry->type = ($2)->type;
+                                                            $$ = entry; 
                                                         }
 ;
 
 FieldAccess:    Primary Dot Identifier  { 
-                                            $$=find_field_in_class(symmbol_table_pass1[($1).type],$3)
+                                            struct stackentry* entry = find_variable_in_class(symmbol_table_pass1[($1)->type],$3->token);
+                                            entry->variable_init_status = __INITIALIZED;
+                                            $$ = entry;
                                         }
-|               super_ Dot Identifier { }
-|               TypeName Dot super_ Dot Identifier { }
+// |               super_ Dot Identifier { }
+// |               TypeName Dot super_ Dot Identifier { }
 ;
 
 ArrayAccess:    TypeName Lsquare Expression Rsquare { 
-                                                        if( !($3).type = "int" ){
-                                                            cerr<<"Array index must be integer"<<endl;
+                                                        if( !(($3)->type == __INT) ){
+                                                            cerr << "Line No: " <<  yylineno <<"Array index must be integer"<<endl;
+                                                            exit(-1);
+                                                        }
+
+                                                        $1 = find_variable_in_class(symmbol_table_pass1[current_class], ($1)->token);
+                                                        if(($1)->token == "" ){
+                                                            cerr << "Line No: " <<  yylineno  << "Variable not declared\n";
+                                                            exit(-1);
+                                                        } 
+
+                                                        if(($1)->variable_init_status == __UNINITIALIZED) {
+                                                            cerr << "Line No: " <<  yylineno  << "Variable not initialized\n";
+                                                            exit(-1);
+                                                        }
+
+                                                        string id = ($1)->type;
+
+                                                        if( !id[id.length() - 1]=='*' ){
+                                                            cerr << "Line No: " <<  yylineno <<"Array type must be pointer"<<endl;
                                                             exit(1);
                                                         }
-                                                        string id = ($1).type;
-                                                        int l = id.length();
-                                                        if( !id[l-1]=='*' ){
-                                                            cerr<<"Array type must be pointer"<<endl;
-                                                            exit(1);
-                                                        }
-                                                        id = id.substr(0, l-1);
-                                                        ($$).type = id;
+                                                        id = id.substr(0,id.length() - 1);
+                                                        struct stackentry* entry = new_entry(); 
+                                                        entry->type = id;
+                                                        $$ = entry; 
                                                     }
 |               PrimaryNoNewArray Lsquare Expression Rsquare    { 
-                                                                    if( !($3).type = "int" ){
-                                                                        cerr<<"Array index must be integer"<<endl;
+                                                                    if( !(($3)->type == __INT) ){
+                                                                        cerr << "Line No: " <<  yylineno <<"Array index must be integer"<<endl;
                                                                         exit(1);
                                                                     }
-                                                                    string id = ($1).type;
+
+                                                                    string id = ($1)->type;
                                                                     int l = id.length();
                                                                     if( !id[l-1]=='*' ){
-                                                                        cerr<<"Array type must be pointer"<<endl;
+                                                                        cerr << "Line No: " <<  yylineno <<"Array type must be pointer"<<endl;
                                                                         exit(1);
                                                                     }
                                                                     id = id.substr(0, l-1);
-                                                                    ($$).type = id;
+                                                                    struct stackentry* entry = new_entry(); 
+                                                                    entry->type = id;
+                                                                    $$ = entry; 
                                                                 }
 ;
-// A -> B Lsquare C Rsquare    $$.type = $1.type + "*"      $3.type = "int"
+// A -> B Lsquare C Rsquare    $$.type = $1.type + "*"      $3.type = __INT
 
-MethodInvocation:   TypeName Lparen Rparen { }
-|                   TypeName Lparen ArgumentList Rparen { }
+MethodInvocation:   TypeName Lparen Rparen {    
+                                                string return_type = check_function_in_class(symmbol_table_pass2[current_class], ($1)->token, "", FUNCTION);
+                                                if(return_type == ""){
+                                                    cerr << "Line No: " <<  yylineno  << "Undeclared function called\n";
+                                                    exit(-1);
+                                                }
+                                                struct stackentry* entry = new_entry(); 
+                                                entry->type = return_type;
+                                                $$ = entry; 
+                                            }
+|                   TypeName Lparen ArgumentList Rparen {   
+                                                            string return_type = check_function_in_class(symmbol_table_pass2[current_class], ($1)->token, ($3)->argument_type, FUNCTION)
+                                                            if(return_type == ""){
+                                                                cerr << "Line No: " <<  yylineno  << "Undeclared function called\n";
+                                                                exit(-1);
+                                                            }
+                                                            struct stackentry* entry = new_entry(); 
+                                                            entry->type = return_type;
+                                                            $$ = entry; 
+                                                        }
 |                   Primary Dot Identifier Lparen Rparen { }
 |                   Primary Dot Identifier Lparen ArgumentList Rparen { }
 |                   super_ Dot Identifier Lparen Rparen { }
@@ -634,146 +976,512 @@ MethodInvocation:   TypeName Lparen Rparen { }
 // A -> B Dot C Lparen D Rparen    $$.type = $3.type    $1.nature = "class"    $3.nature = "function"    $3.argtype = $5.type
 // A -> B Dot C Lparen Rparen    $$.type = $3.type    $1.nature = "class"    $3.nature = "function"    $3.argtype = ""
 
-ArgumentList:       Expression  { }
-|                   ArgumentList Comma Expression { }
+ArgumentList:       Expression  { 
+                                    
+                                    struct stackentry* entry = new_entry(); 
+                                    entry->argument_type = ($1)->type; 
+                                    $$ = entry; 
+                                }
+|                   ArgumentList Comma Expression {            
+                                                    struct stackentry* entry = new_entry(); 
+                                                    entry->argument_type = ($1)->argument_type + "," + ($2)->type; 
+                                                    $$ = entry; 
+                                                  }
 ;
 // A -> B Comma C    $$.argtype = $1.argtype + " , " + $3.type
 
-ArrayCreationExpression:    New PrimitiveType DimExprs Dims { }
-|                           New ClassOrInterfaceType DimExprs Dims { }
-|                           New PrimitiveType DimExprs { }
-|                           New ClassOrInterfaceType DimExprs{ }
-|                           New PrimitiveType Dims ArrayInitializer { }
-|                           New ClassOrInterfaceType Dims ArrayInitializer { }
+ArrayCreationExpression:    New PrimitiveType DimExprs Dims {
+                                                                struct stackentry* entry = new_entry(); 
+                                                                entry->type = ($2)->type + ($3)->type + ($4)->type ;
+                                                                $$ = entry;
+                                                            }
+|                           New ClassOrInterfaceType DimExprs Dims {
+                                                                        struct stackentry* entry = new_entry(); 
+                                                                        entry->type = ($2)->type + ($3)->type + ($4)->type;
+                                                                        $$ = entry;    
+                                                                    }
+|                           New PrimitiveType DimExprs {
+                                                            struct stackentry* entry = new_entry(); 
+                                                            entry->type = ($2)->type + ($3)->type; 
+                                                            $$ = entry;
+                                                        }
+|                           New ClassOrInterfaceType DimExprs{
+                                                                struct stackentry* entry = new_entry();     
+                                                                entry->type = ($2)->type + ($3)->type;  
+                                                                $$ = entry;
+                                                            }
+|                           New PrimitiveType Dims ArrayInitializer {
+                                                                        struct stackentry* entry = new_entry();     
+                                                                        entry->type = ($2)->type + ($3)->type;  
+                                                                        $$ = entry;
+                                                                    }
+|                           New ClassOrInterfaceType Dims ArrayInitializer {
+                                                                                struct stackentry* entry = new_entry();     
+                                                                                entry->type = ($2)->type + ($3)->type;  
+                                                                                $$ = entry;
+                                                                            }
 ;
 // ArrayCreationExpression -> new B C ArrayInitializer    $$.type = $2.type + ("*")*(stringtoint($3.type))
 // ArrayCreationExpression -> new B C     $$.type = $2.type + ("*")*(stringtoint($3.type))
 // ArrayCreationExpression -> new B C D    $$.type = $2.type + ("*")*(stringtoint($3.type) + stringtoint($3.type))
 
-
-DimExprs:   DimExpr  { }
-|           DimExprs DimExpr { }
+DimExprs:   DimExpr  { $$ = $1; }
+|           DimExprs DimExpr {  
+                                struct stackentry* entry = new_entry(); 
+                                entry->type = ($1)->type + ($2)->type; 
+                                $$ = entry;
+                            }
 ;
 // A -> B C    $$.type = $1.type + $2.type 
 
-DimExpr:    Lsquare Expression Rsquare { }
+DimExpr:    Lsquare Expression Rsquare { 
+                                            if(!check_if_numeric_type(($2)->type)) {
+                                                cerr << "Line No: " <<  yylineno  << "Array dimensions should be numeric\n";
+                                                exit(-1);
+                                            }
+                                            struct stackentry* entry = new_entry(); 
+                                            entry->type = "*";
+                                            $$ = entry;
+                                        }
 ;
 // A -> Lsquare B Rsquare      $$.type = "*"
 
-Expression:  AssignmentExpression { }
+Expression:  AssignmentExpression { $$ = $1; }
 
 AssignmentExpression:   
-    ConditionalExpression { }
-|   Assignment { }
+    ConditionalExpression { $$ = $1; }
+|   Assignment { $$ = $1; }
 ;
 
 Assignment:
-    LeftHandSide AssignmentOperator Expression  { }
-    LeftHandSide Assign Expression              { }
+    LeftHandSide AssignmentOperator Expression  {   
+                                                    if(!check_return_type(($1)->type, ($3)->type)) {
+                                                        cerr << "Line No: " <<  yylineno  << "incompatible types: "<< ($1)->type << "cannot be converted to " << ($3)->type <<"\n";
+                                                        exit(-1);
+                                                    }
+
+                                                    $$ = $1;
+                                                }
+|   LeftHandSide Assign Expression              {   
+                                                    if(!check_return_type(($1)->type, ($3)->type)) {
+                                                        cerr << "Line No: " <<  yylineno  << "incompatible types: "<< ($1)->type << "cannot be converted to " << ($3)->type <<"\n";
+                                                        exit(-1);
+                                                    }
+
+                                                    $$ = $1;
+                                                }
 ;
 
 LeftHandSide:
-    TypeName { }
-|   FieldAccess { }
-|   ArrayAccess { }
+    TypeName { 
+                struct stackentry* entry = find_variable_in_class(symmbol_table_pass2[current_class], ($1)->token);
+                entry->variable_init_status = __INITIALIZED;
+                $$ = entry;
+            }
+|   FieldAccess { $$ = $1; }
+|   ArrayAccess { $$ = $1; }
 ;
 
-ConditionalExpression:  ConditionalOrExpression { }
-|                   ConditionalOrExpression Qm Expression Colon ConditionalExpression { } //Check Again
+ConditionalExpression:  ConditionalOrExpression { $$ = $1; }
+|                   ConditionalOrExpression Qm Expression Colon ConditionalExpression { 
+                                                                                            if(($1)->type != __BOOLEAN){
+                                                                                                cerr << "Line No: " <<  yylineno  << "incompatible types: "<< ($1)->type << "cannot be converted to boolean\n";
+                                                                                                exit(-1);
+                                                                                            }
+
+                                                                                            if((($3)->type == __BOOLEAN) && (($5)->type == __BOOLEAN)) {
+                                                                                                $$ = $3;
+                                                                                            } else if (((($3)->type == __BOOLEAN) && (($5)->type != __BOOLEAN)) || ((($3)->type != __BOOLEAN) && (($5)->type == __BOOLEAN))) {
+                                                                                                cerr << "Line No: " <<  yylineno  << "Non intersectionable type: " << ($3)->type << " and " << ($5)->type << "\n";
+                                                                                                exit(-1);
+                                                                                            } else {
+                                                                                                if(check_return_type(($3)->type, ($5)->type)) 
+                                                                                                    $$ = $3;
+                                                                                                else
+                                                                                                    $$ = $5;
+                                                                                            }
+                                                                                      } //Check Again
 ;
 
-ConditionalOrExpression:    ConditionalAndExpression { }
-|                   ConditionalOrExpression Or ConditionalAndExpression { }
+ConditionalOrExpression:    ConditionalAndExpression { $$ = $1; }
+|                   ConditionalOrExpression Or ConditionalAndExpression { 
+                                                                            if(($1)->type!=__BOOLEAN || ($3)->type!=__BOOLEAN){
+                                                                                cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '||'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";   
+                                                                                exit(-1);      
+                                                                            }
+                                                                            struct stackentry* entry = new_entry(); 
+                                                                            entry->type = __BOOLEAN;
+                                                                            $$ = entry;
+                                                                        }
 ;
 
-ConditionalAndExpression:   InclusiveOrExpression { }
-|                   ConditionalAndExpression And InclusiveOrExpression  { }
+ConditionalAndExpression:   InclusiveOrExpression { $$ = $1; }
+|                   ConditionalAndExpression And InclusiveOrExpression  { 
+                                                                            if(($1)->type!=__BOOLEAN || ($3)->type!=__BOOLEAN){
+                                                                                cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '&&'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";         
+                                                                                exit(-1);
+                                                                            }
+
+                                                                            struct stackentry* entry = new_entry(); 
+                                                                            entry->type = __BOOLEAN;
+                                                                            $$ = entry;
+                                                                        }
 ;
 
-InclusiveOrExpression:  ExclusiveOrExpression { }
-|                   InclusiveOrExpression Bitwise_or ExclusiveOrExpression  { }
+InclusiveOrExpression:  ExclusiveOrExpression { $$ = $1; }
+|                   InclusiveOrExpression Bitwise_or ExclusiveOrExpression  { 
+                                                                                if((($1)->type == __DOUBLE || ($1)->type == __FLOAT || ($1)->type == __BOOLEAN) || (($3)->type == __DOUBLE || ($3)->type == __FLOAT || ($3)->type == __BOOLEAN) ) {
+                                                                                    cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '|'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
+                                                                                    exit(-1);    
+                                                                                }
+
+                                                                                if(check_return_type(($1)->type, ($3)->type)) 
+                                                                                        $$ = $1;
+                                                                                    else
+                                                                                        $$ = $3;
+                                                                            }
 ;
 
-ExclusiveOrExpression:  AndExpression   { }
-|                   ExclusiveOrExpression Bitwise_xor AndExpression     { }
+ExclusiveOrExpression:  AndExpression   { $$ = $1; }
+|                   ExclusiveOrExpression Bitwise_xor AndExpression     { 
+                                                                            if((($1)->type == __DOUBLE || ($1)->type == __FLOAT || ($1)->type == __BOOLEAN) || (($3)->type == __DOUBLE || ($3)->type == __FLOAT || ($3)->type == __BOOLEAN) ) {
+                                                                                cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '^'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
+                                                                                exit(-1);    
+                                                                            }
+
+                                                                            if(check_return_type(($1)->type, ($3)->type)) 
+                                                                                    $$ = $1;
+                                                                                else
+                                                                                    $$ = $3;
+                                                                        }
 ;
 
-AndExpression:  EqualityExpression  { }
-|                   AndExpression Bitwise_and EqualityExpression    { }
+AndExpression:  EqualityExpression  { $$ = $1; }
+|                   AndExpression Bitwise_and EqualityExpression    { 
+                                                                            if((($1)->type == __DOUBLE || ($1)->type == __FLOAT || ($1)->type == __BOOLEAN) || (($3)->type == __DOUBLE || ($3)->type == __FLOAT || ($3)->type == __BOOLEAN) ) {
+                                                                                cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '&'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
+                                                                                exit(-1);    
+                                                                            }
+
+                                                                            if(check_return_type(($1)->type, ($3)->type)) 
+                                                                                    $$ = $1;
+                                                                                else
+                                                                                    $$ = $3;
+                                                                        }
 ;
 
-EqualityExpression: RelationalExpression { }
-|                   EqualityExpression Deq RelationalExpression     { }
-|                   EqualityExpression Neq RelationalExpression     { }
+EqualityExpression: RelationalExpression { $$ = $1; }
+|                   EqualityExpression Deq RelationalExpression     {
+                                                                        if(!check_if_numeric_type(($1)->type) || !check_if_numeric_type(($2)->type)){
+                                                                            if(($1)->type != __BOOLEAN || ($3)->type != __BOOLEAN){
+                                                                                cerr << "Line No: " <<  yylineno  << "incomparable types: " << ($1)->type << " and " << ($3)->type << "\n";
+                                                                                exit(-1);
+                                                                            }
+                                                                        }
+
+                                                                        struct stackentry* entry = new_entry(); 
+                                                                        entry->type = __BOOLEAN;
+                                                                        $$ = entry;
+                                                                    }
+|                   EqualityExpression Neq RelationalExpression     {
+                                                                        if(!check_if_numeric_type(($1)->type) || !check_if_numeric_type(($2)->type)){
+                                                                            if(($1)->type != __BOOLEAN || ($3)->type != __BOOLEAN){
+                                                                                cerr << "Line No: " <<  yylineno  << "incomparable types: " << ($1)->type << " and " << ($3)->type << "\n";
+                                                                                exit(-1);
+                                                                            }
+                                                                        }
+
+                                                                        struct stackentry* entry = new_entry(); 
+                                                                        entry->type = __BOOLEAN;
+                                                                        $$ = entry;
+                                                                    }
 ;
 
-RelationalExpression:   ShiftExpression { }
-|                   RelationalExpression Lt ShiftExpression         { }
-|                   RelationalExpression Gt ShiftExpression         { }
-|                   RelationalExpression Leq ShiftExpression        { }
-|                   RelationalExpression Geq ShiftExpression        { }
+RelationalExpression:   ShiftExpression { $$ = $1; }
+|                   RelationalExpression Lt ShiftExpression         {
+                                                                            if(($1)->type == __BOOLEAN || ($3)->type == __BOOLEAN){
+                                                                                cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '<'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
+                                                                                exit(-1);
+
+                                                                            }
+                                                                            
+                                                                            struct stackentry* entry = new_entry(); 
+                                                                            entry->type = __BOOLEAN;
+                                                                            $$ = entry;
+                                                                    }
+|                   RelationalExpression Gt ShiftExpression         {
+                                                                            if(($1)->type == __BOOLEAN || ($3)->type == __BOOLEAN){
+                                                                                cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '>'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
+                                                                                exit(-1);
+
+                                                                            }
+                                                                            
+                                                                            struct stackentry* entry = new_entry(); 
+                                                                            entry->type = __BOOLEAN;
+                                                                            $$ = entry;
+                                                                    }
+|                   RelationalExpression Leq ShiftExpression        {
+                                                                            if(($1)->type == __BOOLEAN || ($3)->type == __BOOLEAN){
+                                                                                cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '<='\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
+                                                                                exit(-1);
+
+                                                                            }
+                                                                            
+                                                                            struct stackentry* entry = new_entry(); 
+                                                                            entry->type = __BOOLEAN;
+                                                                            $$ = entry;
+                                                                    }
+|                   RelationalExpression Geq ShiftExpression        {
+                                                                            if(($1)->type == __BOOLEAN || ($3)->type == __BOOLEAN){
+                                                                                cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '>='\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
+                                                                                exit(-1);
+
+                                                                            }
+                                                                            
+                                                                            struct stackentry* entry = new_entry(); 
+                                                                            entry->type = __BOOLEAN;
+                                                                            $$ = entry;
+                                                                    }
 |                   RelationalExpression Instanceof ReferenceType   { }
 ;
 
-ShiftExpression:    AdditiveExpression { }
-|                   ShiftExpression Left_shift AdditiveExpression   { }
-|                   ShiftExpression Right_shift AdditiveExpression  { }
-|                   ShiftExpression Unsigned_right_shift AdditiveExpression     { }
+ShiftExpression:    AdditiveExpression { $$ = $1; }
+|                   ShiftExpression Left_shift AdditiveExpression   { 
+                                                                        if((($1)->type == __DOUBLE || ($1)->type == __FLOAT || ($1)->type == __BOOLEAN) || (($3)->type == __DOUBLE || ($3)->type == __FLOAT || ($3)->type == __BOOLEAN) ) {
+                                                                            cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '<<'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
+                                                                            exit(-1);    
+                                                                        }
+
+                                                                        if(check_return_type(($1)->type, ($3)->type)) 
+                                                                                $$ = $1;
+                                                                            else
+                                                                                $$ = $3;
+                                                                    }
+|                   ShiftExpression Right_shift AdditiveExpression  { 
+                                                                        if((($1)->type == __DOUBLE || ($1)->type == __FLOAT || ($1)->type == __BOOLEAN) || (($3)->type == __DOUBLE || ($3)->type == __FLOAT || ($3)->type == __BOOLEAN) ) {
+                                                                            cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '>>'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
+                                                                            exit(-1);    
+                                                                        }
+
+                                                                        if(check_return_type(($1)->type, ($3)->type)) 
+                                                                                $$ = $1;
+                                                                            else
+                                                                                $$ = $3;
+                                                                    }
+|                   ShiftExpression Unsigned_right_shift AdditiveExpression     { 
+                                                                                    if((($1)->type == __DOUBLE || ($1)->type == __FLOAT || ($1)->type == __BOOLEAN) || (($3)->type == __DOUBLE || ($3)->type == __FLOAT || ($3)->type == __BOOLEAN) ) {
+                                                                                        cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '>>>'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
+                                                                                        exit(-1);    
+                                                                                    }
+
+                                                                                    if(check_return_type(($1)->type, ($3)->type)) 
+                                                                                            $$ = $1;
+                                                                                        else
+                                                                                            $$ = $3;
+                                                                                }
 ;
 
-AdditiveExpression: MultiplicativeExpression { }
-|                   AdditiveExpression Plus MultiplicativeExpression    { } 
-|                   AdditiveExpression Minus MultiplicativeExpression   { }
+AdditiveExpression: MultiplicativeExpression { $$ = $1; }
+|                   AdditiveExpression Plus MultiplicativeExpression    {
+                                                                            if(($1)->type == __BOOLEAN || ($3)->type == __BOOLEAN){
+                                                                                cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '+'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
+                                                                                exit(-1);
+
+                                                                            }
+                                                                            
+                                                                            if(check_return_type(($1)->type, ($3)->type)) 
+                                                                                $$ = $1;
+                                                                            else
+                                                                                $$ = $3;
+                                                                        } 
+|                   AdditiveExpression Minus MultiplicativeExpression   {
+                                                                            if(($1)->type == __BOOLEAN || ($3)->type == __BOOLEAN){
+                                                                                cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '-'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
+                                                                                exit(-1);
+
+                                                                            }
+                                                                            
+                                                                            if(check_return_type(($1)->type, ($3)->type)) 
+                                                                                $$ = $1;
+                                                                            else
+                                                                                $$ = $3;
+                                                                        }
 ;
 
-MultiplicativeExpression:   UnaryExpression                             { }
-|                   MultiplicativeExpression Asterik UnaryExpression    { }
-|                   MultiplicativeExpression Div UnaryExpression        { }
-|                   MultiplicativeExpression Modulo UnaryExpression     { }
+MultiplicativeExpression:   UnaryExpression                             { $$ = $1; }
+|                   MultiplicativeExpression Asterik UnaryExpression    {
+                                                                            if(($1)->type == __BOOLEAN || ($3)->type == __BOOLEAN){
+                                                                                cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '*'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
+                                                                                exit(-1);
+
+                                                                            }
+                                                                            
+                                                                            if(check_return_type(($1)->type, ($3)->type)) 
+                                                                                $$ = $1;
+                                                                            else
+                                                                                $$ = $3;
+                                                                        }
+|                   MultiplicativeExpression Div UnaryExpression        {
+                                                                            if(($1)->type == __BOOLEAN || ($3)->type == __BOOLEAN){
+                                                                                cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '\\'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
+                                                                                exit(-1);
+
+                                                                            }
+                                                                            
+                                                                            if(check_return_type(($1)->type, ($3)->type)) 
+                                                                                $$ = $1;
+                                                                            else
+                                                                                $$ = $3;
+                                                                        }
+|                   MultiplicativeExpression Modulo UnaryExpression     {
+                                                                            if(($1)->type == __BOOLEAN || ($3)->type == __BOOLEAN){
+                                                                                cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '%'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
+                                                                                exit(-1);
+
+                                                                            }
+                                                                            
+                                                                            if(check_return_type(($1)->type, ($3)->type)) 
+                                                                                $$ = $1;
+                                                                            else
+                                                                                $$ = $3;
+                                                                        }
 ;
 
-UnaryExpression:    PreIncrementExpression      { }
-|                   PreDecrementExpression      { }
-|                   Plus UnaryExpression        { }
-|                   Minus UnaryExpression       { }
-|                   UnaryExpressionNotPlusMinus { }
+UnaryExpression:    PreIncrementExpression      { $$ = $1; }
+|                   PreDecrementExpression      { $$ = $1; }
+|                   Plus UnaryExpression        {   
+                                                    if(!check_if_numeric_type(($2)->type)) {
+                                                        cerr << "Line No: " <<  yylineno  << " bad operand type" << ($2)->type <<" for unary operator '+'\n";
+                                                        exit(-1);
+                                                    }
+                                                    $$ = $1;
+                                                }
+|                   Minus UnaryExpression       {   
+                                                    if(!check_if_numeric_type(($2)->type)) {
+                                                        cerr << "Line No: " <<  yylineno  << " bad operand type" << ($2)->type <<" for unary operator '-'\n";
+                                                        exit(-1);
+                                                    }
+                                                    $$ = $1;
+                                                }
+|                   UnaryExpressionNotPlusMinus { $$ = $1; }
 ;
 
-PreIncrementExpression: Increment Primary       { }
-|                       Increment TypeName      { }
+PreIncrementExpression: Increment Primary       {   
+                                                   
+                                                    if(!check_if_numeric_type(($2)->type)) {
+                                                        cerr << "Line No: " <<  yylineno  << " bad operand type" << ($2)->type <<" for unary operator '++'\n";
+                                                        exit(-1);
+                                                    }
+                                                    $$ = $1;
+                                                }
+|                       Increment TypeName      { 
+                                                    $$ = find_variable_in_class(symmbol_table_pass2[current_class], ($2)->token);
+                                                    if(!check_if_numeric_type(($$)->type)) {
+                                                        cerr << "Line No: " <<  yylineno  << " bad operand type" << ($$)->type <<" for unary operator '++'\n";
+                                                        exit(-1);
+                                                    }
+                                                }
 ;
 
-PreDecrementExpression: Decrement Primary   { }
-|                       Decrement TypeName  { }
+PreDecrementExpression: Decrement Primary   {       
+                                                    
+                                                    if(!check_if_numeric_type(($2)->type)) {
+                                                        cerr << "Line No: " <<  yylineno  << " bad operand type" << ($2)->type <<" for unary operator '--'\n";
+                                                        exit(-1);
+                                                    }
+                                                    $$ = $1;
+                                            }
+|                       Decrement TypeName  { 
+                                                    $$ = find_variable_in_class(symmbol_table_pass2[current_class], ($2)->token);
+                                                    if(!check_if_numeric_type(($$)->type)) {
+                                                        cerr << "Line No: " <<  yylineno  << " bad operand type" << ($$)->type <<" for unary operator '--'\n";
+                                                        exit(-1);
+                                                    }
+                                            }
 ;
 
-UnaryExpressionNotPlusMinus:    PostfixExpression                   { }
-|                               Bitwise_complement UnaryExpression  { }
-|                               Not UnaryExpression                 { }
-|                               CastExpression                      { }
+UnaryExpressionNotPlusMinus:    PostfixExpression                   { $$ = $1; }
+|                               Bitwise_complement UnaryExpression  { 
+                                                                        if(($2)->type == __BOOLEAN) {
+                                                                            cerr << "Line No: " <<  yylineno  << "bad operand type boolean for unary operator '~'\n";
+                                                                            exit(-1);
+                                                                        }
+                                                                        
+                                                                        $$ = $2;
+                                                                    }
+|                               Not UnaryExpression                 {
+                                                                        if(($2)->type != __BOOLEAN) {
+                                                                            cerr << "Line No: " <<  yylineno  << "bad operand type" << ($2)->type <<" for unary operator \'!\' \n";
+                                                                            exit(-1);
+                                                                        }
+
+                                                                        $$ = $2;
+
+                                                                    }
+|                               CastExpression                      { $$ = $1; }
 ;
 
-PostfixExpression:  Primary                 { }
-|                   TypeName                { }
-|                   PostIncrementExpression { }
-|                   PostDecrementExpression { }
+PostfixExpression:  Primary                 { $$ = $1; }
+|                   TypeName                { $$ = find_variable_in_class(symmbol_table_pass2[current_class], ($1)->token); }
+|                   PostIncrementExpression { $$ = $1; }
+|                   PostDecrementExpression { $$ = $1; }
 ;
 
-PostIncrementExpression:    Primary Increment   { }
-|                           TypeName Increment  { }
+PostIncrementExpression:    Primary Increment   {   
+                                                    if(!check_if_numeric_type(($1)->type)) {
+                                                        cerr << "Line No: " <<  yylineno  << " bad operand type" << ($1)->type <<" for unary operator '++'\n";
+                                                        exit(-1);
+                                                    }
+                                                    $$ = $1;
+                                                }
+|                           TypeName Increment  { 
+                                                    $$ = find_variable_in_class(symmbol_table_pass2[current_class], ($1)->token);
+                                                    if(!check_if_numeric_type(($$)->type)) {
+                                                        cerr << "Line No: " <<  yylineno  << " bad operand type" << ($$)->type <<" for unary operator '++'\n";
+                                                        exit(-1);
+                                                    }
+                                                }
 ;
 
-PostDecrementExpression:    Primary Decrement   { }
-|                           TypeName Decrement  { }
+PostDecrementExpression:    Primary Decrement   {   
+                                                    if(!check_if_numeric_type(($1)->type)) {
+                                                        cerr << "Line No: " <<  yylineno  << " bad operand type" << ($1)->type <<" for unary operator '--'\n";
+                                                        exit(-1);
+                                                    }
+                                                    $$ = $1;
+                                                }
+|                           TypeName Decrement  { 
+                                                    $$ = find_variable_in_class(symmbol_table_pass2[current_class], ($1)->token);
+                                                    if(!check_if_numeric_type(($$)->type)) {
+                                                        cerr << "Line No: " <<  yylineno  << " bad operand type" << ($$)->type <<" for unary operator '--'\n";
+                                                        exit(-1);
+                                                    }
+                                                }
 ;
 
-CastExpression:     Lparen PrimitiveType Rparen UnaryExpression                 { }
-|                   Lparen ReferenceType Rparen UnaryExpressionNotPlusMinus     { }
+CastExpression:     Lparen PrimitiveType Rparen UnaryExpression                 {
+                                                                                    if((($2)->type == __BOOLEAN) && (($4)->type == __BOOLEAN)){
+                                                                                        $$ = $2;
+                                                                                    } else if(check_if_numeric_type(($2)->type) && check_if_numeric_type(($4)->type)){
+                                                                                        $$ = $2;
+                                                                                    } else {
+                                                                                        cerr << "Line No: " <<  yylineno  << "incompatible types: " << ($2)->type << "cannot be converted to " << ($4)->type << "\n";
+                                                                                        exit(-1);
+                                                                                    }
+                                                                                }
+|                   Lparen ReferenceType Rparen UnaryExpressionNotPlusMinus     { 
+                                                                                    if(!check_return_type(($2)->type, ($4)->type)) {
+                                                                                        cerr << "Line No: " <<  yylineno  << "incompatible types: " << ($2)->type << "cannot be converted to " << ($4)->type << "\n";
+                                                                                        exit(-1);
+                                                                                    } 
+
+                                                                                    $$ = $2;
+                                                                                }
 ;
 
 
-Block:    Lcurly Rcurly                 { }
-|         Lcurly BlockStatements Rcurly { }
+Block:    Lcurly { current_scope++; } Rcurly { clear_current_scope(symmbol_table_pass2[current_class], current_scope);  current_scope--; }
+|         Lcurly { current_scope++; } BlockStatements Rcurly { clear_current_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
 ;
 
 BlockStatements:    BlockStatements BlockStatement  { }
@@ -786,44 +1494,44 @@ BlockStatement:
 |                   Statement   { }
 ;
 
-LocalVariableDeclarationStatement:    LocalVariableDeclaration  Semicolon { }
+LocalVariableDeclarationStatement:    LocalVariableDeclaration  Semicolon { global_type = ""; global_modifier= 0b0; }
 ;
 
-LocalVariableDeclaration:    UnannType VariableDeclaratorList   { }
-|                            Var       VariableDeclaratorList   { }
-|                            Final UnannType VariableDeclaratorList { }
-|                            Final  Var     VariableDeclaratorList  { }
+LocalVariableDeclaration:    UnannType { global_type = ($1)->type; }VariableDeclaratorList   { }
+|                            Var      { global_type = __VAR; }  VariableDeclaratorList   { }
+|                            Final { global_modifier = __FINAL; } UnannType { global_type = ($3)->type; } VariableDeclaratorList { }
+|                            Final { global_modifier = __FINAL; } Var    { global_type = __VAR; }  VariableDeclaratorList  { }
 ;
 
 
-Statement:          StatementWithoutTrailingSubstatement    { }
-|                   LabeledStatement    { }
-|                   IfThenStatement   { }
-|                   IfThenElseStatement  { }
-|                   WhileStatement  { }
-|                   ForStatement    { }
+Statement:          StatementWithoutTrailingSubstatement   
+|                   LabeledStatement   
+|                   IfThenStatement   
+|                   IfThenElseStatement 
+|                   WhileStatement 
+|                   ForStatement   
 ;
 
-StatementNoShortIf:     StatementWithoutTrailingSubstatement    { }
-|                       LabeledStatementNoShortIf   { }
-|                       IfThenElseStatementNoShortIf    { }
-|                       WhileStatementNoShortIf { }
-|                       ForStatementNoShortIf   { }
+StatementNoShortIf:     StatementWithoutTrailingSubstatement   
+|                       LabeledStatementNoShortIf  
+|                       IfThenElseStatementNoShortIf   
+|                       WhileStatementNoShortIf
+|                       ForStatementNoShortIf  
 ;
 
-StatementWithoutTrailingSubstatement:   Block   { }
-|                                       EmptyStatement  { }
-|                                       ExpressionStatement { }
-|                                       AssertStatement { }
-|                                       BreakStatement  { }
-|                                       ContinueStatement   { }
-|                                       ReturnStatement { }
-|                                       ThrowStatement  { }
-|                                       SwitchStatement  { }
-|                                       DoStatement   { }
-|                                       SynchronizedStatement { }
-|                                       YieldStatement  { }
-|                                       TryStatement  { }
+StatementWithoutTrailingSubstatement:   Block   
+|                                       EmptyStatement  
+|                                       ExpressionStatement 
+|                                       AssertStatement 
+|                                       BreakStatement  
+|                                       ContinueStatement   
+|                                       ReturnStatement 
+|                                       ThrowStatement  
+|                                       SwitchStatement  
+|                                       DoStatement   
+|                                       SynchronizedStatement 
+// |                                       YieldStatement  
+|                                       TryStatement  
 ;
 
 SynchronizedStatement:
@@ -839,54 +1547,76 @@ LabeledStatement:    Identifier Colon Statement   { }
 LabeledStatementNoShortIf:    Identifier Colon StatementNoShortIf   { }
 ;
 
-ExpressionStatement:    StatementExpression Semicolon   { }
-
-StatementExpression:    Assignment  { }
-|                       PreIncrementExpression  { }
-|                       PreDecrementExpression  { }
-|                       PostIncrementExpression { }
-|                       PostDecrementExpression { }
-|                       MethodInvocation        { }
-|                       ClassInstanceCreationExpression  { }
-
-IfThenStatement:    If Lparen Expression Rparen Statement   { }
+ExpressionStatement:    StatementExpression Semicolon   { $$ = $1; }
 ;
 
-IfThenElseStatement:    If Lparen Expression Rparen StatementNoShortIf Else Statement   { }
+StatementExpression:    Assignment  { $$ = $1; }
+|                       PreIncrementExpression  { $$ = $1; }
+|                       PreDecrementExpression  { $$ = $1; }
+|                       PostIncrementExpression { $$ = $1; }
+|                       PostDecrementExpression { $$ = $1; }
+|                       MethodInvocation        { $$ = $1; }
+|                       ClassInstanceCreationExpression  { $$ = $1; }
 ;
 
-IfThenElseStatementNoShortIf:    If Lparen Expression Rparen StatementNoShortIf Else StatementNoShortIf  { }
+IfThenStatement:    If Lparen Expression {if(($3)->type!=__BOOLEAN){
+                                                                    cerr << "Line No: " <<  yylineno <<"incompatible if argument types: "+ ($3)->type +" cannot be converted to boolean";
+                                                                    exit(1);
+                                                                }} Rparen { current_scope++; } Statement   { current_scope--; }
 ;
 
-AssertStatement:    Assert Expression Semicolon  { }
-|                   Assert Expression Colon Expression Semicolon    { }
+IfThenElseStatement:    If Lparen Expression {if(($3)->type!=__BOOLEAN){
+                                                                        cerr << "Line No: " <<  yylineno <<"incompatible if argument types: "+ ($3)->type +" cannot be converted to boolean";
+                                                                        exit(1);
+                                                                    }} Rparen { current_scope++; } StatementNoShortIf Else Statement   { current_scope--; }
+;
+
+IfThenElseStatementNoShortIf:    If Lparen Expression {if(($3)->type!=__BOOLEAN){
+                                                                                cerr << "Line No: " <<  yylineno <<"incompatible if argument types: "+ ($3)->type +" cannot be converted to boolean";
+                                                                                exit(1);
+                                                                            }} Rparen { current_scope++; } StatementNoShortIf Else StatementNoShortIf  { current_scope--; }
+;
+
+AssertStatement:    Assert Expression Semicolon                     {if(($2)->type!=__BOOLEAN){
+                                                                                                cerr << "Line No: " <<  yylineno <<"incompatible if argument types: "+ ($2)->type +" cannot be converted to boolean";
+                                                                                                exit(1);
+                                                                                            } }
+|                   Assert Expression Colon Expression Semicolon    {if(($2)->type!=__BOOLEAN){
+                                                                                                cerr << "Line No: " <<  yylineno <<"incompatible if argument types: "+ ($2)->type +" cannot be converted to boolean";
+                                                                                                exit(1);
+                                                                                            } }
 ;
 
 SwitchStatement:
-                    switch_ Lparen Expression Rparen SwitchBlock    { }
+                    switch_ Lparen Expression Rparen SwitchBlock    { 
+                                                                        if(($2)->type!=__INT && ($2)->type!=__SHORT && ($2)->type!=__CHAR){
+                                                                            cerr << "Line No: " <<  yylineno <<"incompatible if argument types: "+ ($2)->type +" cannot be converted to boolean";
+                                                                            exit(1);
+                                                                        }
+                                                                    }
 
 SwitchBlock:
-                    Lcurly SwitchRules Rcurly                       { }
-|                   Lcurly SwitchBlockStatementGroups SwitchLabelColons Rcurly  { }
-|                   Lcurly SwitchBlockStatementGroups Rcurly                { }
-|                   Lcurly SwitchLabelColons Rcurly                         { }
-|                   Lcurly Rcurly                                           { }
+                    Lcurly {current_scope++;} SwitchRules Rcurly                                    { current_scope--; }
+|                   Lcurly {current_scope++;} SwitchBlockStatementGroups SwitchLabelColons Rcurly   { current_scope--; }
+|                   Lcurly {current_scope++;} SwitchBlockStatementGroups Rcurly                     { current_scope--; }
+|                   Lcurly {current_scope++;} SwitchLabelColons Rcurly                              { current_scope--; }
+|                   Lcurly {current_scope++;} Rcurly                                                { current_scope--; }
 ;
 
 SwitchRules:
-                    SwitchRules SwitchRule                                  { }
-|                   SwitchRule                                              { }
+                    SwitchRules SwitchRule
+|                   SwitchRule            
 ;
 
-SwitchRule:
+SwitchRule:                                         /////////////God knows what the hell is this////////////
                     SwitchLabel arrow_ Expression Semicolon                 { }
 |                   SwitchLabel arrow_ Block                                { }
 |                   SwitchLabel arrow_ ThrowStatement                       { }
 ;
 
 SwitchBlockStatementGroups:
-                    SwitchBlockStatementGroups SwitchBlockStatementGroup    { }
-|                   SwitchBlockStatementGroup                               { }
+                    SwitchBlockStatementGroups SwitchBlockStatementGroup
+|                   SwitchBlockStatementGroup                           
 ;
 
 SwitchBlockStatementGroup:
@@ -910,74 +1640,142 @@ CaseConstant:
                     ConditionalExpression                                   { }
 ;
 
-WhileStatement:    While Lparen Expression Rparen Statement         { }
+WhileStatement:    While Lparen Expression {
+                                                if(($3)->type!=__BOOLEAN){
+                                                    cerr << "Line No: " <<  yylineno <<"incompatible if argument types: "+ ($3)->type +" cannot be converted to boolean";
+                                                    exit(1);
+                                                }
+                                            } Rparen Statement  { current_scope--; }
 ;
 
-WhileStatementNoShortIf:    While Lparen Expression Rparen StatementNoShortIf   { }
+WhileStatementNoShortIf:    While Lparen Expression {
+                                                        if(($3)->type!=__BOOLEAN){
+                                                            cerr << "Line No: " <<  yylineno <<"incompatible if argument types: "+ ($3)->type +" cannot be converted to boolean";
+                                                            exit(1);
+                                                        }
+                                                    } Rparen StatementNoShortIf { current_scope--; }
 ;
 
 DoStatement:
-    do_ Statement While Lparen Expression Rparen Semicolon                  { }
+    do_ Statement While Lparen Expression {
+                                                if(($3)->type!=__BOOLEAN){
+                                                    cerr << "Line No: " <<  yylineno <<"incompatible if argument types: "+ ($3)->type +" cannot be converted to boolean";
+                                                    exit(1);
+                                                }
+                                            } Rparen Semicolon  { current_scope--; }
 ;
 
-ForStatement:       BasicForStatement   { }
-|                   EnhancedForStatement    { }
+ForStatement:       BasicForStatement   
+|                   EnhancedForStatement 
 ;
 
-ForStatementNoShortIf:    BasicForStatementNoShortIf    { }
-|                   EnhancedForStatementNoShortIf   { }
+ForStatementNoShortIf:    BasicForStatementNoShortIf  
+|                   EnhancedForStatementNoShortIf 
 ;
 
-BasicForStatement:     For Lparen Semicolon Semicolon Rparen Statement  { }
-|                      For Lparen ForInit Semicolon Semicolon Rparen Statement  { }
-|                      For Lparen Semicolon Expression Semicolon Rparen Statement  { }
-|                      For Lparen Semicolon Semicolon ForUpdate Rparen Statement  { }
-|                      For Lparen ForInit Semicolon Expression Semicolon Rparen Statement  { }
-|                      For Lparen Semicolon Expression Semicolon ForUpdate Rparen Statement  { }
-|                      For Lparen ForInit Semicolon Semicolon ForUpdate Rparen Statement  { }
-|                      For Lparen ForInit Semicolon Expression Semicolon ForUpdate Rparen Statement  { }
+BasicForStatement:     For Lparen Semicolon Semicolon Rparen Statement  { current_scope--; }
+|                      For Lparen ForInit Semicolon Semicolon Rparen Statement  { current_scope--; }
+|                      For Lparen Semicolon Expression {
+                                                                                    if(($4)->type!=__BOOLEAN){
+                                                                                        cerr << "Line No: " <<  yylineno <<"incompatible if argument types: "+ ($4)->type +" cannot be converted to boolean";
+                                                                                        exit(1);
+                                                                                    }
+                                                                                } Semicolon Rparen Statement  { current_scope--; }
+|                      For Lparen Semicolon Semicolon ForUpdate Rparen Statement  { current_scope--; }
+|                      For Lparen ForInit Semicolon Expression {
+                                                                                    if(($5)->type!=__BOOLEAN){
+                                                                                        cerr << "Line No: " <<  yylineno <<"incompatible if argument types: "+ ($5)->type +" cannot be converted to boolean";
+                                                                                        exit(1);
+                                                                                    }
+                                                                                } Semicolon Rparen Statement  { current_scope--; }
+|                      For Lparen Semicolon Expression {
+                                                                                    if(($4)->type!=__BOOLEAN){
+                                                                                        cerr << "Line No: " <<  yylineno <<"incompatible if argument types: "+ ($4)->type +" cannot be converted to boolean";
+                                                                                        exit(1);
+                                                                                    }
+                                                                                } Semicolon ForUpdate Rparen Statement  { current_scope--; }
+|                      For Lparen ForInit Semicolon Semicolon ForUpdate Rparen Statement  { current_scope--; }
+|                      For Lparen ForInit Semicolon Expression {
+                                                                                    if(($5)->type!=__BOOLEAN){
+                                                                                        cerr << "Line No: " <<  yylineno <<"incompatible if argument types: "+ ($5)->type +" cannot be converted to boolean";
+                                                                                        exit(1);
+                                                                                    }
+                                                                                } Semicolon ForUpdate Rparen Statement  { current_scope--; }
 ;
 
-BasicForStatementNoShortIf:    For Lparen Semicolon Semicolon Rparen StatementNoShortIf  { }
-|                      For Lparen ForInit Semicolon Semicolon Rparen StatementNoShortIf  { }
-|                      For Lparen Semicolon Expression Semicolon Rparen StatementNoShortIf  { }
-|                      For Lparen Semicolon Semicolon ForUpdate Rparen StatementNoShortIf  { }
-|                      For Lparen ForInit Semicolon Expression Semicolon Rparen StatementNoShortIf  { }
-|                      For Lparen Semicolon Expression Semicolon ForUpdate Rparen StatementNoShortIf  { }
-|                      For Lparen ForInit Semicolon Semicolon ForUpdate Rparen StatementNoShortIf  { }
-|                      For Lparen ForInit Semicolon Expression Semicolon ForUpdate Rparen StatementNoShortIf  { }
+BasicForStatementNoShortIf:    For Lparen Semicolon Semicolon Rparen StatementNoShortIf  { current_scope--; }
+|                      For Lparen ForInit Semicolon Semicolon Rparen StatementNoShortIf  { current_scope--; }
+|                      For Lparen Semicolon Expression {
+                                                                                    if(($4)->type!=__BOOLEAN){
+                                                                                        cerr << "Line No: " <<  yylineno <<"incompatible if argument types: "+ ($4)->type +" cannot be converted to boolean";
+                                                                                        exit(1);
+                                                                                    }
+                                                                                } Semicolon Rparen StatementNoShortIf  { current_scope--; }
+|                      For Lparen Semicolon Semicolon ForUpdate Rparen StatementNoShortIf  { current_scope--; }
+|                      For Lparen ForInit Semicolon Expression {
+                                                                                    if(($5)->type!=__BOOLEAN){
+                                                                                        cerr << "Line No: " <<  yylineno <<"incompatible if argument types: "+ ($5)->type +" cannot be converted to boolean";
+                                                                                        exit(1);
+                                                                                    }
+                                                                                } Semicolon Rparen StatementNoShortIf  { current_scope--; }
+|                      For Lparen Semicolon Expression {
+                                                                                    if(($4)->type!=__BOOLEAN){
+                                                                                        cerr << "Line No: " <<  yylineno <<"incompatible if argument types: "+ ($4)->type +" cannot be converted to boolean";
+                                                                                        exit(1);
+                                                                                    }
+                                                                                } Semicolon ForUpdate Rparen StatementNoShortIf  { current_scope--; }
+|                      For Lparen ForInit Semicolon Semicolon ForUpdate Rparen StatementNoShortIf  { current_scope--; }
+|                      For Lparen ForInit Semicolon Expression {
+                                                                                    if(($5)->type!=__BOOLEAN){
+                                                                                        cerr << "Line No: " <<  yylineno <<"incompatible if argument types: "+ ($5)->type +" cannot be converted to boolean";
+                                                                                        exit(1);
+                                                                                    }
+                                                                                } Semicolon ForUpdate Rparen StatementNoShortIf  { current_scope--; }
 ;
 
-ForInit:    StatementExpressionList { }
-|           LocalVariableDeclaration    { }
+ForInit:    StatementExpressionList
+|           LocalVariableDeclaration   
 ;
 
-ForUpdate:    StatementExpressionList   { }
+ForUpdate:    StatementExpressionList  
 ;
 
-StatementExpressionList:    StatementExpression { }
-|                           StatementExpression CommaStatementExpressions   { }
+StatementExpressionList:    StatementExpression
+|                           StatementExpression CommaStatementExpressions  
 ;
 
-CommaStatementExpressions:   Comma StatementExpression CommaStatementExpressions    { }
-|                            Comma StatementExpression  { }
+CommaStatementExpressions:   Comma StatementExpression CommaStatementExpressions   
+|                            Comma StatementExpression 
 ;
 
-EnhancedForStatement:    For Lparen LocalVariableDeclaration Colon Expression Rparen Statement  { }
+EnhancedForStatement:    For Lparen LocalVariableDeclaration Colon Expression {
+                                                                                                        string id = ($5)->type;
+                                                                                                        if( !id[id.length() - 1]=='*' ){
+                                                                                                            cerr << "Line No: " <<  yylineno <<"Array type must be pointer"<<endl;
+                                                                                                            exit(1);
+                                                                                                        }
+                                                                                                    } Rparen Statement  { }
 ;
 
-EnhancedForStatementNoShortIf:    For Lparen LocalVariableDeclaration Colon Expression Rparen StatementNoShortIf    { }
+EnhancedForStatementNoShortIf:    For Lparen LocalVariableDeclaration Colon Expression {
+                                                                                                        string id = ($5)->type;
+                                                                                                        if( !id[id.length() - 1]=='*' ){
+                                                                                                            cerr << "Line No: " <<  yylineno <<"Array type must be pointer"<<endl;
+                                                                                                            exit(1);
+                                                                                                        }
+                                                                                                    } Rparen StatementNoShortIf    { }
 ;
 
-BreakStatement:    Break Identifier Semicolon   { }
-|                  Break Semicolon   { }
+BreakStatement:    Break Semicolon 
+                //    Break Identifier Semicolon   { }
+                 
 ;
 
 YieldStatement:     yield_ Expression Semicolon     { }
 ;
 
-ContinueStatement:    Continue Identifier Semicolon  { }
-|                     Continue Semicolon  { }
+ContinueStatement:   Continue Semicolon
+                    //   Continue Identifier Semicolon  { }                   
 ;
 
 ReturnStatement:
@@ -1019,31 +1817,67 @@ Finally:
 
 // Non-Terminals for representing terminals
 
-Int : INT { }
+Int : INT { 
+            struct stackentry* entry = new_entry(); 
+            entry->type = __INT;
+            $$ = entry;
+         }
 ;
 
-Long : LONG { }
+Long : LONG { 
+                struct stackentry* entry = new_entry(); 
+                entry->type = __LONG;
+                $$ = entry;
+            }
 ;
 
-Byte : BYTE { }
+Byte : BYTE { 
+                struct stackentry* entry = new_entry(); 
+                entry->type = __BYTE;
+                $$ = entry;
+            }
 ;
 
-Short : SHORT { }
+Short : SHORT { 
+                struct stackentry* entry = new_entry(); 
+                entry->type = __SHORT;
+                $$ = entry;
+              }
 ;
 
-Char : CHAR { }
+Char : CHAR   { 
+                struct stackentry* entry = new_entry(); 
+                entry->type = __CHAR;
+                $$ = entry;
+            }
 ;
 
-Float : FLOAT { }
+Float : FLOAT { 
+                struct stackentry* entry = new_entry(); 
+                entry->type = __FLOAT;
+                $$ = entry;
+              }
 ;
 
-Double : DOUBLE { }
+Double : DOUBLE { 
+                struct stackentry* entry = new_entry(); 
+                    entry->type = __DOUBLE;
+                    $$ = entry;
+                }
 ;
 
-Boolean : BOOLEAN { }
+Boolean : BOOLEAN { 
+                    struct stackentry* entry = new_entry(); 
+                    entry->type = __BOOLEAN;
+                    $$ = entry;
+                  }
 ;
 
-Var : VAR { }
+Var : VAR  { 
+                struct stackentry* entry = new_entry(); 
+                entry->type = __VAR;
+                $$ = entry;
+            }
 ;
 
 If : IF { }
@@ -1052,10 +1886,10 @@ If : IF { }
 Else : ELSE { }
 ;
 
-While : WHILE { }
+While : WHILE { current_scope++; }
 ;
 
-For : FOR { }
+For : FOR { current_scope++; }
 ;
 
 
@@ -1074,19 +1908,19 @@ New : NEW { }
 Return : RETURN { }
 ;
 
-Public : PUBLIC { }
+Public : PUBLIC  {}// done above setting value
 ;
 
-Private : PRIVATE { }
+Private : PRIVATE {}
 ;
 
 Class : CLASS { }
 ;
 
-Static : STATIC { }
+Static : STATIC {}
 ;
 
-Final : FINAL { }
+Final : FINAL {}
 ;
 
 Assert : ASSERT { }
@@ -1119,7 +1953,7 @@ Package : PACKAGE { }
 Import : IMPORT { }
 ;
 
-do_: DO { }
+do_: DO { current_scope++; }
 
 switch_ : SWITCH { }
 
@@ -1248,28 +2082,65 @@ Dot : DOT { }
 
 arrow_ : ARROW { }
 
-Char_literal : CHAR_LITERAL { }
+Char_literal : CHAR_LITERAL { 
+                                struct stackentry* entry = new_entry();
+                                entry->token = $1;
+                                entry->type = __CHAR;
+                                $$ = entry;    
+                            }
 ;
 
-Boolean_literal : BOOLEAN_LITERAL { }
+Boolean_literal : BOOLEAN_LITERAL { 
+                                        struct stackentry* entry = new_entry();
+                                        entry->token = $1;
+                                        entry->type = __BOOLEAN;     
+                                        $$ = entry;    
+                                  }
 ;
 
-Null_literal : NULL_LITERAL { }
+Null_literal : NULL_LITERAL { 
+                                    struct stackentry* entry = new_entry();// 
+                                    entry->token = $1;
+                                    $$ = entry;   
+                                    // entry->type = __NULL; 
+                                }
 ;
 
-Integer_literal : INTEGER_LITERAL { }
+Integer_literal : INTEGER_LITERAL { 
+                                        struct stackentry* entry = new_entry();
+                                        entry->token = $1;
+                                        entry->type = __INT;  
+                                         $$ = entry;       
+                                  }
 ;
 
-Fp_literal : FP_LITERAL { }
+Fp_literal : FP_LITERAL { 
+                            struct stackentry* entry = new_entry();
+                            entry->token = $1;
+                            entry->type = __DOUBLE; 
+                            $$ = entry;        
+                        }
 ;
 
-String : STRING { }
+String : STRING { 
+                    struct stackentry* entry = new_entry();
+                    entry->token = $1;   
+                    $$ = entry;   
+                }
 ;
 
-Text_block : TEXT_BLOCK { }
+Text_block : TEXT_BLOCK {   
+                            struct stackentry* entry = new_entry();
+                            entry->token = $1;
+                            $$ = entry;
+                        }
 ;
 
-Identifier : IDENTIFIER { }
+Identifier : IDENTIFIER {   
+                            struct stackentry* entry = new_entry();
+                            entry->token = $1; 
+                            $$ = entry;
+                        }
 ;
 
 endoffile : EOF_ { }
@@ -1287,7 +2158,7 @@ void handle_signal(int s) {
 
 int main(int argc, char *argv[]) {
 
-    argparse::ArgumentParser program("javap");
+    /* argparse::ArgumentParser program("javap");
 
     struct args *_args = new struct args;
 
@@ -1304,52 +2175,59 @@ int main(int argc, char *argv[]) {
     program.add_argument("--verbose")
         .help("increase output verbosity for parser")
         .default_value(false)
-        .implicit_value(true);
+        .implicit_value(true); */
 
-
+/* 
     try {
         program.parse_args(argc, argv);
     }
     catch (const std::runtime_error &err) {
-        std::cerr << err.what() << std::endl;
-        std::cerr << program;
+        std::cerr << "Line No: " <<  yylineno  << err.what() << std::endl;
+        std::cerr << "Line No: " <<  yylineno  << program;
         std::exit(1);
-    }
+    } */
 
 
-    _args->input = (char*)(program.get<std::string>("--input").c_str());
+    /* _args->input = (char*)(program.get<std::string>("--input").c_str()); */
 
   
 
-    _args->output = (char*)(program.get<std::string>("--output").c_str());
-
+    /* _args->output = (char*)(program.get<std::string>("--output").c_str()); */
+/* 
     if (program["--verbose"] == true) {
         _args->verbose = true;
-    }
+    } */
 
 
-    yydebug = 0;
+    /* yydebug = 0;
     
     if (_args->verbose)
-        yydebug = 1;
+        yydebug = 1; */
 
     
-    yyin = fopen(_args->input, "r");
+    while(pass_no <= 2) {
+        /* yyin = fopen(_args->input, "r"); */
+        yyin = fopen("demo.java", "r");
     
-    dotfile.open(_args->output);
+        if(yyin == NULL) {
+            cerr << "Line No: " <<  yylineno  << "FIle Not Found\n";
+            exit(-1);
+        }
+        /* dotfile.open(_args->output);
 
 
-    dotfile << "digraph AST {\n";
-    dotfile << "node [fontname = courier, shape = box, colorscheme = paired6];\n";
-    dotfile << "edge [color=blue];\n";
+        dotfile << "digraph AST {\n";
+        dotfile << "node [fontname = courier, shape = box, colorscheme = paired6];\n";
+        dotfile << "edge [color=blue];\n"; */
 
-    do {
-        yyparse();
-    } while(!feof(yyin));
+        do {
+            yyparse();
+        } while(!feof(yyin));
 
-    dotfile << "}";
+        /* dotfile << "}"; */
 
-    dotfile.close();
+        /* dotfile.close(); */
+    }
     return 0;
 }
 
