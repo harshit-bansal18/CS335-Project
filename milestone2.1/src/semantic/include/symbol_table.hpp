@@ -17,14 +17,14 @@ typedef struct stackentry {
     string variable_init_status;
     int offset;
     int lineno;
-}stackentry;
+} stackentry;
 
-class Type {
-  public:
-  bool isPrimitive;
-  bool isClass;
-  string type;
-};
+// class Type {
+//   public:
+//   bool isPrimitive;
+//   bool isClass;
+//   string type;
+// };
 
 
 #define VARIABLE "variable"
@@ -48,6 +48,7 @@ class Type {
 // #define __NULL "null"
 #define __BOOLEAN "boolean"
 #define __VAR "var"
+#define __VOID "void"
 
 #define __INITIALIZED "initialized"
 #define __UNINITIALIZED "uninitialized"
@@ -78,7 +79,7 @@ bool find_variable_in_closest_function_scope( vector< stackentry* > &stack, stri
 
 void add_to_stack( vector< stackentry* > &stack, string token, int scope, string type, int modifier, string nature, int offset, string argument_type, string variable_init_status);
 
-void clear_current_scope( vector< stackentry* > &stack, int scope );
+void clear_scope( vector< stackentry* > &stack, int scope );
 
 void add_class(int8_t modifier, string token);
 
@@ -88,3 +89,7 @@ void add_variable(string token, int8_t modifier, string type, bool init_flag);
 void add_function(string token, string argument_type, string return_type, int8_t modifier) ;
 
 void add_constructor(string token, string argument_type, string return_type, int8_t modifier, int scope);
+
+void dump_symbol(stackentry* v);
+void dump_entry(vector<stackentry*> v);
+void dump_ST(int );

@@ -19,7 +19,7 @@
         }
     }
 }
-%option noyywrap
+/* %option noyywrap */
 %option yylineno
 %x REALLYEND
 
@@ -200,7 +200,7 @@ EOL_COMMENT         \/\/[^\n\r]*
 "yield"                                   {   
                                             yylval.str = strdup(yytext); 
                                             check_for_null(yylval.str);
-                                            return YIELD;
+                                          //   return YIELD;
                                           }
 
 "try"                                     {   
@@ -502,17 +502,17 @@ EOL_COMMENT         \/\/[^\n\r]*
 "implements"                          {   
                                             yylval.str = strdup(yytext); 
                                             check_for_null(yylval.str);
-                                            return IMPLEMENTS; 
+                                          //   return IMPLEMENTS; 
                                       }
 "interface"                           {   
                                             yylval.str = strdup(yytext); 
                                             check_for_null(yylval.str);
-                                            return INTERFACE; 
+                                          //   return INTERFACE; 
                                       }
 "extends"                             {   
                                             yylval.str = strdup(yytext); 
                                             check_for_null(yylval.str);
-                                            return EXTENDS; 
+                                          //   return EXTENDS; 
                                       }
 "package"                             {   
                                             yylval.str = strdup(yytext); 

@@ -161,3 +161,42 @@ int yyerror(const char *s) {
     dotfile.close();
     exit(1);
 }
+
+
+
+int main(int argc, char *argv[]) {
+
+    FILE* fp = fopen("demo.java", "r");
+
+        cout << "Hiiiiiiiiiiii I am in Pass " << pass_no << "\n";
+        cout << "YYin Pointer: " << yyin << "\n";
+    
+        if(yyin == NULL) {
+            cerr << "Line No: " <<  yylineno  << "FIle Not Found\n";
+            exit(-1);
+        }
+    yyin = fp;
+        yyparse();
+
+        dump_ST();
+
+        pass_no++;
+
+    fseek(fp, 0, SEEK_SET);
+        // yyrestart(yyin);
+
+    yyin = fp;
+    
+        cout << "Hiiiiiiiiiiii I am in Pass " << pass_no << "\n";
+        cout << "YYin Pointer: " << yyin << "\n";
+    
+        if(yyin == NULL) {
+            cerr << "Line No: " <<  yylineno  << "FIle Not Found\n";
+            exit(-1);
+        }
+
+        yyparse(yyin);
+
+    fclose(yyin);
+    return 0;
+}

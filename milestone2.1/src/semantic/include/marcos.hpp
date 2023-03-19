@@ -1,0 +1,1 @@
+#define is_null(ptr) (ptr == NULL)

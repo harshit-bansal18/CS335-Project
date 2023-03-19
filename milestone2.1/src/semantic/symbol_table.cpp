@@ -1,8 +1,8 @@
-
 #include <bits/stdc++.h>
 #include <cstring> 
 
 #include "symbol_table.hpp"
+#include <sstream>
 
 extern "C" int yylineno;
 using namespace std;
@@ -13,9 +13,10 @@ map< string, vector< stackentry* > > symmbol_table_pass1;
 map< string, vector< stackentry* > > symmbol_table_pass2;
 
 vector< stackentry* > temp_stack,current_stack;
+stringstream text;
 
-int8_t global_modifier;
-string global_type;
+int8_t global_modifier = 0b0;
+string global_type = "";
 string current_class = "";
 string current_method = "";
 int pass_no = 1;
@@ -96,7 +97,7 @@ bool check_return_type(string type1, string type2){
         int type1_prio = type_priority[type1];
         int type2_prio = type_priority[type2];
 
-        if(type2_prio < type1_prio) {
+        if(type2_prio <= type1_prio) {
             if(type2 == __CHAR && type1 == __SHORT)
                 return 0;
             
@@ -117,6 +118,7 @@ bool check_return_type(string type1, string type2){
 
 string check_function_in_class( vector< stackentry* > &stack, string token, string argument_type, string nature){
 
+    // cout << "In check function in class: " << yylineno << "\n";
     const char* str = token.c_str();
     char* split_token = strtok((char*)str, ".");
     string type;
@@ -127,10 +129,12 @@ string check_function_in_class( vector< stackentry* > &stack, string token, stri
         if(token[i] == '.') dot_count ++;
     }
 
+    // cout << "Dot count: " << dot_count << "Count: "<< count << "Split token: " << split_token << "\n";
+    // cout << "Current Class: " << current_class << "\n";
     while(split_token != NULL) {
         
         if(count != dot_count){
-            s = get_variable_stackentry(stack, split_token);
+            s = get_variable_stackentry(stack, (string)split_token);
             if(s->token == ""){
                 cerr << "Line No: " <<  yylineno  << "No object found\n";
                 exit(-1);
@@ -143,16 +147,21 @@ string check_function_in_class( vector< stackentry* > &stack, string token, stri
             }
 
             stack = symmbol_table_pass1[type];
-            split_token = strtok(NULL, ".");
-            count ++;
         } else {
+            // cout << "In cond2\n";
             for( int i = stack.size()-1; i >= 0; i--) {
-                if(stack[i]->token == token && stack[i]->nature==nature && stack[i]->argument_type == argument_type){
-                    return stack[i]->type;
+                // cout << token << " " <<stack[i]->token << " " << nature << " " << stack[i]->nature << " " <<  argument_type << " " << stack[i]->argument_type <<"\n";
+                if(stack[i]!=NULL) {
+                    if(stack[i]->token == token && stack[i]->nature==nature && stack[i]->argument_type == argument_type){
+                        return stack[i]->type;
+                    }
                 }
             }
             return "";
         }
+
+        split_token = strtok(NULL, ".");
+        count ++;
        
     }
 
@@ -176,23 +185,32 @@ stackentry* find_variable_in_class( vector< stackentry* > &stack, string token){
     char* split_token = strtok((char*)str, ".");
     string type;
     stackentry* s ;
-    
-    while(split_token != NULL) {
-        
-        s = get_variable_stackentry(stack, split_token);
-        if(s->token == ""){
-            cerr << "Line No: " <<  yylineno << "No object found\n";
-            exit(-1);
-        }
-        type = s->type;
-        
-        if(symmbol_table_pass1.find(type) == symmbol_table_pass1.end()) {
-            cerr << "Line No: " <<  yylineno  << "Class of defined object does not exist\n";
-            exit(-1);
-        }
+    int dot_count = 0, count = 0;
 
-        stack = symmbol_table_pass1[type];
+    for(int i = 0; i < token.size(); i++){
+        if(token[i] == '.') dot_count ++;
+    }
+
+    while(split_token != NULL) {
+        if(count != dot_count){
+            s = get_variable_stackentry(stack, split_token);
+            if(s->token == ""){
+                cerr << "Line No: " <<  yylineno << "No object found\n";
+                exit(-1);
+            }
+            type = s->type;
+            
+            if(symmbol_table_pass1.find(type) == symmbol_table_pass1.end()) {
+                cerr << "Line No: " <<  yylineno  << "Class of defined object does not exist\n";
+                exit(-1);
+            }
+
+            stack = symmbol_table_pass1[type];
+        } else {
+            return get_variable_stackentry(stack, split_token);
+        }
         split_token = strtok(NULL, ".");
+        count ++;
     }
 
     return s;
@@ -229,15 +247,21 @@ void add_to_stack( vector< stackentry* > &stack, string token, int scope, string
     stack.push_back(entry);
 }
 
-void clear_current_scope( vector< stackentry* > &stack, int scope ) {
+void clear_scope( vector< stackentry* > &stack, int scope ) {
+
+    // cout << "Current Scope: " << current_scope << "\n";
+    // cout << "scope: " << scope << "\n"; 
+
     for( int i = stack.size()-1; i >= 0; i--) {
         if( stack[i]->scope == scope ) {
+            dump_symbol(stack[i]);
             stack.pop_back();
         }
         else{
             break;
         }
     }
+
 }
 
 void add_class(int8_t modifier, string token) {
@@ -291,23 +315,33 @@ void add_variable(string token, int8_t modifier, string type, bool init_flag){
 }
 
 void add_function(string token, string argument_type, string return_type, int8_t modifier) {
-    if(check_function_in_class(symmbol_table_pass1[current_class], token, argument_type, FUNCTION) != ""){
-        cerr << "Line No: " <<  yylineno  << "Function already exists\n";
-        exit(-1);
-    } else {
-        if(pass_no == 1)
-            add_to_stack(symmbol_table_pass1[current_class], token, current_scope, return_type, modifier, OPEN_FUNCTION, 0, argument_type, "");
-        else 
-            add_to_stack(symmbol_table_pass2[current_class], token, current_scope, return_type, modifier, OPEN_FUNCTION, 0, argument_type, "");
 
-        // Add entries of temp_scope to actual scope
-        current_scope++;
-        for(int i=0; i<temp_stack.size(); i++) {
-            add_variable(temp_stack[i]->token, temp_stack[i]->modifier, temp_stack[i]->type, 1);
+    if(pass_no == 1){
+        if(check_function_in_class(symmbol_table_pass1[current_class], token, argument_type, FUNCTION) != ""){
+            cerr << "Line No: " <<  yylineno  << "Function already exists\n";
+            exit(-1);
+        }  
+        else {
+            add_to_stack(symmbol_table_pass1[current_class], token, current_scope, return_type, modifier, OPEN_FUNCTION, 0, argument_type, "");
         }
-        current_scope--;
-        temp_stack.clear();
+    } else {
+        if(check_function_in_class(symmbol_table_pass2[current_class], token, argument_type, FUNCTION) != ""){
+            cerr << "Line No: " <<  yylineno  << "Function already exists\n";
+            exit(-1);
+        }
+        else {
+            add_to_stack(symmbol_table_pass2[current_class], token, current_scope, return_type, modifier, OPEN_FUNCTION, 0, argument_type, "");
+        }
     }
+
+    // Add entries of temp_scope to actual scope
+    current_scope++;
+    for(int i=0; i<temp_stack.size(); i++) {
+        add_variable(temp_stack[i]->token, temp_stack[i]->modifier, temp_stack[i]->type, 1);
+    }
+    current_scope--;
+    temp_stack.clear();
+    
 }
 
 void add_constructor(string token, string argument_type, string return_type, int8_t modifier, int scope) {
@@ -337,118 +371,164 @@ void add_constructor(string token, string argument_type, string return_type, int
     }
 }
 
+void dump_symbol(stackentry* v) {
+    if(v == NULL)
+        cout << "Null Pointer\n";
+    else {
+        cout << "\tToken: "<< v->token << "\n" 
+            // << "\t: " << v->scope << "\n" 
+            << "\tModifier: " << v->modifier << "\n" 
+            << "\tArgument Type: " << v->argument_type << "\n" 
+            << "\tType/Return Type: " << v->type << "\n" 
+            << "\tNature: " << v->nature << "\n" 
+            // << "\t: " << v->variable_init_status << "\n" 
+            << "\tOffset: " << v->offset << "\n" 
+            << "\tLineNo.: " << v->lineno << "\n\n"   ;
+    }
+}
 
-// stackentry check_in_stack( vector< stackentry > stack, string token ) {
-//     for( int i = stack.size()-1; i >= 0; i--) {
-//         if( stack[i].token == token ) {
-//             return stack[i];
-//         }
-//     }
-//     stackentry empty = {};
-//     return empty;
-// }
+void dump_entry(vector<stackentry*> vec){
 
-// bool find_variable_in_current_scope( vector< stackentry > &stack, string token, int scope ) {
-//     for( int i = stack.size()-1; i >= 0; i--) {
-//         if( stack[i].scope == scope ) {
-//             if( stack[i].token == token && stack[i].nature!="function" ) {
-//                 return true;
-//             }
-//         }
-//         else {
-//             break;
-//         }
-//     }
-//     return false;
-// }
+    for(int j=0; j<vec.size(); j++){
+        dump_symbol(vec[j]);
+    }
+}
+
+void dump_ST(int num) {
+    if(num == 1){
+        vector<stackentry*> v;
+        for (auto i : symmbol_table_pass1){
+            cout << i.first << ":\n";
+            v = i.second;
+            dump_entry(v);
+        }
+    }
+    else {
+        vector<stackentry*> v;
+        for (auto i : symmbol_table_pass2){
+            cout << i.first << ":\n";
+            v = i.second;
+            dump_entry(v);
+        }
+    }
+        
+}
+
+/*
+
+    // stackentry check_in_stack( vector< stackentry > stack, string token ) {
+    //     for( int i = stack.size()-1; i >= 0; i--) {
+    //         if( stack[i].token == token ) {
+    //             return stack[i];
+    //         }
+    //     }
+    //     stackentry empty = {};
+    //     return empty;
+    // }
+
+    // bool find_variable_in_current_scope( vector< stackentry > &stack, string token, int scope ) {
+    //     for( int i = stack.size()-1; i >= 0; i--) {
+    //         if( stack[i].scope == scope ) {
+    //             if( stack[i].token == token && stack[i].nature!="function" ) {
+    //                 return true;
+    //             }
+    //         }
+    //         else {
+    //             break;
+    //         }
+    //     }
+    //     return false;
+    // }
 
 
-// bool check_in_current_scope( vector< stackentry > &stack, string token, int scope ) {
-//     for( int i = stack.size()-1; i >= 0; i--) {
-//         if( stack[i].scope == scope ) {
-//             if( stack[i].token == token ) {
-//                 return true;
-//             }
-//         }
-//         else{
-//             break;
-//         }
-//     }
-//     return false;
-// }
+    // bool check_in_current_scope( vector< stackentry > &stack, string token, int scope ) {
+    //     for( int i = stack.size()-1; i >= 0; i--) {
+    //         if( stack[i].scope == scope ) {
+    //             if( stack[i].token == token ) {
+    //                 return true;
+    //             }
+    //         }
+    //         else{
+    //             break;
+    //         }
+    //     }
+    //     return false;
+    // }
 
 
-// Function used for checking when variable is used
+    // Function used for checking when variable is used
 
-// -----------MG---------------------
+    // -----------MG---------------------
 
-// stackentry __find_variable_without_dot_in_class( vector< stackentry > &stack, string token){
-//     for( int i = stack.size()-1; i >= 0; i--) {
-//         if(stack[i].token == token && stack[i].nature!=FUNCTION && stack[i].nature!=CONSTRUCTOR ){
-//             return stack[i];
-//         }
-//     }
-//     stackentry empty = {};
-//     return empty;
-// }   
+    // stackentry __find_variable_without_dot_in_class( vector< stackentry > &stack, string token){
+    //     for( int i = stack.size()-1; i >= 0; i--) {
+    //         if(stack[i].token == token && stack[i].nature!=FUNCTION && stack[i].nature!=CONSTRUCTOR ){
+    //             return stack[i];
+    //         }
+    //     }
+    //     stackentry empty = {};
+    //     return empty;
+    // }   
 
-// stackentry find_variable_in_class(vector< stackentry > &stack, string token){
-//     istringstream iss(token);
-//     std::vector<std::string> tkns;
-//     std::string tkn;
-//     while (std::getline(iss, tkn, '.')) {
-//         if (!tkn.empty())
-//             tkns.push_back(tkn);
-//     }
-//     return func2(stack, tkns);
-// }
+    // stackentry find_variable_in_class(vector< stackentry > &stack, string token){
+    //     istringstream iss(token);
+    //     std::vector<std::string> tkns;
+    //     std::string tkn;
+    //     while (std::getline(iss, tkn, '.')) {
+    //         if (!tkn.empty())
+    //             tkns.push_back(tkn);
+    //     }
+    //     return func2(stack, tkns);
+    // }
 
-// stackentry func2(vector< stackentry > &stack, vector<string> tkns){
-//     if(tkns.size() == 1)
-//         return __find_variable_without_dot_in_class(stack, tkns[0]);
-    
-//     stackentry s = __find_variable_without_dot_in_class(stack, tkns[0]);
-//     if(s.token == "") {
-//         exit(1);
-//     }
-//     else{
-//         tkns.erase(tkns.begin());
-//         stack = symmbol_table_pass1[s.type];
-//         return func2(stack, tkns);
-//     }
-// }
+    // stackentry func2(vector< stackentry > &stack, vector<string> tkns){
+    //     if(tkns.size() == 1)
+    //         return __find_variable_without_dot_in_class(stack, tkns[0]);
+        
+    //     stackentry s = __find_variable_without_dot_in_class(stack, tkns[0]);
+    //     if(s.token == "") {
+    //         exit(1);
+    //     }
+    //     else{
+    //         tkns.erase(tkns.begin());
+    //         stack = symmbol_table_pass1[s.type];
+    //         return func2(stack, tkns);
+    //     }
+    // }
 
-// bool __check_function_without_dot_in_class(vector< stackentry > &stack, string token, string argument_type, string nature){
-//     for( int i = stack.size()-1; i >= 0; i--) {
-//         if(stack[i].token == token && stack[i].nature==nature && stack[i].argument_type == argument_type){
-//             return 1;
-//         }
-//     }
-//     return 0;
-// }
+    // bool __check_function_without_dot_in_class(vector< stackentry > &stack, string token, string argument_type, string nature){
+    //     for( int i = stack.size()-1; i >= 0; i--) {
+    //         if(stack[i].token == token && stack[i].nature==nature && stack[i].argument_type == argument_type){
+    //             return 1;
+    //         }
+    //     }
+    //     return 0;
+    // }
 
-// bool check_function_in_class(vector< stackentry > &stack, string token, string argument_type, string nature){
-//     istringstream iss(token);
-//     std::vector<std::string> tkns;
-//     std::string tkn;
-//     while (std::getline(iss, tkn, '.')) {
-//         if (!tkn.empty())
-//             tkns.push_back(tkn);
-//     }
-//     return func3(stack, tkns, argument_type, nature);
-// }
+    // bool check_function_in_class(vector< stackentry > &stack, string token, string argument_type, string nature){
+    //     istringstream iss(token);
+    //     std::vector<std::string> tkns;
+    //     std::string tkn;
+    //     while (std::getline(iss, tkn, '.')) {
+    //         if (!tkn.empty())
+    //             tkns.push_back(tkn);
+    //     }
+    //     return func3(stack, tkns, argument_type, nature);
+    // }
 
-// bool func3(vector< stackentry > &stack, vector<string> tkns, string argument_type, string nature){
-//     if(tkns.size() == 1)
-//         return __check_function_without_dot_in_class(stack, tkns[0], argument_type, nature);
-    
-//     stackentry s = __find_variable_without_dot_in_class(stack, tkns[0]);
-//     if(s.token == "") {
-//         exit(1);
-//     }
-//     else{
-//         tkns.erase(tkns.begin());
-//         stack = symmbol_table_pass1[s.type];
-//         return func3(stack, tkns,  argument_type, nature);
-//     }
-// }
+    // bool func3(vector< stackentry > &stack, vector<string> tkns, string argument_type, string nature){
+    //     if(tkns.size() == 1)
+    //         return __check_function_without_dot_in_class(stack, tkns[0], argument_type, nature);
+        
+    //     stackentry s = __find_variable_without_dot_in_class(stack, tkns[0]);
+    //     if(s.token == "") {
+    //         exit(1);
+    //     }
+    //     else{
+    //         tkns.erase(tkns.begin());
+    //         stack = symmbol_table_pass1[s.type];
+    //         return func3(stack, tkns,  argument_type, nature);
+    //     }
+    // }
+
+*/
