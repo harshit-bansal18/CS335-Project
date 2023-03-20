@@ -23,14 +23,14 @@ public class Example {
     int x;
     static double y;
     
-    public void foo(int a, String b) {
+    public void foo(int a, int b) {
         double c = 1.23;
         char d = 'x';
     }
     
-    public static void example_f(String[] args) {
+    public static void example_f(int[] args) {
         int i = 42;
-        String s = "hello";
+        int s = 2;
         Example e = new Example();
         e.foo(i, s);
     }

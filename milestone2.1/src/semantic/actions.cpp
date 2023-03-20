@@ -16,15 +16,15 @@ extern int pass_no;
 
 stackentry* ClassOrInterfaceType(stackentry* e1) {
 
-    if( pass_no == 2){
-        if(symmbol_table_pass1.find(e1->token) == symmbol_table_pass1.end()){
-            cerr << "Line No: " <<  yylineno <<"Error: Cannot find class "<<e1->token<<endl;
-            exit(1);
+    if(pass_no == 2) {
+        if(symmbol_table_pass1.find(e1->token) == symmbol_table_pass1.end()) {
+            cerr << "Line No: " << yylineno << " Class does not exist\n";
+            exit(-1);
         }
     }
-    
-    struct stackentry* entry = new_entry();
-    entry->type = entry->token = e1->token;
+
+    stackentry* entry = new_entry();
+    entry->type = e1->token;
     return entry;
 }
 
@@ -75,7 +75,6 @@ void MethodDeclaration() {
     } else {
         int l = symmbol_table_pass2[current_class].size(); 
         symmbol_table_pass2[current_class][l-1]->nature = FUNCTION;
-        dump_ST(2);
     }
 }
 

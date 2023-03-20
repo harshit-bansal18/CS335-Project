@@ -9,12 +9,12 @@
     #include <fstream>
     #include <sstream>
     // #include <argparse/argparse.hpp>
-    #ifndef SYMBOL_TABLE_H
-        #include "symbol_table.hpp"
+    #ifndef SYMBOL_TABLE_FAST_H
+        #include "symbol_table_fast.hpp"
     #endif
 
-    #ifndef ACTIONS_H
-        #include "actions.hpp"
+    #ifndef ACTIONS_FAST_H
+        #include "actions_fast.hpp"
     #endif
 
     #define YYDEBUG 1
@@ -26,22 +26,22 @@
     extern "C" int yylineno;
     extern void yyrestart ( FILE *input_file  );
     extern int yylex_destroy ( void );
-    // extern "C" YY_FLUSH_BUFFER;
 
-    extern int current_scope, offset;
+    extern ClassDefinition *current_class;
+    extern LocalSymbolTable *current_table;
+    extern GlobalSymbolTable *global_table;
 
-    extern map< string, vector< stackentry* > > symmbol_table_pass1;
-    extern map< string, vector< stackentry* > > symmbol_table_pass2;
+    extern scope current_scope;
 
-    extern vector< stackentry* > temp_stack,current_stack;
+    extern unordered_map<string, Type *> defined_types;
 
-    extern int8_t global_modifier;
-    extern string global_type;
-    extern string current_class;
-    extern string current_method; 
-    extern int pass_no;
-    extern stringstream text;
-    
+    int offset;
+
+    int8_t global_modifier;
+    string global_type;
+    int pass_no;
+    stringstream text;
+
     static int node_num=-1;
 
     ofstream dotfile;
@@ -59,6 +59,8 @@
     double float_num;
     char* str;
     struct stackentry* stack_entry;
+    Type *type;
+    Identifier *id;
     // Type *type_;
 }
 
@@ -110,14 +112,14 @@
 %type<stack_entry> PackageDeclaration
 %type<stack_entry> ImportDeclaration
 %type<stack_entry> Literal
-%type<stack_entry> UnannType
-%type<stack_entry> PrimitiveType
-%type<stack_entry> NumericType
-%type<stack_entry> IntegralType
-%type<stack_entry> FloatingPointType
-%type<stack_entry> ReferenceType
-%type<stack_entry> ClassOrInterfaceType
-%type<stack_entry> ArrayType
+%type<type> UnannType
+%type<type> PrimitiveType
+%type<type> NumericType
+%type<type> IntegralType
+%type<type> FloatingPointType
+%type<type> ReferenceType
+%type<type> ClassOrInterfaceType
+%type<type> ArrayType
 %type<stack_entry> Dims
 %type<stack_entry> TypeName
 %type<stack_entry> ClassDeclaration
@@ -216,15 +218,15 @@
 %type<stack_entry> IfThenStatement
 %type<stack_entry> LocalVariableDeclaration
 %type<stack_entry> LocalVariableDeclarationStatement
-%type<stack_entry> Int
-%type<stack_entry> Long
-%type<stack_entry> Byte
-%type<stack_entry> Char
-%type<stack_entry> Short
-%type<stack_entry> Float
-%type<stack_entry> Double
-%type<stack_entry> Boolean
-%type<stack_entry> Var
+%type<type> Int
+%type<type> Long
+%type<type> Byte
+%type<type> Char
+%type<type> Short
+%type<type> Float
+%type<type> Double
+%type<type> Boolean
+%type<type> Var
 %type<stack_entry> If
 %type<stack_entry> Else
 %type<stack_entry> For
@@ -281,21 +283,21 @@
 %type<stack_entry> SynchronizedStatement
 %type<stack_entry> DoStatement
 %type<stack_entry> TryStatement
-%type<stack_entry> SwitchBlock
-%type<stack_entry> SwitchBlockStatementGroup
-%type<stack_entry> SwitchBlockStatementGroups
-%type<stack_entry> SwitchLabel
-%type<stack_entry> SwitchLabelColons
-%type<stack_entry> SwitchRule
-%type<stack_entry> SwitchRules
-%type<stack_entry> SwitchStatement
+// %type<stack_entry> SwitchBlock
+// %type<stack_entry> SwitchBlockStatementGroup
+// %type<stack_entry> SwitchBlockStatementGroups
+// %type<stack_entry> SwitchLabel
+// %type<stack_entry> SwitchLabelColons
+// %type<stack_entry> SwitchRule
+// %type<stack_entry> SwitchRules
+// %type<stack_entry> SwitchStatement
 %type<stack_entry> CatchClause
 %type<stack_entry> Catches
 %type<stack_entry> CatchFormalParameter
 %type<stack_entry> CatchType
 %type<stack_entry> Finally
-%type<stack_entry> CaseConstant
-%type<stack_entry> CaseConstants
+// %type<stack_entry> CaseConstant
+// %type<stack_entry> CaseConstants
 %type<stack_entry> do_
 %type<stack_entry> switch_
 /* %type<stack_entry> yield_ */
@@ -320,7 +322,7 @@
 %type<stack_entry> Fp_literal
 %type<stack_entry> String
 %type<stack_entry> Text_block
-%type<stack_entry> Identifier
+%type<id> Identifier
 %type<stack_entry> Public
 %type<stack_entry> Private
 %type<stack_entry> Static
@@ -382,7 +384,7 @@ ImportDeclaration:
 ;
 
 ScopeIncrement:
-    %empty { current_scope ++; }
+    %empty { increase_current_level(); }
 ;
 
 /* ScopeDecrement:
@@ -458,12 +460,10 @@ ClassOrInterfaceType:
 
 ArrayType:
     PrimitiveType Dims {    
-                            struct stackentry* entry = new_entry();
-                            entry->type = ($1)->type+($2)->type; 
-                            $$ = entry; 
+                            $$ = get_array_type($1, $2);
                        }
 |   TypeName Dims   { 
-                        $$ = ArrayType($1, $2, 2);
+                        $$ = get_array_type(get_type($1), $2);
                     }
 /* |   Identifier Dims {  
                         $$ = ArrayType($1, $2, 2);
@@ -471,18 +471,12 @@ ArrayType:
 ;
 
 Dims:
-    Lsquare Rsquare Dims  {     
-                                struct stackentry* entry = new_entry();
-                                entry->type = ($3)->type + "*"; 
-                                $$ = entry; 
-                        }
+    Lsquare Rsquare Dims    {  $$ = increase_dims($3);}
 |   Lsquare Rsquare { 
-                        struct stackentry* entry = new_entry();
-                        entry->type = "*"; 
-                        $$ = entry; 
+                        $$ = make_stackentry("", yylineno);
+                        $$->type = get_array_type(); 
                     }
 ;
-
 
 /**********************/
 
@@ -496,12 +490,13 @@ Dims:
 */
 TypeName:
     Identifier  { 
-                    $$ = $1;
+                    $$ = make_stackentry($1->name, yylineno);
+                    free($1);
                 }
-|   TypeName Dot Identifier {   
-                                struct stackentry* entry = new_entry();
-                                entry->token = ($1)->token + "." + ($3)->token;
-                                $$ = entry;
+|   TypeName Dot Identifier {
+                                $1->token = $1->token + "." + $3->name;
+                                free($3);
+                                $$ = $1;
                             }
 ;
 
@@ -543,8 +538,8 @@ Modifier:
 
 
 ClassDeclaration:
-    Modifiers Class Identifier { add_class($1, ($3)->token); current_class = ($3)->token; } ClassBody { current_class = ""; }
-|   Class Identifier { add_class(0b0, ($2)->token); current_class = ($2)->token; } ClassBody { current_class = ""; }
+    Modifiers Class Identifier { add_class($1, ($3)->token);} ClassBody { current_class = NULL; current_scope = scope_global; }
+|   Class Identifier { add_class(0b0, ($2)->token);} ClassBody { current_class = NULL; current_scope = scope_global;}
 ;
 
 /* Super:
@@ -598,30 +593,24 @@ VariableDeclaratorList:
 // used to declare instance variables of class, hence will be invoked in both passes.
 VariableDeclarator:
     VariableDeclaratorId Assign VariableInitializer {    
-                                                        if((pass_no==1 && current_scope==0) || pass_no==2) VariableDeclarator($1, $3, 1);
+                                                        if((pass_no==1 && current_scope==scope_class) || (pass_no==2)) VariableDeclarator($1, $3, 1);
                                                     }
 |   VariableDeclaratorId { 
-                            if((pass_no==1 && current_scope==0) || pass_no==2) VariableDeclarator($1, NULL, 2);
+                            if((pass_no==1 && current_scope==scope_class) || (pass_no==2)) VariableDeclarator($1, NULL, 2);
                          }
 ;
 
 VariableDeclaratorId:
     VariableDeclaratorId  Lsquare Rsquare {     
-                                                if((pass_no==1 && current_scope==0) || pass_no==2) {
-                                                    struct stackentry* entry = new_entry();
-                                                    entry->token = ($1)->token;
-                                                    entry->type = ($1)->type + "*";
-                                                    $$ = entry;
-                                                }
-                                                 
+                                                if((pass_no==1 && current_scope==scope_class) || (pass_no==2)) {
+                                                    $$ = increase_dims($1);
+                                                }                                               
                                           }
 |   Identifier  {    
-                    if((pass_no==1 && current_scope==0) || pass_no==2) {
-                        struct stackentry* entry = new_entry();
-                        entry->token = ($1)->token;
-                        entry->type = global_type;
-                        $$ = entry;
-                    } 
+                    if((pass_no==1 && current_scope==scope_class) || (pass_no==2)) {
+                        $$ = make_stackentry($1->name, global_type, yylineno);
+                        free($1);
+                    }
                 }
 ;
 
@@ -636,74 +625,58 @@ VariableInitializer:
 MethodDeclaration:
     MethodHeader{
                     add_function(($1)->token, ($1)->argument_type, ($1)->type, ($1)->modifier);   
-                } MethodBody { MethodDeclaration(); }
+                } MethodBody
 ;
 
 MethodHeader:
-    ModifiersUnannTypeSubRoutine Declarator      { 
-                                            struct stackentry* entry = new_entry();
+    ModifiersUnannTypeSubRoutine Declarator      {
+                                            struct stackentry* entry = make_stackentry( (($2)->token).c_str(), global_type, yylineno);
                                             entry->modifier = global_modifier; 
-                                            entry->type = global_type; 
-                                            entry->token = ($2)->token; 
                                             entry->argument_type = ($2)->argument_type;
                                             $$ = entry; 
                                             global_modifier = 0b0; global_type ="";
                                         }
 |   UnannTypeSubRoutine Declarator      { 
-                                            struct stackentry* entry = new_entry();
-                                            entry->type = global_type; 
-                                            entry->token = ($2)->token; 
+                                            struct stackentry* entry = make_stackentry((($2)->token).c_str(), global_type, yylineno); 
                                             entry->argument_type = ($2)->argument_type;
                                             $$ = entry;
                                             global_type = "";
                                           }
 |   Modifiers Void Declarator             { 
-                                            struct stackentry* entry = new_entry();
+                                            struct stackentry* entry = make_stackentry((($3)->token).c_str(), __VOID, yylineno);
                                             entry->modifier = $1; 
-                                            entry->type = __VOID; 
-                                            entry->token = ($3)->token; 
                                             entry->argument_type = ($3)->argument_type;
                                             $$ = entry;
                                           }
 |   Void Declarator                       { 
-                                            struct stackentry* entry = new_entry();
-                                            entry->type = __VOID; 
-                                            entry->token = ($2)->token; 
+                                            struct stackentry* entry = make_stackentry((($2)->token).c_str(), __VOID, yylineno);
                                             entry->argument_type = ($2)->argument_type;
                                             $$ = entry;
                                           }
 |   ModifiersUnannTypeSubRoutine Declarator Throws { 
-                                            struct stackentry* entry = new_entry();
+                                            struct stackentry* entry = make_stackentry((($2)->token).c_str(), global_type, yylineno);
                                             entry->modifier = global_modifier; 
-                                            entry->type = global_type; 
-                                            entry->token = ($2)->token; 
                                             entry->argument_type = ($2)->argument_type;
                                             $$ = entry;
                                             global_modifier = 0b0; global_type ="";
                                             // Throws ???????????????????????????????????????
                                           }
 |   UnannTypeSubRoutine Declarator Throws           { 
-                                            struct stackentry* entry = new_entry();
-                                            entry->type = global_type; 
-                                            entry->token = ($2)->token; 
+                                            struct stackentry* entry = make_stackentry((($2)->token).c_str(), global_type, yylineno);  
                                             entry->argument_type = ($2)->argument_type;
                                             $$ = entry;
                                             global_type = "";
                                             // Throws ???????????????????????????????????????
                                           }
 |   Modifiers Void Declarator Throws      { 
-                                            struct stackentry* entry = new_entry();
+                                            struct stackentry* entry = make_stackentry((($3)->token).c_str(), __VOID, yylineno);
                                             entry->modifier = $1; 
-                                            entry->type = __VOID; 
-                                            entry->token = ($3)->token; 
                                             entry->argument_type = ($3)->argument_type;
                                             $$ = entry;
                                             // Throws ???????????????????????????????????????
                                           }
 |   Void Declarator Throws                { 
-                                            struct stackentry* entry = new_entry();
-                                            entry->type = __VOID; 
-                                            entry->token = ($2)->token; 
+                                            struct stackentry* entry = make_stackentry((($2)->token).c_str(), __VOID, yylineno);
                                             entry->argument_type = ($2)->argument_type;
                                             $$ = entry;
                                             // Throws ???????????????????????????????????????
@@ -729,42 +702,27 @@ ExceptionType:
     Added in place  of MethodDeclarator and ConstructorDeclarator
 */
 Declarator:
-    Identifier Lparen Rparen {
-                                struct stackentry* entry = new_entry();
-                                entry->token = ($1)->token; 
-                                $$ = entry;
-                             }
-|   Identifier Lparen FormalParameterList Rparen {
-                                                    struct stackentry* entry = new_entry();
-                                                    entry->token =($1)->token; 
-                                                    entry->argument_type = ($3)->argument_type;
-                                                    $$ = entry;
-                                                 }
+    Identifier Lparen Rparen                    { $$ = make_stackentry(($1->name).c_str, yylineno); free($1); }
+|   Identifier Lparen FormalParameterList Rparen { $3->token =($1)->name; $$ = $3; }
 ;
 
 FormalParameterList:
-    FormalParameterList Comma FormalParameter {     
-                                                struct stackentry* entry = new_entry(); 
-                                                entry->argument_type = ($1)->argument_type + "," + ($3)->argument_type;
-                                                $$ = entry;
+    FormalParameterList Comma FormalParameter {
+                                                $1->argument_type = ($1)->argument_type + "," + ($3)->argument_type;
+                                                $$ = $1;
+                                                free($3);
                                              }
-|   FormalParameter {   
-                        struct stackentry* entry = new_entry(); 
-                        entry->argument_type = ($1)->argument_type;
-                        $$ = entry;
-                    }
+|   FormalParameter {  $$ = $1; }
 ;
 
 FormalParameter:
-    UnannTypeSubRoutine VariableDeclaratorId { 
-                                                struct stackentry* entry = new_entry(); 
-                                                entry->argument_type = ($2)->type;
-                                                $$ = entry;
-                                                temp_stack.push_back($2);
-                                                global_type = ""; 
+    UnannTypeSubRoutine VariableDeclaratorId {
+                                                $$ = $2;
+                                                global_type = "";
+                                                if (pass_no == 2 && current_scope == scope_class)
+                                                    add_variable($2->token, 0b0, $2->type, true);
                                             } 
 ;
-
 
 MethodBody:
     Block { }
@@ -775,12 +733,8 @@ StaticInitializer:
 ;
 
 ConstructorDeclaration:
-    Modifiers Declarator { add_constructor(($2)->token, ($2)->argument_type, "", $1, ($2)->scope); } ConstructorBody {          
-                                                                                                                                ConstructorDeclaration();
-                                                                                                                             }
-|   Declarator { add_constructor(($1)->token, ($1)->argument_type, "", (int8_t) 0, ($1)->scope); } ConstructorBody           { 
-                                                                                                                                ConstructorDeclaration();
-                                                                                                                             }
+    Modifiers Declarator { add_constructor(($2)->token, ($2)->argument_type, $1); } ConstructorBody
+|   Declarator { add_constructor(($1)->token, ($1)->argument_type, (int8_t) 0); } ConstructorBody
 ;
 
 /*
@@ -794,10 +748,10 @@ ConstructorDeclaration:
 
 // ExplicitInvocation missed for now (this, super)
 ConstructorBody:
-    Lcurly ScopeIncrement BlockStatements Rcurly { if(pass_no == 2) { clear_scope(symmbol_table_pass2[current_class], current_scope);} current_scope--; }
-|   Lcurly ScopeIncrement ExplicitConstructorInvocation BlockStatements Rcurly { if(pass_no == 2) { clear_scope(symmbol_table_pass2[current_class], current_scope);} current_scope--;}
-|   Lcurly ScopeIncrement ExplicitConstructorInvocation Rcurly { if(pass_no == 2) { clear_scope(symmbol_table_pass2[current_class], current_scope);} current_scope--; }
-|   Lcurly ScopeIncrement Rcurly { if(pass_no == 2) { clear_scope(symmbol_table_pass2[current_class], current_scope);} current_scope--; }
+    Lcurly ScopeIncrement BlockStatements Rcurly { if(pass_no == 2) { clear_current_scope(); } }
+|   Lcurly ScopeIncrement ExplicitConstructorInvocation BlockStatements Rcurly { if(pass_no == 2) { clear_current_scope();} }
+|   Lcurly ScopeIncrement ExplicitConstructorInvocation Rcurly { if(pass_no == 2) { clear_current_scope(); } }
+|   Lcurly ScopeIncrement Rcurly { if(pass_no == 2) { clear_current_scope(); } }
 ;
 
 ExplicitConstructorInvocation:
@@ -807,7 +761,7 @@ ExplicitConstructorInvocation:
 |   This Lparen ArgumentList Rparen {
                                         // Check if any constructor exists with the same argument type
                                         if(pass_no == 2){
-                                            if(check_function_in_class( symmbol_table_pass1[current_class], current_class, ($3)->argument_type, CONSTRUCTOR) == ""){
+                                            if(is_null(check_function_in_class( current_class->name, ($3)->argument_type, CONSTRUCTOR))){
                                                 cerr << "Line No: " <<  yylineno  << "No such constructor present in class\n";
                                                 exit(-1);
                                             }
@@ -820,18 +774,12 @@ ExplicitConstructorInvocation:
 ArrayInitializer: // int a[] = {2,3,4,5,6};
     Lcurly VariableInitializerList Rcurly { $$ = $2; }         //type wont remain same
 |   Lcurly Rcurly { /*empty array*/
-                    if(pass_no == 2){
-                        struct stackentry* entry = new_entry(); 
-                        entry->type = "";
-                        $$ = entry;
-                    }
+                    if(pass_no == 2){ $$ = make_stackentry("", yylineno); }
                  }
 |   Lcurly VariableInitializerList Comma Rcurly { if(pass_no == 2) $$ = $2; }
 |   Lcurly Comma Rcurly {   
                             if(pass_no == 2){
-                                struct stackentry* entry = new_entry(); 
-                                entry->type = "";
-                                $$ = entry;
+                                $$ = make_stackentry("", yylineno);
                             }
                         }
 ;
@@ -839,8 +787,8 @@ ArrayInitializer: // int a[] = {2,3,4,5,6};
 VariableInitializerList:
     VariableInitializerList Comma VariableInitializer {     
                                                             if(pass_no == 2){
-                                                                if(($1)->type == __BOOLEAN || ($3)->type == __BOOLEAN) {
-                                                                    if(($1)->type == __BOOLEAN)
+                                                                if(($1)->type->name == __BOOLEAN || ($3)->type->name == __BOOLEAN) {
+                                                                    if(($1)->type->name == __BOOLEAN)
                                                                         $$ = $1;
                                                                     else 
                                                                         $$ = $3;
@@ -907,108 +855,98 @@ PrimaryNoNewArray:  Literal { $$ = $1; }
 ;
 
 ClassInstanceCreationExpression: 
-    New ClassOrInterfaceType Lparen Rparen  {   
+    New ClassOrInterfaceType Lparen Rparen  {
                                                 if(pass_no == 2){
-                                                    struct stackentry* entry = new_entry(); 
-                                                    entry->type = ($2)->type;
-                                                    $$ = entry;
+                                                    if(is_null(check_function_in_class(($2)->name, "", CONSTRUCTOR))) {
+                                                        cerr << "Line No: " <<  yylineno << "Unknown constructor used"<<endl;
+                                                        exit(1);
+                                                    }
+                                                    $$ = make_stackentry("", ($2)->name, yylineno);
                                                 } 
                                             }
 |   New ClassOrInterfaceType Lparen ArgumentList Rparen {   
                                                             if(pass_no == 2){
-                                                                if(check_function_in_class(symmbol_table_pass1[($2)->type], ($2)->type, ($4)->argument_type, CONSTRUCTOR) == ""){
+                                                                if(is_null(check_function_in_class(($2)->name, ($4)->argument_type, CONSTRUCTOR))){
                                                                     cerr << "Line No: " <<  yylineno <<"Unknown constructor used"<<endl;
                                                                     exit(1);
                                                                 }
 
-                                                                struct stackentry* entry = new_entry(); 
-                                                                entry->type = ($2)->type;
-                                                                $$ = entry;
+                                                                $$ = make_stackentry("", ($2)->name, yylineno);
                                                             }
                                                         }
 ;
 
 FieldAccess:    Primary Dot Identifier  {   
                                             if(pass_no == 2 ){
-                                                struct stackentry* entry = find_variable_in_class(symmbol_table_pass1[($1)->type],$3->token);
-                                                entry->variable_init_status = __INITIALIZED;
-                                                $$ = entry;
+                                                $$ = find_variable_in_class($3->name, true);
+                                                free($3);
                                             }
                                         }
 // |               super_ Dot Identifier { }
 // |               TypeName Dot super_ Dot Identifier { }
-;
+/* ; */
 
 ArrayAccess:    TypeName Lsquare Expression Rsquare {   
                                                         if(pass_no == 2 ){
-                                                            if( !(($3)->type == __INT) ){
+                                                            if( !(($3)->type->is_integral)){
                                                                 cerr << "Line No: " <<  yylineno <<"Array index must be integer"<<endl;
                                                                 exit(-1);
                                                             }
+                                                            $1 = find_variable_in_class(($1)->token, false);                
 
-                                                            $1 = find_variable_in_class(symmbol_table_pass2[current_class], ($1)->token);
-
-                                                            if(($1)->variable_init_status == __UNINITIALIZED) {
-                                                                cerr << "Line No: " <<  yylineno  << "Variable not initialized\n";
-                                                                exit(-1);
-                                                            }
-
-                                                            string id = ($1)->type;
-
-                                                            if( !id[id.length() - 1]=='*' ){
-                                                                cerr << "Line No: " <<  yylineno <<"Array type must be pointer"<<endl;
+                                                            // string id = ($1)->type;
+                                                            Type *t = $1->type;
+                                                            if(!t->is_pointer()){
+                                                                cerr << "Line No: " <<  yylineno <<"Type of variable must be array type"<<endl;
                                                                 exit(1);
                                                             }
-                                                            id = id.substr(0,id.length() - 1);
-                                                            struct stackentry* entry = new_entry(); 
-                                                            entry->type = id;
-                                                            $$ = entry; 
+                                                            t->arr_dim--;
+                                                            free($3);
+                                                            $$ = $1; 
                                                         }
                                                     }
 |               PrimaryNoNewArray Lsquare Expression Rsquare    {   
-                                                                    if(pass_no == 2 ){
-                                                                        if( !(($3)->type == __INT) ){
-                                                                            cerr << "Line No: " <<  yylineno <<"Array index must be integer"<<endl;
-                                                                            exit(1);
-                                                                        }
+                                                        if(pass_no == 2 ){
+                                                            if( !(($3)->type->is_integral)){
+                                                                cerr << "Line No: " <<  yylineno <<"Array index must be integer"<<endl;
+                                                                exit(-1);
+                                                            }
+                                                            $1 = find_variable_in_class(($1)->token, false);                
 
-                                                                        string id = ($1)->type;
-                                                                        int l = id.length();
-                                                                        if( !id[l-1]=='*' ){
-                                                                            cerr << "Line No: " <<  yylineno <<"Array type must be pointer"<<endl;
-                                                                            exit(1);
-                                                                        }
-                                                                        id = id.substr(0, l-1);
-                                                                        struct stackentry* entry = new_entry(); 
-                                                                        entry->type = id;
-                                                                        $$ = entry; 
-                                                                    }
-                                                                }
+                                                            // string id = ($1)->type;
+                                                            Type *t = $1->type;
+                                                            if(!t->is_pointer()){
+                                                                cerr << "Line No: " <<  yylineno <<"Type of variable must be array type"<<endl;
+                                                                exit(1);
+                                                            }
+                                                            t->arr_dim--;
+                                                            free($3);
+                                                            $$ = $1; 
+                                                        }
+                                                    }
 ;
 // A -> B Lsquare C Rsquare    $$.type = $1.type + "*"      $3.type = __INT
 
 MethodInvocation:   TypeName Lparen Rparen {    
                                                 if(pass_no == 2 ){
-                                                    string return_type = check_function_in_class(symmbol_table_pass2[current_class], ($1)->token, "", FUNCTION);
-                                                    if(return_type == ""){
+                                                    Type* return_type = check_function_in_class(($1)->token, "", FUNCTION);
+                                                    if(return_type == NULL){
                                                         cerr << "Line No: " <<  yylineno  << "Undeclared function called\n";
                                                         exit(-1);
                                                     }
-                                                    struct stackentry* entry = new_entry(); 
-                                                    entry->type = return_type;
-                                                    $$ = entry; 
+                                                    $$ = make_stackentry("", yylineno); 
+                                                    $$->type = return_type;
                                                 }
                                             }
 |                   TypeName Lparen ArgumentList Rparen {   
                                                             if(pass_no == 2 ){
-                                                                string return_type = check_function_in_class(symmbol_table_pass2[current_class], ($1)->token, ($3)->argument_type, FUNCTION);
-                                                                if(return_type == ""){
+                                                                Type* return_type = check_function_in_class(($1)->token, ($3)->argument_type, FUNCTION);
+                                                                if(return_type == NULL){
                                                                     cerr << "Line No: " <<  yylineno  << "Undeclared function called\n";
                                                                     exit(-1);
                                                                 }
-                                                                struct stackentry* entry = new_entry(); 
-                                                                entry->type = return_type;
-                                                                $$ = entry; 
+                                                                $$ = make_stackentry("", yylineno); 
+                                                                $$->type = return_type;
                                                             }
                                                         }
 |                   Primary Dot Identifier Lparen Rparen { }
@@ -1023,88 +961,51 @@ MethodInvocation:   TypeName Lparen Rparen {
 
 ArgumentList:       Expression  { 
                                     if(pass_no == 2 ){
-                                        struct stackentry* entry = new_entry(); 
-                                        entry->argument_type = ($1)->type; 
+                                        struct stackentry* entry = make_stackentry("", yylineno); 
+                                        entry->argument_type = ($1)->type->name; 
                                         $$ = entry; 
                                     }
                                 }
 |                   ArgumentList Comma Expression { 
                                                     if(pass_no == 2 ){      
-                                                        struct stackentry* entry = new_entry(); 
-                                                        entry->argument_type = ($1)->argument_type + "," + ($2)->type; 
+                                                        struct stackentry* entry = make_stackentry("", yylineno); 
+                                                        entry->argument_type = ($1)->argument_type + "," + ($2)->type->name; 
                                                         $$ = entry; 
                                                     }
                                                   }
 ;
 // A -> B Comma C    $$.argtype = $1.argtype + " , " + $3.type
 
-ArrayCreationExpression:    New PrimitiveType DimExprs Dims {   
-                                                                if(pass_no == 2 ){    
-                                                                    struct stackentry* entry = new_entry(); 
-                                                                    entry->type = ($2)->type + ($3)->type + ($4)->type ;
-                                                                    $$ = entry;
-                                                                }
-                                                            }
-|                           New ClassOrInterfaceType DimExprs Dims {    
-                                                                        if(pass_no == 2 ){  
-                                                                            struct stackentry* entry = new_entry(); 
-                                                                            entry->type = ($2)->type + ($3)->type + ($4)->type;
-                                                                            $$ = entry;   
-                                                                        } 
-                                                                    }
-|                           New PrimitiveType DimExprs {    
-                                                            if(pass_no == 2 ){  
-                                                                struct stackentry* entry = new_entry(); 
-                                                                entry->type = ($2)->type + ($3)->type; 
-                                                                $$ = entry;
-                                                            }
-                                                        }
-|                           New ClassOrInterfaceType DimExprs{  
-                                                                if(pass_no == 2 ){  
-                                                                    struct stackentry* entry = new_entry();     
-                                                                    entry->type = ($2)->type + ($3)->type;  
-                                                                    $$ = entry;
-                                                                }
-                                                            }
-|                           New PrimitiveType Dims ArrayInitializer {   
-                                                                        if(pass_no == 2 ){  
-                                                                            struct stackentry* entry = new_entry();     
-                                                                            entry->type = ($2)->type + ($3)->type;  
-                                                                            $$ = entry;
-                                                                        }
-                                                                    }
-|                           New ClassOrInterfaceType Dims ArrayInitializer {    
-                                                                                if(pass_no == 2 ){  
-                                                                                    struct stackentry* entry = new_entry();     
-                                                                                    entry->type = ($2)->type + ($3)->type;  
-                                                                                    $$ = entry;
-                                                                                }
-                                                                            }
+ArrayCreationExpression:    New PrimitiveType DimExprs Dims         {  if(pass_no == 2 ){  $$ = assign_arr_dim($2, $3, $4); } }
+|                           New ClassOrInterfaceType DimExprs Dims  {  if(pass_no == 2 ){  $$ = assign_arr_dim($2, $3, $4); } }
+|                           New PrimitiveType DimExprs              {  if(pass_no == 2 ){  $$ = assign_arr_dim($2, $3); } }
+|                           New ClassOrInterfaceType DimExprs       {  if(pass_no == 2 ){  $$ = assign_arr_dim($2, $3); } }
+|                           New PrimitiveType Dims ArrayInitializer {  if(pass_no == 2 ){  $$ = assign_arr_dim($2, $3); } }
+|                           New ClassOrInterfaceType Dims ArrayInitializer {  if(pass_no == 2 ){  $$ = assign_arr_dim($2, $3); } }
 ;
 // ArrayCreationExpression -> new B C ArrayInitializer    $$.type = $2.type + ("*")*(stringtoint($3.type))
 // ArrayCreationExpression -> new B C     $$.type = $2.type + ("*")*(stringtoint($3.type))
 // ArrayCreationExpression -> new B C D    $$.type = $2.type + ("*")*(stringtoint($3.type) + stringtoint($3.type))
 
 DimExprs:   DimExpr  { if(pass_no == 2) $$ = $1; }
-|           DimExprs DimExpr {  if(pass_no == 2 ){  
-                                    struct stackentry* entry = new_entry(); 
-                                    entry->type = ($1)->type + ($2)->type; 
-                                    $$ = entry;
-                                }
-                            }
+|           DimExprs DimExpr {  if(pass_no == 2 ){  $$ = assign_arr_dim($1, $2);} }
 ;
 // A -> B C    $$.type = $1.type + $2.type 
 
 DimExpr:    Lsquare Expression Rsquare {    
                                             if(pass_no == 2 ){  
                                                 if(!check_if_numeric_type(($2)->type)) {
-                                                    cerr << "Line No: " <<  yylineno  << "Array dimensions should be numeric\n";
+                                                    cerr << "Line No: " << yylineno << "Array dimension must be integer\n";
                                                     exit(-1);
                                                 }
-                                                
-                                                struct stackentry* entry = new_entry(); 
-                                                entry->type = "*";
-                                                $$ = entry;
+
+                                                if(!(($2)->type->is_integral)) {
+                                                    cerr << "Line No: " << yylineno << "Array dimension must be integer\n";
+                                                    exit(-1);
+                                                }
+
+                                                $$ = make_stackentry("", yylineno);
+                                                $$->type = get_array_type();
                                             }
                                         }
                                         
@@ -1122,7 +1023,7 @@ Assignment:
     LeftHandSide AssignmentOperator Expression  {   
                                                     if(pass_no == 2 ){  
                                                         if(!check_return_type(($1)->type, ($3)->type)) {
-                                                            cerr << "Line No: " <<  yylineno  << "incompatible types: "<< ($3)->type << "cannot be converted to " << ($1)->type <<"\n";
+                                                            cerr << "Line No: " <<  yylineno  << "incompatible types: "<< ($1)->type << "cannot be converted to " << ($3)->type <<"\n";
                                                             exit(-1);
                                                         }
 
@@ -1132,7 +1033,7 @@ Assignment:
 |   LeftHandSide Assign Expression              {   
                                                     if(pass_no == 2 ){  
                                                         if(!check_return_type(($1)->type, ($3)->type)) {
-                                                            cerr << "Line No: " <<  yylineno  << "incompatible types: "<< ($3)->type << "cannot be converted to " << ($1)->type <<"\n";
+                                                            cerr << "Line No: " <<  yylineno  << "incompatible types: "<< ($1)->type << "cannot be converted to " << ($3)->type <<"\n";
                                                             exit(-1);
                                                         }
 
@@ -1144,9 +1045,10 @@ Assignment:
 LeftHandSide:
     TypeName {  
                 if(pass_no == 2 ){  
-                    struct stackentry* entry = find_variable_in_class(symmbol_table_pass2[current_class], ($1)->token);
-                    entry->variable_init_status = __INITIALIZED;
-                    $$ = entry;
+                    // struct stackentry* entry = find_variable_in_class(symmbol_table_pass2[current_class], ($1)->token);
+                    // entry->variable_init_status = __INITIALIZED;
+                    // $$ = entry;
+                    
                 }
             }
 |   FieldAccess { if(pass_no == 2 ) $$ = $1; }
@@ -1156,14 +1058,14 @@ LeftHandSide:
 ConditionalExpression:  ConditionalOrExpression { $$ = $1; }
 |                   ConditionalOrExpression Qm Expression Colon ConditionalExpression {     
                                                                                             if(pass_no == 2 ){
-                                                                                                if(($1)->type != __BOOLEAN){
+                                                                                                if(($1)->type != defined_types[__BOOLEAN]){
                                                                                                     cerr << "Line No: " <<  yylineno  << "incompatible types: "<< ($1)->type << "cannot be converted to boolean\n";
                                                                                                     exit(-1);
                                                                                                 }
 
-                                                                                                if((($3)->type == __BOOLEAN) && (($5)->type == __BOOLEAN)) {
+                                                                                                if((($3)->type == defined_types[__BOOLEAN]) && (($5)->type == defined_types[__BOOLEAN])) {
                                                                                                     $$ = $3;
-                                                                                                } else if (((($3)->type == __BOOLEAN) && (($5)->type != __BOOLEAN)) || ((($3)->type != __BOOLEAN) && (($5)->type == __BOOLEAN))) {
+                                                                                                } else if (((($3)->type == defined_types[__BOOLEAN]) && (($5)->type != defined_types[__BOOLEAN])) || ((($3)->type != defined_types[__BOOLEAN]) && (($5)->type == defined_types[__BOOLEAN]))) {
                                                                                                     cerr << "Line No: " <<  yylineno  << "Non intersectionable type: " << ($3)->type << " and " << ($5)->type << "\n";
                                                                                                     exit(-1);
                                                                                                 } else {
@@ -1178,14 +1080,8 @@ ConditionalExpression:  ConditionalOrExpression { $$ = $1; }
 
 ConditionalOrExpression:    ConditionalAndExpression { if(pass_no == 2 ) $$ = $1; }
 |                   ConditionalOrExpression Or ConditionalAndExpression {   
-                                                                            if(pass_no == 2 ){  
-                                                                                if(($1)->type!=__BOOLEAN || ($3)->type!=__BOOLEAN){
-                                                                                    cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '||'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";   
-                                                                                    exit(-1);      
-                                                                                }
-                                                                                struct stackentry* entry = new_entry(); 
-                                                                                entry->type = __BOOLEAN;
-                                                                                $$ = entry;
+                                                                            if(pass_no == 2 ) {  
+                                                                                $$ = ConditionalExpression($1, $3);
                                                                             }
                                                                         }
 ;
@@ -1193,14 +1089,7 @@ ConditionalOrExpression:    ConditionalAndExpression { if(pass_no == 2 ) $$ = $1
 ConditionalAndExpression:   InclusiveOrExpression { if(pass_no == 2 ) $$ = $1; }
 |                   ConditionalAndExpression And InclusiveOrExpression  {   
                                                                             if(pass_no == 2 ) {
-                                                                                if(($1)->type!=__BOOLEAN || ($3)->type!=__BOOLEAN){
-                                                                                    cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '&&'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";         
-                                                                                    exit(-1);
-                                                                                }
-
-                                                                                struct stackentry* entry = new_entry(); 
-                                                                                entry->type = __BOOLEAN;
-                                                                                $$ = entry;
+                                                                                $$ = ConditionalExpression($1, $3);
                                                                             }
                                                                         }
 ;
@@ -1208,15 +1097,7 @@ ConditionalAndExpression:   InclusiveOrExpression { if(pass_no == 2 ) $$ = $1; }
 InclusiveOrExpression:  ExclusiveOrExpression { if(pass_no == 2 ) $$ = $1; }
 |                   InclusiveOrExpression Bitwise_or ExclusiveOrExpression  {   
                                                                                 if(pass_no == 2 ){  
-                                                                                    if((($1)->type == __DOUBLE || ($1)->type == __FLOAT || ($1)->type == __BOOLEAN) || (($3)->type == __DOUBLE || ($3)->type == __FLOAT || ($3)->type == __BOOLEAN) ) {
-                                                                                        cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '|'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
-                                                                                        exit(-1);    
-                                                                                    }
-
-                                                                                    if(check_return_type(($1)->type, ($3)->type)) 
-                                                                                            $$ = $1;
-                                                                                        else
-                                                                                            $$ = $3;
+                                                                                    $$ = BitwiseExpression($1, $3);
                                                                                 }
                                                                             }
 ;
@@ -1224,15 +1105,7 @@ InclusiveOrExpression:  ExclusiveOrExpression { if(pass_no == 2 ) $$ = $1; }
 ExclusiveOrExpression:  AndExpression   { if(pass_no == 2 ) $$ = $1; }
 |                   ExclusiveOrExpression Bitwise_xor AndExpression     {   
                                                                             if(pass_no == 2 ){  
-                                                                                if((($1)->type == __DOUBLE || ($1)->type == __FLOAT || ($1)->type == __BOOLEAN) || (($3)->type == __DOUBLE || ($3)->type == __FLOAT || ($3)->type == __BOOLEAN) ) {
-                                                                                    cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '^'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
-                                                                                    exit(-1);    
-                                                                                }
-
-                                                                                if(check_return_type(($1)->type, ($3)->type)) 
-                                                                                        $$ = $1;
-                                                                                    else
-                                                                                        $$ = $3;
+                                                                                $$ = BitwiseExpression($1, $3);
                                                                             }
                                                                         }
 ;
@@ -1240,15 +1113,7 @@ ExclusiveOrExpression:  AndExpression   { if(pass_no == 2 ) $$ = $1; }
 AndExpression:  EqualityExpression  { if(pass_no == 2 ) $$ = $1; }
 |                   AndExpression Bitwise_and EqualityExpression    {       
                                                                             if(pass_no == 2 ){  
-                                                                                if((($1)->type == __DOUBLE || ($1)->type == __FLOAT || ($1)->type == __BOOLEAN) || (($3)->type == __DOUBLE || ($3)->type == __FLOAT || ($3)->type == __BOOLEAN) ) {
-                                                                                    cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '&'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
-                                                                                    exit(-1);    
-                                                                                }
-
-                                                                                if(check_return_type(($1)->type, ($3)->type)) 
-                                                                                        $$ = $1;
-                                                                                    else
-                                                                                        $$ = $3;
+                                                                                $$ = BitwiseExpression($1, $3);
                                                                             }
                                                                         }
 ;
@@ -1256,30 +1121,12 @@ AndExpression:  EqualityExpression  { if(pass_no == 2 ) $$ = $1; }
 EqualityExpression: RelationalExpression { if(pass_no == 2 ) $$ = $1; }
 |                   EqualityExpression Deq RelationalExpression     {   
                                                                         if(pass_no == 2 ){  
-                                                                            if(!check_if_numeric_type(($1)->type) || !check_if_numeric_type(($2)->type)){
-                                                                                if(($1)->type != __BOOLEAN || ($3)->type != __BOOLEAN){
-                                                                                    cerr << "Line No: " <<  yylineno  << "incomparable types: " << ($1)->type << " and " << ($3)->type << "\n";
-                                                                                    exit(-1);
-                                                                                }
-                                                                            }
-
-                                                                            struct stackentry* entry = new_entry(); 
-                                                                            entry->type = __BOOLEAN;
-                                                                            $$ = entry;
+                                                                            EqualityExpression($1, $3);
                                                                         }
                                                                     }
 |                   EqualityExpression Neq RelationalExpression     {   
                                                                         if(pass_no == 2 ){  
-                                                                            if(!check_if_numeric_type(($1)->type) || !check_if_numeric_type(($2)->type)){
-                                                                                if(($1)->type != __BOOLEAN || ($3)->type != __BOOLEAN){
-                                                                                    cerr << "Line No: " <<  yylineno  << "incomparable types: " << ($1)->type << " and " << ($3)->type << "\n";
-                                                                                    exit(-1);
-                                                                                }
-                                                                            }
-
-                                                                            struct stackentry* entry = new_entry(); 
-                                                                            entry->type = __BOOLEAN;
-                                                                            $$ = entry;
+                                                                            EqualityExpression($1, $3);
                                                                         }
                                                                     }
 ;
@@ -1287,54 +1134,22 @@ EqualityExpression: RelationalExpression { if(pass_no == 2 ) $$ = $1; }
 RelationalExpression:   ShiftExpression { if(pass_no == 2 ) $$ = $1; }
 |                   RelationalExpression Lt ShiftExpression         {       
                                                                             if(pass_no == 2 ){  
-                                                                                if(($1)->type == __BOOLEAN || ($3)->type == __BOOLEAN){
-                                                                                    cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '<'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
-                                                                                    exit(-1);
-
-                                                                                }
-                                                                                
-                                                                                struct stackentry* entry = new_entry(); 
-                                                                                entry->type = __BOOLEAN;
-                                                                                $$ = entry;
+                                                                                $$ = RelationalExpression($1, $3);
                                                                             }
                                                                     }
 |                   RelationalExpression Gt ShiftExpression         {       
                                                                             if(pass_no == 2 ){  
-                                                                                if(($1)->type == __BOOLEAN || ($3)->type == __BOOLEAN){
-                                                                                    cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '>'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
-                                                                                    exit(-1);
-
-                                                                                }
-                                                                                
-                                                                                struct stackentry* entry = new_entry(); 
-                                                                                entry->type = __BOOLEAN;
-                                                                                $$ = entry;
+                                                                                $$ = RelationalExpression($1, $3);
                                                                             }
                                                                     }
 |                   RelationalExpression Leq ShiftExpression        {        
                                                                             if(pass_no == 2 ){  
-                                                                                if(($1)->type == __BOOLEAN || ($3)->type == __BOOLEAN){
-                                                                                    cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '<='\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
-                                                                                    exit(-1);
-
-                                                                                }
-                                                                                
-                                                                                struct stackentry* entry = new_entry(); 
-                                                                                entry->type = __BOOLEAN;
-                                                                                $$ = entry;
+                                                                                $$ = RelationalExpression($1, $3);
                                                                             }
                                                                     }
 |                   RelationalExpression Geq ShiftExpression        {       
                                                                             if(pass_no == 2 ){  
-                                                                                if(($1)->type == __BOOLEAN || ($3)->type == __BOOLEAN){
-                                                                                    cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '>='\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
-                                                                                    exit(-1);
-
-                                                                                }
-                                                                                
-                                                                                struct stackentry* entry = new_entry(); 
-                                                                                entry->type = __BOOLEAN;
-                                                                                $$ = entry;
+                                                                                $$ = RelationalExpression($1, $3);
                                                                             }
                                                                     }
 |                   RelationalExpression Instanceof ReferenceType   { }
@@ -1343,41 +1158,17 @@ RelationalExpression:   ShiftExpression { if(pass_no == 2 ) $$ = $1; }
 ShiftExpression:    AdditiveExpression { if(pass_no == 2 ) $$ = $1; }
 |                   ShiftExpression Left_shift AdditiveExpression   {   
                                                                         if(pass_no == 2 ){  
-                                                                            if((($1)->type == __DOUBLE || ($1)->type == __FLOAT || ($1)->type == __BOOLEAN) || (($3)->type == __DOUBLE || ($3)->type == __FLOAT || ($3)->type == __BOOLEAN) ) {
-                                                                                cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '<<'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
-                                                                                exit(-1);    
-                                                                            }
-
-                                                                            if(check_return_type(($1)->type, ($3)->type)) 
-                                                                                    $$ = $1;
-                                                                                else
-                                                                                    $$ = $3;
+                                                                            $$ = ShiftExpression($1, $3);
                                                                         }
                                                                     }
 |                   ShiftExpression Right_shift AdditiveExpression  {   
                                                                         if(pass_no == 2 ){  
-                                                                            if((($1)->type == __DOUBLE || ($1)->type == __FLOAT || ($1)->type == __BOOLEAN) || (($3)->type == __DOUBLE || ($3)->type == __FLOAT || ($3)->type == __BOOLEAN) ) {
-                                                                                cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '>>'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
-                                                                                exit(-1);    
-                                                                            }
-
-                                                                            if(check_return_type(($1)->type, ($3)->type)) 
-                                                                                    $$ = $1;
-                                                                                else
-                                                                                    $$ = $3;
+                                                                            $$ = ShiftExpression($1, $3);
                                                                         }
                                                                     }
 |                   ShiftExpression Unsigned_right_shift AdditiveExpression     {   
                                                                                     if(pass_no == 2 ){  
-                                                                                        if((($1)->type == __DOUBLE || ($1)->type == __FLOAT || ($1)->type == __BOOLEAN) || (($3)->type == __DOUBLE || ($3)->type == __FLOAT || ($3)->type == __BOOLEAN) ) {
-                                                                                            cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '>>>'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
-                                                                                            exit(-1);    
-                                                                                        }
-
-                                                                                        if(check_return_type(($1)->type, ($3)->type)) 
-                                                                                                $$ = $1;
-                                                                                            else
-                                                                                                $$ = $3;
+                                                                                       $$ = ShiftExpression($1, $3);
                                                                                     }
                                                                                 }
 ;
@@ -1385,30 +1176,12 @@ ShiftExpression:    AdditiveExpression { if(pass_no == 2 ) $$ = $1; }
 AdditiveExpression: MultiplicativeExpression { if(pass_no == 2 ) $$ = $1; }
 |                   AdditiveExpression Plus MultiplicativeExpression    {   
                                                                             if(pass_no == 2 ){  
-                                                                                if(($1)->type == __BOOLEAN || ($3)->type == __BOOLEAN){
-                                                                                    cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '+'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
-                                                                                    exit(-1);
-
-                                                                                }
-                                                                                
-                                                                                if(check_return_type(($1)->type, ($3)->type)) 
-                                                                                    $$ = $1;
-                                                                                else
-                                                                                    $$ = $3;
+                                                                                $$ = check_additive_types($1, $3);
                                                                             }
                                                                         } 
 |                   AdditiveExpression Minus MultiplicativeExpression   {   
                                                                             if(pass_no == 2 ){  
-                                                                                if(($1)->type == __BOOLEAN || ($3)->type == __BOOLEAN){
-                                                                                    cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '-'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
-                                                                                    exit(-1);
-
-                                                                                }
-                                                                                
-                                                                                if(check_return_type(($1)->type, ($3)->type)) 
-                                                                                    $$ = $1;
-                                                                                else
-                                                                                    $$ = $3;
+                                                                                $$ = check_additive_types($1, $3);
                                                                             }
                                                                         }
 ;
@@ -1416,44 +1189,17 @@ AdditiveExpression: MultiplicativeExpression { if(pass_no == 2 ) $$ = $1; }
 MultiplicativeExpression:   UnaryExpression                             { if(pass_no == 2 ) $$ = $1; }
 |                   MultiplicativeExpression Asterik UnaryExpression    {   
                                                                             if(pass_no == 2 ){  
-                                                                                if(($1)->type == __BOOLEAN || ($3)->type == __BOOLEAN){
-                                                                                    cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '*'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
-                                                                                    exit(-1);
-
-                                                                                }
-                                                                                
-                                                                                if(check_return_type(($1)->type, ($3)->type)) 
-                                                                                    $$ = $1;
-                                                                                else
-                                                                                    $$ = $3;
+                                                                                $$ = check_multiplicative_types($1, $3);
                                                                             }
                                                                         }
 |                   MultiplicativeExpression Div UnaryExpression        {   
                                                                             if(pass_no == 2 ){  
-                                                                                if(($1)->type == __BOOLEAN || ($3)->type == __BOOLEAN){
-                                                                                    cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '\\'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
-                                                                                    exit(-1);
-
-                                                                                }
-                                                                                
-                                                                                if(check_return_type(($1)->type, ($3)->type)) 
-                                                                                    $$ = $1;
-                                                                                else
-                                                                                    $$ = $3;
+                                                                                $$ = check_multiplicative_types($1, $3);
                                                                             }
                                                                         }
 |                   MultiplicativeExpression Modulo UnaryExpression     {   
                                                                             if(pass_no == 2 ){  
-                                                                                if(($1)->type == __BOOLEAN || ($3)->type == __BOOLEAN){
-                                                                                    cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '%'\n first type: "<< ($1)->type << "\nsecond type: " << ($3)->type << "\n";
-                                                                                    exit(-1);
-
-                                                                                }
-                                                                                
-                                                                                if(check_return_type(($1)->type, ($3)->type)) 
-                                                                                    $$ = $1;
-                                                                                else
-                                                                                    $$ = $3;
+                                                                                $$ = check_multiplicative_types($1, $3);
                                                                             }
                                                                         }
 ;
@@ -1462,19 +1208,13 @@ UnaryExpression:    PreIncrementExpression      { if(pass_no == 2 ) $$ = $1; }
 |                   PreDecrementExpression      { if(pass_no == 2 ) $$ = $1; }
 |                   Plus UnaryExpression        {   
                                                     if(pass_no == 2 ){  
-                                                        if(!check_if_numeric_type(($2)->type)) {
-                                                            cerr << "Line No: " <<  yylineno  << " bad operand type" << ($2)->type <<" for unary operator '+'\n";
-                                                            exit(-1);
-                                                        }
+                                                        check_if_numeric_type(($2)->type);
                                                         $$ = $1;
                                                     }
                                                 }
 |                   Minus UnaryExpression       {   
                                                     if(pass_no == 2 ){   
-                                                        if(!check_if_numeric_type(($2)->type)) {
-                                                            cerr << "Line No: " <<  yylineno  << " bad operand type" << ($2)->type <<" for unary operator '-'\n";
-                                                            exit(-1);
-                                                        }
+                                                        check_if_numeric_type(($2)->type);
                                                         $$ = $1;
                                                     }
                                                 }
@@ -1483,40 +1223,28 @@ UnaryExpression:    PreIncrementExpression      { if(pass_no == 2 ) $$ = $1; }
 
 PreIncrementExpression: Increment Primary       {   
                                                     if(pass_no == 2 ){  
-                                                        if(!check_if_numeric_type(($2)->type)) {
-                                                            cerr << "Line No: " <<  yylineno  << " bad operand type" << ($2)->type <<" for unary operator '++'\n";
-                                                            exit(-1);
-                                                        }
+                                                        check_if_numeric_type(($2)->type);
                                                         $$ = $1;
                                                     }
                                                 }
 |                       Increment TypeName      {   
                                                     if(pass_no == 2 ){  
-                                                        $$ = find_variable_in_class(symmbol_table_pass2[current_class], ($2)->token);
-                                                        if(!check_if_numeric_type(($$)->type)) {
-                                                            cerr << "Line No: " <<  yylineno  << " bad operand type" << ($$)->type <<" for unary operator '++'\n";
-                                                            exit(-1);
-                                                        }
+                                                        $$ = find_variable_in_class(($2)->token, false);
+                                                        check_if_numeric_type(($$)->type);
                                                     }
                                                 }
 ;
 
 PreDecrementExpression: Decrement Primary   {       
                                                     if(pass_no == 2 ){   
-                                                        if(!check_if_numeric_type(($2)->type)) {
-                                                            cerr << "Line No: " <<  yylineno  << " bad operand type" << ($2)->type <<" for unary operator '--'\n";
-                                                            exit(-1);
-                                                        }
+                                                        check_if_numeric_type(($2)->type);
                                                         $$ = $1;
                                                     }
                                             }
 |                       Decrement TypeName  {       
                                                     if(pass_no == 2 ){  
-                                                        $$ = find_variable_in_class(symmbol_table_pass2[current_class], ($2)->token);
-                                                        if(!check_if_numeric_type(($$)->type)) {
-                                                            cerr << "Line No: " <<  yylineno  << " bad operand type" << ($$)->type <<" for unary operator '--'\n";
-                                                            exit(-1);
-                                                        }
+                                                        $$ = find_variable_in_class(($2)->token, false);
+                                                        check_if_numeric_type(($$)->type);
                                                     }
                                             }
 ;
@@ -1524,30 +1252,21 @@ PreDecrementExpression: Decrement Primary   {
 UnaryExpressionNotPlusMinus:    PostfixExpression                   { if(pass_no == 2 ) $$ = $1; }
 |                               Bitwise_complement UnaryExpression  {   
                                                                         if(pass_no == 2 ){  
-                                                                            if(($2)->type == __BOOLEAN) {
-                                                                                cerr << "Line No: " <<  yylineno  << "bad operand type boolean for unary operator '~'\n";
-                                                                                exit(-1);
-                                                                            }
-                                                                            
+                                                                            check_boolean($2->type);
                                                                             $$ = $2;
                                                                         }
                                                                     }
 |                               Not UnaryExpression                 {   
                                                                         if(pass_no == 2 ){  
-                                                                            if(($2)->type != __BOOLEAN) {
-                                                                                cerr << "Line No: " <<  yylineno  << "bad operand type" << ($2)->type <<" for unary operator \'!\' \n";
-                                                                                exit(-1);
-                                                                            }
-
+                                                                            check_boolean($2->type);
                                                                             $$ = $2;
                                                                         }
-
                                                                     }
 |                               CastExpression                      { if(pass_no == 2 ) $$ = $1; }
 ;
 
 PostfixExpression:  Primary                 { if(pass_no == 2 ) $$ = $1; }
-|                   TypeName                { if(pass_no == 2 ) $$ = find_variable_in_class(symmbol_table_pass2[current_class], ($1)->token); }
+|                   TypeName                { if(pass_no == 2 ) $$ = find_variable_in_class(($1)->token, false); }
 |                   PostIncrementExpression { if(pass_no == 2 ) $$ = $1; }
 |                   PostDecrementExpression { if(pass_no == 2 ) $$ = $1; }
 ;
@@ -1555,7 +1274,7 @@ PostfixExpression:  Primary                 { if(pass_no == 2 ) $$ = $1; }
 PostIncrementExpression:    Primary Increment   {   
                                                     if(pass_no == 2 ){  
                                                         if(!check_if_numeric_type(($1)->type)) {
-                                                            cerr << "Line No: " <<  yylineno  << " bad operand type" << ($1)->type <<" for unary operator '++'\n";
+                                                            cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '++' \n first type: "<< ($1)->type << "\n";
                                                             exit(-1);
                                                         }
                                                         $$ = $1;
@@ -1563,9 +1282,9 @@ PostIncrementExpression:    Primary Increment   {
                                                 }
 |                           TypeName Increment  {   
                                                     if(pass_no == 2 ){  
-                                                        $$ = find_variable_in_class(symmbol_table_pass2[current_class], ($1)->token);
+                                                        $$ = find_variable_in_class(($1)->token, false);
                                                         if(!check_if_numeric_type(($$)->type)) {
-                                                            cerr << "Line No: " <<  yylineno  << " bad operand type" << ($$)->type <<" for unary operator '++'\n";
+                                                            cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '++' \n first type: "<< ($1)->type << "\n";
                                                             exit(-1);
                                                         }
                                                     }
@@ -1575,17 +1294,18 @@ PostIncrementExpression:    Primary Increment   {
 PostDecrementExpression:    Primary Decrement   {   
                                                     if(pass_no == 2 ){
                                                         if(!check_if_numeric_type(($1)->type)) {
-                                                            cerr << "Line No: " <<  yylineno  << " bad operand type" << ($1)->type <<" for unary operator '--'\n";
+                                                            cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '--' \n first type: "<< ($1)->type << "\n";
                                                             exit(-1);
                                                         }
+                                                        
                                                         $$ = $1;
                                                     }
                                                 }
 |                           TypeName Decrement  {   
                                                     if(pass_no == 2 ){
-                                                        $$ = find_variable_in_class(symmbol_table_pass2[current_class], ($1)->token);
+                                                        $$ = find_variable_in_class(($1)->token, false);
                                                         if(!check_if_numeric_type(($$)->type)) {
-                                                            cerr << "Line No: " <<  yylineno  << " bad operand type" << ($$)->type <<" for unary operator '--'\n";
+                                                            cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '--' \n first type: "<< ($1)->type << "\n";
                                                             exit(-1);
                                                         }
                                                     }
@@ -1594,31 +1314,21 @@ PostDecrementExpression:    Primary Decrement   {
 
 CastExpression:     Lparen PrimitiveType Rparen UnaryExpression                 {   
                                                                                     if(pass_no == 2 ){
-                                                                                        if((($2)->type == __BOOLEAN) && (($4)->type == __BOOLEAN)){
-                                                                                            $$ = $2;
-                                                                                        } else if(check_if_numeric_type(($2)->type) && check_if_numeric_type(($4)->type)){
-                                                                                            $$ = $2;
-                                                                                        } else {
-                                                                                            cerr << "Line No: " <<  yylineno  << "incompatible types: " << ($2)->type << "cannot be converted to " << ($4)->type << "\n";
-                                                                                            exit(-1);
-                                                                                        }
+                                                                                        check_cast_types($2, $4->type);
+                                                                                        $$ = make_stackentry("", $2->name, yylineno);
                                                                                     }
                                                                                 }
 |                   Lparen ReferenceType Rparen UnaryExpressionNotPlusMinus     {   
                                                                                     if(pass_no == 2 ){
-                                                                                        if(!check_return_type(($2)->type, ($4)->type)) {
-                                                                                            cerr << "Line No: " <<  yylineno  << "incompatible types: " << ($2)->type << "cannot be converted to " << ($4)->type << "\n";
-                                                                                            exit(-1);
-                                                                                        } 
-
-                                                                                        $$ = $2;
+                                                                                        check_cast_types($2, $4->type);
+                                                                                        $$ = make_stackentry("", $2->name, yylineno);
                                                                                     }
                                                                                 }
 ;
 
 
-Block:    Lcurly ScopeIncrement Rcurly { if(pass_no == 2 ){ clear_scope(symmbol_table_pass2[current_class], current_scope);} current_scope--; }
-|         Lcurly ScopeIncrement BlockStatements Rcurly { if(pass_no == 2 ){ clear_scope(symmbol_table_pass2[current_class], current_scope);} current_scope--; }
+Block:    Lcurly ScopeIncrement Rcurly { if(pass_no == 2 ){ clear_current_scope(); } }
+|         Lcurly ScopeIncrement BlockStatements Rcurly { if(pass_no == 2 ){ clear_current_scope(); } }
 ;
 
 BlockStatements:    BlockStatements BlockStatement  { }
@@ -1664,7 +1374,7 @@ StatementWithoutTrailingSubstatement:   Block
 |                                       ContinueStatement   
 |                                       ReturnStatement 
 |                                       ThrowStatement  
-|                                       SwitchStatement  
+// |                                       SwitchStatement  
 |                                       DoStatement   
 |                                       SynchronizedStatement 
 // |                                       YieldStatement  
@@ -1700,18 +1410,20 @@ IfThenStatementSubRoutine:
     If Lparen Expression  { IfCondition($3); }
 ;
 
-IfThenStatement:    IfThenStatementSubRoutine Rparen ScopeIncrement Statement   { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
+IfThenStatement:    IfThenStatementSubRoutine Rparen ScopeIncrement Statement   { clear_current_scope(); }
 ;
 
-IfThenElseStatement:    IfThenStatementSubRoutine Rparen ScopeIncrement StatementNoShortIf Else Statement   { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
+IfThenElseStatement:    IfThenStatementSubRoutine Rparen ScopeIncrement StatementNoShortIf Else Statement   { clear_current_scope(); }
 ;
 
-IfThenElseStatementNoShortIf:    IfThenStatementSubRoutine Rparen ScopeIncrement StatementNoShortIf Else StatementNoShortIf  { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
+IfThenElseStatementNoShortIf:    IfThenStatementSubRoutine Rparen ScopeIncrement StatementNoShortIf Else StatementNoShortIf  { clear_current_scope(); }
 ;
 
 AssertStatement:    Assert Expression Semicolon { AssertCondition($2); }
 |                   Assert Expression Colon Expression Semicolon    { AssertCondition($2); }
 ;
+
+/*
 
 SwitchStatement:
                     switch_ Lparen Expression Rparen SwitchBlock    {   
@@ -1724,11 +1436,11 @@ SwitchStatement:
                                                                     }
 
 SwitchBlock:
-                    Lcurly ScopeIncrement SwitchRules Rcurly                                    { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
-|                   Lcurly ScopeIncrement SwitchBlockStatementGroups SwitchLabelColons Rcurly   { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
-|                   Lcurly ScopeIncrement SwitchBlockStatementGroups Rcurly                     { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
-|                   Lcurly ScopeIncrement SwitchLabelColons Rcurly                              { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
-|                   Lcurly ScopeIncrement Rcurly                                                { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
+                    Lcurly ScopeIncrement SwitchRules Rcurly                                    { clear_current_scope(); }
+|                   Lcurly ScopeIncrement SwitchBlockStatementGroups SwitchLabelColons Rcurly   { clear_current_scope(); }
+|                   Lcurly ScopeIncrement SwitchBlockStatementGroups Rcurly                     { clear_current_scope(); }
+|                   Lcurly ScopeIncrement SwitchLabelColons Rcurly                              { clear_current_scope(); }
+|                   Lcurly ScopeIncrement Rcurly                                                { clear_current_scope(); }
 ;
 
 SwitchRules:
@@ -1767,26 +1479,22 @@ CaseConstants:
 CaseConstant:
                     ConditionalExpression                                   { }
 ;
+*/
 
 WhileStatementSubRoutine:
     While Lparen Expression { WhileCondition($3); }
 ;
 
-WhileStatement:    WhileStatementSubRoutine Rparen Statement  { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
+WhileStatement:    WhileStatementSubRoutine Rparen Statement { clear_current_scope(); }
 ;
 
-WhileStatementNoShortIf:    WhileStatementSubRoutine Rparen StatementNoShortIf { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
+WhileStatementNoShortIf:    WhileStatementSubRoutine Rparen StatementNoShortIf { clear_current_scope(); }
 ;
 
 DoStatement:
     do_ Statement While Lparen Expression {     
-                                                if(pass_no == 2){
-                                                    if(($3)->type!=__BOOLEAN){
-                                                        cerr << "Line No: " <<  yylineno <<"incompatible if argument types: "+ ($3)->type +" cannot be converted to boolean";
-                                                        exit(1);
-                                                    }
-                                                }
-                                            } Rparen Semicolon  { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
+                                                if(pass_no == 2){ check_boolean($3->type); }
+                                            } Rparen Semicolon  { clear_current_scope(); }
 ;
 
 ForStatement:       BasicForStatement   
@@ -1805,24 +1513,24 @@ For2SubRoutine:
     For Lparen ForInit Semicolon Expression    { ForCondition($5);}
 ;
 
-BasicForStatement:     For Lparen Semicolon Semicolon Rparen Statement  { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
-|                      For Lparen ForInit Semicolon Semicolon Rparen Statement  { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
-|                      For1SubRoutine Semicolon Rparen Statement  { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
-|                      For Lparen Semicolon Semicolon ForUpdate Rparen Statement  { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
-|                      For2SubRoutine Semicolon Rparen Statement  { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
-|                      For1SubRoutine Semicolon ForUpdate Rparen Statement  { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
-|                      For Lparen ForInit Semicolon Semicolon ForUpdate Rparen Statement  { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
-|                      For2SubRoutine Semicolon ForUpdate Rparen Statement  { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
+BasicForStatement:     For Lparen Semicolon Semicolon Rparen Statement                  { clear_current_scope(); }
+|                      For Lparen ForInit Semicolon Semicolon Rparen Statement          { clear_current_scope(); }
+|                      For1SubRoutine Semicolon Rparen Statement                    { clear_current_scope(); }
+|                      For Lparen Semicolon Semicolon ForUpdate Rparen Statement    { clear_current_scope(); }
+|                      For2SubRoutine Semicolon Rparen Statement                    { clear_current_scope(); }
+|                      For1SubRoutine Semicolon ForUpdate Rparen Statement          { clear_current_scope(); }
+|                      For Lparen ForInit Semicolon Semicolon ForUpdate Rparen Statement  { clear_current_scope(); }
+|                      For2SubRoutine Semicolon ForUpdate Rparen Statement  { clear_current_scope(); }
 ;
 
-BasicForStatementNoShortIf:    For Lparen Semicolon Semicolon Rparen StatementNoShortIf  { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
-|                      For Lparen ForInit Semicolon Semicolon Rparen StatementNoShortIf  { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
-|                      For1SubRoutine Semicolon Rparen StatementNoShortIf  { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
-|                      For Lparen Semicolon Semicolon ForUpdate Rparen StatementNoShortIf  { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
-|                      For2SubRoutine Semicolon Rparen StatementNoShortIf  { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
-|                      For1SubRoutine Semicolon ForUpdate Rparen StatementNoShortIf  { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
-|                      For Lparen ForInit Semicolon Semicolon ForUpdate Rparen StatementNoShortIf  { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
-|                      For2SubRoutine Semicolon ForUpdate Rparen StatementNoShortIf  { clear_scope(symmbol_table_pass2[current_class], current_scope); current_scope--; }
+BasicForStatementNoShortIf:    For Lparen Semicolon Semicolon Rparen StatementNoShortIf  { clear_current_scope(); }
+|                      For Lparen ForInit Semicolon Semicolon Rparen StatementNoShortIf  { clear_current_scope(); }
+|                      For1SubRoutine Semicolon Rparen StatementNoShortIf  { clear_current_scope(); }
+|                      For Lparen Semicolon Semicolon ForUpdate Rparen StatementNoShortIf  { clear_current_scope(); }
+|                      For2SubRoutine Semicolon Rparen StatementNoShortIf  { clear_current_scope(); }
+|                      For1SubRoutine Semicolon ForUpdate Rparen StatementNoShortIf   { clear_current_scope(); }
+|                      For Lparen ForInit Semicolon Semicolon ForUpdate Rparen StatementNoShortIf   { clear_current_scope(); }
+|                      For2SubRoutine Semicolon ForUpdate Rparen StatementNoShortIf   { clear_current_scope(); }
 ;
 
 ForInit:    StatementExpressionList
@@ -1897,71 +1605,33 @@ Finally:
                     finally_ Block          { }
 ;
 
-
-
 // Non-Terminals for representing terminals
 
-Int : INT { 
-            struct stackentry* entry = new_entry(); 
-            entry->type = __INT;
-            $$ = entry;
-         }
+Int : INT   { $$ = get_type(__INT); }
 ;
 
-Long : LONG { 
-                struct stackentry* entry = new_entry(); 
-                entry->type = __LONG;
-                $$ = entry;
-            }
+Long : LONG { $$ = get_type(__LONG); }
 ;
 
-Byte : BYTE { 
-                struct stackentry* entry = new_entry(); 
-                entry->type = __BYTE;
-                $$ = entry;
-            }
+Byte : BYTE { $$ = get_type(__BYTE); }
 ;
 
-Short : SHORT { 
-                struct stackentry* entry = new_entry(); 
-                entry->type = __SHORT;
-                $$ = entry;
-              }
+Short : SHORT { $$ = get_type(__SHORT); }
 ;
 
-Char : CHAR   { 
-                struct stackentry* entry = new_entry(); 
-                entry->type = __CHAR;
-                $$ = entry;
-            }
+Char : CHAR  { $$ = get_type(__CHAR); }
 ;
 
-Float : FLOAT { 
-                struct stackentry* entry = new_entry(); 
-                entry->type = __FLOAT;
-                $$ = entry;
-              }
+Float : FLOAT           { $$ = get_type(__FLOAT); }
 ;
 
-Double : DOUBLE { 
-                struct stackentry* entry = new_entry(); 
-                    entry->type = __DOUBLE;
-                    $$ = entry;
-                }
+Double : DOUBLE         { $$ = get_type(__DOUBLE); }
 ;
 
-Boolean : BOOLEAN { 
-                    struct stackentry* entry = new_entry(); 
-                    entry->type = __BOOLEAN;
-                    $$ = entry;
-                  }
+Boolean : BOOLEAN       { $$ = get_type(__DOUBLE); }
 ;
 
-Var : VAR  { 
-                struct stackentry* entry = new_entry(); 
-                entry->type = __VAR;
-                $$ = entry;
-            }
+Var : VAR               { $$ = get_type(__VAR); }
 ;
 
 If : IF { }
@@ -1970,12 +1640,11 @@ If : IF { }
 Else : ELSE { }
 ;
 
-While : WHILE { current_scope++; }
+While : WHILE   { increase_current_level(); }
 ;
 
-For : FOR { current_scope++; }
+For : FOR       { increase_current_level(); }
 ;
-
 
 Break : BREAK { }
 ;
@@ -2010,11 +1679,7 @@ Final : FINAL {}
 Assert : ASSERT { }
 ;
 
-This : THIS {
-                struct stackentry* entry = new_entry(); 
-                entry->type = current_class;
-                $$ = entry;
-            }
+This : THIS { }
 ;
 
 Instanceof : INSTANCEOF { }
@@ -2041,7 +1706,7 @@ Package : PACKAGE { }
 Import : IMPORT { }
 ;
 
-do_: DO { current_scope++; }
+do_: DO { increase_current_level(); }
 
 switch_ : SWITCH { }
 
@@ -2170,65 +1835,28 @@ Dot : DOT { }
 
 arrow_ : ARROW { }
 
-Char_literal : CHAR_LITERAL { 
-                                struct stackentry* entry = new_entry();
-                                entry->token = $1;
-                                entry->type = __CHAR;
-                                $$ = entry;    
-                            }
+Char_literal : CHAR_LITERAL     { $$ = make_stackentry($1, __CHAR, yylineno); }
 ;
 
-Boolean_literal : BOOLEAN_LITERAL { 
-                                        struct stackentry* entry = new_entry();
-                                        entry->token = $1;
-                                        entry->type = __BOOLEAN;     
-                                        $$ = entry;    
-                                  }
+Boolean_literal : BOOLEAN_LITERAL { $$ = make_stackentry($1, __BOOLEAN, yylineno); }
 ;
 
-Null_literal : NULL_LITERAL { 
-                                    struct stackentry* entry = new_entry();// 
-                                    entry->token = $1;
-                                    $$ = entry;   
-                                    // entry->type = __NULL; 
-                                }
+Null_literal : NULL_LITERAL     { $$ = make_stackentry($1, yylineno); }
 ;
 
-Integer_literal : INTEGER_LITERAL { 
-                                        struct stackentry* entry = new_entry();
-                                        entry->token = $1;
-                                        entry->type = __INT;  
-                                        $$ = entry;       
-                                  }
+Integer_literal : INTEGER_LITERAL { $$ = make_stackentry($1, __INT, yylineno); }
 ;
 
-Fp_literal : FP_LITERAL { 
-                            struct stackentry* entry = new_entry();
-                            entry->token = $1;
-                            entry->type = __FLOAT; 
-                            $$ = entry;        
-                        }
+Fp_literal : FP_LITERAL     { $$ = make_stackentry($1, __FLOAT, yylineno); }
 ;
 
-String : STRING { 
-                    struct stackentry* entry = new_entry();
-                    entry->token = $1;   
-                    $$ = entry;   
-                }
+String : STRING             { $$ = make_stackentry($1, yylineno); }
 ;
 
-Text_block : TEXT_BLOCK {   
-                            struct stackentry* entry = new_entry();
-                            entry->token = $1;
-                            $$ = entry;
-                        }
+Text_block : TEXT_BLOCK         { $$ = make_stackentry($1, yylineno); }
 ;
 
-Identifier : IDENTIFIER {   
-                            struct stackentry* entry = new_entry();
-                            entry->token = $1; 
-                            $$ = entry;
-                        }
+Identifier : IDENTIFIER         { $$ = make_identifier($1);}
 ;
 
 endoffile : EOF_ { }
@@ -2239,28 +1867,31 @@ int yywrap()
 {
     if (pass_no == 1) { 
         
-        /* if(pass_no == 1) {
-             dump_ST(1);
-        } */
+        if(pass_no == 1) {
+             /* dump_ST(1); */
+        }
         pass_no++;
         rewind(yyin);
         yylineno = 1; 
-        current_scope = 0;
+        current_scope = scope_global;
         offset = 0;
         global_modifier = 0b0;
         global_type = "";
-        current_class = "";
-        current_method = "";
+        current_class = NULL;
         return 0;
     }
     else {
-        dump_SS();
         return 1;
     }
 }
 
  int main(int argc, char *argv[]) 
  {
+    current_table = new LocalSymbolTable();
+    global_table = new GlobalSymbolTable();
+    current_scope = scope_global;
+    current_class = NULL;
+
     global_modifier = 0b0;
 
      /* argparse::ArgumentParser program("javap");
@@ -2304,13 +1935,13 @@ int yywrap()
      } */
 
 
-    // yydebug = 1;
+     yydebug = 1;
      /*
      if (_args->verbose)
          yydebug = 1; */
 
      /* yyin = fopen(_args->input, "r"); */
-    yyin = fopen("tests/test_2.java", "r");
+    yyin = fopen("Demo.java", "r");
 
     if(yyin == NULL) {
         cerr << "Line No: " <<  yylineno  << "FIle Not Found\n";

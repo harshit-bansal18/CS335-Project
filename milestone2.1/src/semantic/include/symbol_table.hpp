@@ -7,6 +7,34 @@
 
 using namespace std;
 
+typedef struct class_struct {
+    string token;           //key
+    int scope;              
+    int8_t modifier;           //public, private, static, final
+    string nature;          // class or function or variable etc.
+    int offset;
+    int lineno;
+    class_struct* parent_class;
+
+    map<string, stackentry*> instance_variables;
+    map<string, stackentry*> class_methods;
+}class_struct;
+
+typedef struct method_struct {
+    class_struct* parent_class;
+    string token;           //key
+    int scope;              
+    int8_t modifier;           //public, private, static, final
+    string argument_type;   //argument list of function
+    string type;            // type for variable and return type for function
+    string nature;          // class or function or variable etc.
+    string variable_init_status;
+    int offset;
+    int lineno;
+
+    map<string, stackentry*> local_method_scope;
+} method_struct;
+
 typedef struct stackentry {
     string token;           //key
     int scope;              
@@ -26,7 +54,7 @@ typedef struct stackentry {
 //   string type;
 // };
 
-
+#define CLASS "class"
 #define VARIABLE "variable"
 #define FUNCTION "function"
 #define OPEN_FUNCTION "open_function"
@@ -81,6 +109,8 @@ void add_to_stack( vector< stackentry* > &stack, string token, int scope, string
 
 void clear_scope( vector< stackentry* > &stack, int scope );
 
+class_struct* create_class_entry();
+
 void add_class(int8_t modifier, string token);
 
 
@@ -93,3 +123,4 @@ void add_constructor(string token, string argument_type, string return_type, int
 void dump_symbol(stackentry* v);
 void dump_entry(vector<stackentry*> v);
 void dump_ST(int );
+void dump_SS();

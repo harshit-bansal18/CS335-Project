@@ -28,10 +28,12 @@
     extern int yylex_destroy ( void );
     // extern "C" YY_FLUSH_BUFFER;
 
-    extern int current_scope, offset;
+    extern int current_scope, current_offset;
 
     extern map< string, vector< stackentry* > > symmbol_table_pass1;
     extern map< string, vector< stackentry* > > symmbol_table_pass2;
+    extern map< string, int > width; // Each entry for Class has class name as key and total width of instance variables as entries
+
 
     extern vector< stackentry* > temp_stack,current_stack;
 
@@ -41,7 +43,7 @@
     extern string current_method; 
     extern int pass_no;
     extern stringstream text;
-    
+
     static int node_num=-1;
 
     ofstream dotfile;
@@ -672,42 +674,42 @@ MethodHeader:
                                             entry->argument_type = ($2)->argument_type;
                                             $$ = entry;
                                           }
-|   ModifiersUnannTypeSubRoutine Declarator Throws { 
-                                            struct stackentry* entry = new_entry();
-                                            entry->modifier = global_modifier; 
-                                            entry->type = global_type; 
-                                            entry->token = ($2)->token; 
-                                            entry->argument_type = ($2)->argument_type;
-                                            $$ = entry;
-                                            global_modifier = 0b0; global_type ="";
-                                            // Throws ???????????????????????????????????????
-                                          }
-|   UnannTypeSubRoutine Declarator Throws           { 
-                                            struct stackentry* entry = new_entry();
-                                            entry->type = global_type; 
-                                            entry->token = ($2)->token; 
-                                            entry->argument_type = ($2)->argument_type;
-                                            $$ = entry;
-                                            global_type = "";
-                                            // Throws ???????????????????????????????????????
-                                          }
-|   Modifiers Void Declarator Throws      { 
-                                            struct stackentry* entry = new_entry();
-                                            entry->modifier = $1; 
-                                            entry->type = __VOID; 
-                                            entry->token = ($3)->token; 
-                                            entry->argument_type = ($3)->argument_type;
-                                            $$ = entry;
-                                            // Throws ???????????????????????????????????????
-                                          }
-|   Void Declarator Throws                { 
-                                            struct stackentry* entry = new_entry();
-                                            entry->type = __VOID; 
-                                            entry->token = ($2)->token; 
-                                            entry->argument_type = ($2)->argument_type;
-                                            $$ = entry;
-                                            // Throws ???????????????????????????????????????
-                                          }
+// |   ModifiersUnannTypeSubRoutine Declarator Throws { 
+//                                             struct stackentry* entry = new_entry();
+//                                             entry->modifier = global_modifier; 
+//                                             entry->type = global_type; 
+//                                             entry->token = ($2)->token; 
+//                                             entry->argument_type = ($2)->argument_type;
+//                                             $$ = entry;
+//                                             global_modifier = 0b0; global_type ="";
+//                                             // Throws ???????????????????????????????????????
+//                                           }
+// |   UnannTypeSubRoutine Declarator Throws           { 
+//                                             struct stackentry* entry = new_entry();
+//                                             entry->type = global_type; 
+//                                             entry->token = ($2)->token; 
+//                                             entry->argument_type = ($2)->argument_type;
+//                                             $$ = entry;
+//                                             global_type = "";
+//                                             // Throws ???????????????????????????????????????
+//                                           }
+// |   Modifiers Void Declarator Throws      { 
+//                                             struct stackentry* entry = new_entry();
+//                                             entry->modifier = $1; 
+//                                             entry->type = __VOID; 
+//                                             entry->token = ($3)->token; 
+//                                             entry->argument_type = ($3)->argument_type;
+//                                             $$ = entry;
+//                                             // Throws ???????????????????????????????????????
+//                                           }
+// |   Void Declarator Throws                { 
+//                                             struct stackentry* entry = new_entry();
+//                                             entry->type = __VOID; 
+//                                             entry->token = ($2)->token; 
+//                                             entry->argument_type = ($2)->argument_type;
+//                                             $$ = entry;
+//                                             // Throws ???????????????????????????????????????
+//                                           }
 ;
 
 Throws:
@@ -2262,6 +2264,7 @@ int yywrap()
  int main(int argc, char *argv[]) 
  {
     global_modifier = 0b0;
+    current_offset = 0;
 
      /* argparse::ArgumentParser program("javap");
 

@@ -7,7 +7,7 @@
     #include <unordered_map>
     #include <queue>
 
-    #include "lalr1.tab.h"
+    #include "lalr1_fast.tab.h"
     #define YY_DECL extern "C" int yylex()
 
     using namespace std;

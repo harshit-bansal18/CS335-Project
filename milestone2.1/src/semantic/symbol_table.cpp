@@ -9,17 +9,23 @@ using namespace std;
 
 int current_scope=0, offset=0;
 
-map< string, vector< stackentry* > > symmbol_table_pass1;
-map< string, vector< stackentry* > > symmbol_table_pass2;
+// map< string, vector< stackentry* > > symmbol_table_pass1;
+// map< string, vector< stackentry* > > symmbol_table_pass2;
+map< string, class_struct* > symmbol_table_pass1;
+// map< string, vector< stackentry* > > symmbol_table_pass2;
+map< string, int > width; // Each entry for Class has class name as key and total width of instance variables as entries
 
 vector< stackentry* > temp_stack,current_stack;
 stringstream text;
 
 int8_t global_modifier = 0b0;
+int global_offset = 0;
 string global_type = "";
 string current_class = "";
 string current_method = "";
 int pass_no = 1;
+
+int class_width = 0, function_width = 0;// if current scope is zero increment class offset, if 1 increment function offset
 
 map <string, int> type_priority = {
                                         {__DOUBLE, 6},
@@ -116,24 +122,29 @@ bool check_return_type(string type1, string type2){
     
 }
 
+
 string check_function_in_class( vector< stackentry* > &stack, string token, string argument_type, string nature){
 
-    // cout << "In check function in class: " << yylineno << "\n";
-    const char* str = token.c_str();
-    char* split_token = strtok((char*)str, ".");
-    string type;
-    stackentry* s ;
-    int dot_count = 0, count = 0;
+    // cout << "In check function in class: " << yylineno  << " Func Name: " << token << " " << argument_type << " " << nature << "\n";
 
+    int dot_count = 0, count = 0;
     for(int i = 0; i < token.size(); i++){
         if(token[i] == '.') dot_count ++;
     }
 
+    const char* str = token.c_str();
+    char* split_token = strtok((char*)str, ".");
+    string type;
+    stackentry* s ;
+
+
     // cout << "Dot count: " << dot_count << "Count: "<< count << "Split token: " << split_token << "\n";
     // cout << "Current Class: " << current_class << "\n";
     while(split_token != NULL) {
-        
         if(count != dot_count){
+            // cout << "#######################################\n";
+            // dump_entry(stack);
+            // cout << "#######################################\n";
             s = get_variable_stackentry(stack, (string)split_token);
             if(s->token == ""){
                 cerr << "Line No: " <<  yylineno  << "No object found\n";
@@ -149,12 +160,16 @@ string check_function_in_class( vector< stackentry* > &stack, string token, stri
             stack = symmbol_table_pass1[type];
         } else {
             // cout << "In cond2\n";
+            // dump_entry(stack);
             for( int i = stack.size()-1; i >= 0; i--) {
-                // cout << token << " " <<stack[i]->token << " " << nature << " " << stack[i]->nature << " " <<  argument_type << " " << stack[i]->argument_type <<"\n";
+                // cout << split_token << " " <<stack[i]->token << " " << nature << " " << stack[i]->nature << " " <<  argument_type << " " << stack[i]->argument_type <<"\n";
                 if(stack[i]!=NULL) {
-                    if(stack[i]->token == token && stack[i]->nature==nature && stack[i]->argument_type == argument_type){
-                        return stack[i]->type;
-                    }
+                    if(stack[i]->token == split_token && stack[i]->nature==nature && stack[i]->argument_type == argument_type){
+                        if(nature == CONSTRUCTOR)
+                            return __VOID;
+                        else
+                            return stack[i]->type;
+                    }  
                 }
             }
             return "";
@@ -179,18 +194,20 @@ stackentry* get_variable_stackentry(vector< stackentry* > &stack, string token) 
     return empty;
 }
 
+// Called when variable is used
 stackentry* find_variable_in_class( vector< stackentry* > &stack, string token){
     
-    const char* str = token.c_str();
-    char* split_token = strtok((char*)str, ".");
-    string type;
-    stackentry* s ;
+    cout << "in Find Variable: " << token << "\n"; 
     int dot_count = 0, count = 0;
-
     for(int i = 0; i < token.size(); i++){
         if(token[i] == '.') dot_count ++;
     }
 
+    const char* str = token.c_str();
+    char* split_token = strtok((char*)str, ".");
+    string type;
+    stackentry* s ;
+    
     while(split_token != NULL) {
         if(count != dot_count){
             s = get_variable_stackentry(stack, split_token);
@@ -207,13 +224,19 @@ stackentry* find_variable_in_class( vector< stackentry* > &stack, string token){
 
             stack = symmbol_table_pass1[type];
         } else {
-            return get_variable_stackentry(stack, split_token);
+            stackentry* s = get_variable_stackentry(stack, split_token);
+            if(s->token == "") {
+                cerr << "Line No: "<< yylineno << " Undeclared variable used\n";
+                exit(-1);
+            }
+
+            return s;
         }
         split_token = strtok(NULL, ".");
         count ++;
     }
 
-    return s;
+    return NULL;
 }
 ////////////////////// Jaya Close /////////////////////////////////
 
@@ -254,7 +277,6 @@ void clear_scope( vector< stackentry* > &stack, int scope ) {
 
     for( int i = stack.size()-1; i >= 0; i--) {
         if( stack[i]->scope == scope ) {
-            dump_symbol(stack[i]);
             stack.pop_back();
         }
         else{
@@ -264,32 +286,41 @@ void clear_scope( vector< stackentry* > &stack, int scope ) {
 
 }
 
+class_struct* create_class_entry(int8_t modifier, string token) {
+
+    class_struct* class_entry = new class_struct();
+    class_entry->token = token;
+    class_entry->scope = 0;              
+    class_entry->modifier = modifier;           //public, private, static, final
+    class_entry->nature = CLASS;          // class or function or variable etc.
+    class_entry->offset = 0;
+    class_entry->lineno = yylineno;
+    class_entry->parent_class = NULL;
+
+    class_entry->instance_variables.clear();
+    class_entry->class_methods.clear();
+
+    return class_entry;
+}
+
 void add_class(int8_t modifier, string token) {
    
     if(pass_no == 1){
+        cout << "Pass: " << pass_no << "\n";
+        dump_ST(1);
         if(symmbol_table_pass1.find(token) != symmbol_table_pass1.end()){
             cerr << "Line No: " <<  yylineno  << "Class Already present\n";
             exit(-1);
         }
 
-        vector <stackentry*> class_data;
-        symmbol_table_pass1[token] = class_data;
-    } else {
-        // Just a sanity check, duplicated classes is checked in the first pass, hence this condition will never fail in pass2.
-
-        if(symmbol_table_pass2.find(token) != symmbol_table_pass2.end()){
-            cerr << "Line No: " <<  yylineno  << "Class Already present\n";
-            exit(-1);
-        }
-        
-        vector <stackentry*> class_data;
-        symmbol_table_pass2[token] = class_data;
+        symmbol_table_pass1[token] = create_class_entry(modifier, token);
+        text << token << "," << modifier << "," << "" << "," << "" << ","  << "Class" << "," << 0 << "," << yylineno << endl;
     }
-        
 }
 
 void add_variable(string token, int8_t modifier, string type, bool init_flag){
 
+    cout << "ADd Variable: " << token << endl;
     if(pass_no == 1){
         if(current_scope == 0){
             if(! find_variable_in_closest_function_scope(symmbol_table_pass1[current_class], token, current_scope))
@@ -311,18 +342,22 @@ void add_variable(string token, int8_t modifier, string type, bool init_flag){
             cerr << "Line No: " <<  yylineno  << "Variable already present\n";
             exit(-1);
         }
+
+        text << token << "," << modifier << "," << "" << "," << type << ","  << "Variable" << "," << offset << "," << yylineno << endl;
     }
+    // cout << "Out of Add Variable\n";
 }
 
 void add_function(string token, string argument_type, string return_type, int8_t modifier) {
 
+    cout << "Add Function: " << token << "\n";
     if(pass_no == 1){
         if(check_function_in_class(symmbol_table_pass1[current_class], token, argument_type, FUNCTION) != ""){
             cerr << "Line No: " <<  yylineno  << "Function already exists\n";
             exit(-1);
         }  
         else {
-            add_to_stack(symmbol_table_pass1[current_class], token, current_scope, return_type, modifier, OPEN_FUNCTION, 0, argument_type, "");
+            add_to_stack(symmbol_table_pass1[current_class], token, current_scope, return_type, modifier, FUNCTION, 0, argument_type, "");
         }
     } else {
         if(check_function_in_class(symmbol_table_pass2[current_class], token, argument_type, FUNCTION) != ""){
@@ -332,6 +367,8 @@ void add_function(string token, string argument_type, string return_type, int8_t
         else {
             add_to_stack(symmbol_table_pass2[current_class], token, current_scope, return_type, modifier, OPEN_FUNCTION, 0, argument_type, "");
         }
+
+        text << token << "," << modifier << "," << argument_type << "," << return_type << ","  << "Function" << "," << 0 << "," << yylineno << endl;
     }
 
     // Add entries of temp_scope to actual scope
@@ -346,29 +383,39 @@ void add_function(string token, string argument_type, string return_type, int8_t
 
 void add_constructor(string token, string argument_type, string return_type, int8_t modifier, int scope) {
 
+    cout << "Add Constructor: " << token << "\n";
     if(token != current_class) {
         /*Mismatch in current class name and constructor name*/
         cerr << "Line No: " <<  yylineno  << "Mismatch in current class name and constructor name\n";
         exit(-1);
     }
 
-    if(check_function_in_class(symmbol_table_pass1[current_class], token, argument_type, CONSTRUCTOR) != ""){
-        cerr << "Line No: " <<  yylineno  << "Constructor already exists\n";
-        exit(-1);
-    } else {
-        if(pass_no == 1)
-            add_to_stack(symmbol_table_pass1[current_class], token, scope, return_type, modifier, OPEN_CONSTRUCTOR, 0, argument_type, "");
-        else 
-            add_to_stack(symmbol_table_pass2[current_class], token, scope, return_type, modifier, OPEN_CONSTRUCTOR, 0, argument_type, "");
-            
-        // Add entries of temp_scope to actual scope
-        current_scope++;
-        for(int i=0; i<temp_stack.size(); i++) {
-            add_variable(temp_stack[i]->token, temp_stack[i]->modifier, temp_stack[i]->type, 1);
+    if(pass_no == 1){
+        if(check_function_in_class(symmbol_table_pass1[current_class], token, argument_type, CONSTRUCTOR) != ""){
+            cerr << "Line No: " <<  yylineno  << "Constructor already exists\n";
+            exit(-1);
+        } else {
+            add_to_stack(symmbol_table_pass1[current_class], token, current_scope, return_type, modifier, CONSTRUCTOR, 0, argument_type, "");
         }
-        current_scope--;
-        temp_stack.clear();
+    }    
+    else {
+        if(check_function_in_class(symmbol_table_pass2[current_class], token, argument_type, CONSTRUCTOR) != ""){
+            cerr << "Line No: " <<  yylineno  << "Constructor already exists\n";
+            exit(-1);
+        } else {
+             add_to_stack(symmbol_table_pass2[current_class], token, scope, return_type, modifier, OPEN_CONSTRUCTOR, 0, argument_type, "");
+        }
+
+        text << token << "," << modifier << "," << argument_type << "," << return_type << ","  << "Constructor" << "," << 0 << "," << yylineno << endl;
     }
+
+    // Add entries of temp_scope to actual scope
+    current_scope++;
+    for(int i=0; i<temp_stack.size(); i++) {
+        add_variable(temp_stack[i]->token, temp_stack[i]->modifier, temp_stack[i]->type, 1);
+    }
+    current_scope--;
+    temp_stack.clear();
 }
 
 void dump_symbol(stackentry* v) {
@@ -413,6 +460,24 @@ void dump_ST(int num) {
     }
         
 }
+
+void dump_SS() {
+    cout << "Token" << "," << "Modifier" << "," << "Argument_Type" << "," << "Type/Return Type" << "," << "Nature" << "," << "Offset" << "," << "Line Num" << "\n";
+    cout << text.rdbuf();
+}
+
+void end_current_class(){
+    width[current_class] = class_width;
+    current_class = "";
+    class_width = 0;
+}
+
+// void end_current_function(){
+//     width[current_class+"."+current_method] = function_width;
+//     current_method = "";
+//     function_width = 0;
+// }
+
 
 /*
 
