@@ -9,8 +9,11 @@
 #include <macros.hpp>
 #include <deque>
 #include <string>
+#include <iomanip>
 
 using namespace std;
+
+extern "C" int yylineno;
 
 SymbolTable::SymbolTable(){
 }
@@ -31,23 +34,30 @@ void LocalSymbolTable::increase_level() {
 }
 
 void LocalSymbolTable::clear_current_level() {
+
     SymTabEntry *sym_entry;
 
+    vector<string> keys;
     for (auto &it : sym_table) {
+        
         sym_entry = it.second;
+        
         if ( !sym_entry ) continue;
 
         else if (sym_entry->level == current_level ) {
             free(it.second);
-            sym_table.erase(it.first);
+            keys.push_back(it.first);
         }
     }
-
+    for(auto k:keys) {
+        sym_table.erase(k);
+    }
     current_level--;
     //write to file now using stringstream
 }
 
 void LocalSymbolTable::empty_table() {
+    cout << "in empty table\n";
     sym_table.clear();
     current_level = 0;
     method_name = "";
@@ -58,21 +68,25 @@ void LocalSymbolTable::empty_table() {
 void LocalSymbolTable::add_to_table(SymTabEntry *symbol, bool is_fun_arg) {
     auto it = sym_table.find(symbol->name);
     if (it == sym_table.end()) {
+        cout << "adding symbol to local table: " << symbol->name << " " << symbol->type->name << endl;
         symbol->level = current_level;
         symbol->is_initialized = is_fun_arg;
         sym_table.insert( {symbol->name, symbol} );
     }
     else  {
-        cerr << "identifier declared with same name. previous declaration at line: " << it->second->line_no << endl;
+        cerr << yylineno << ":identifier declared with same name. previous declaration at line: " << it->second->line_no << endl;
         exit (1);
     }
 }
 
 SymTabEntry* LocalSymbolTable::get_symbol_from_table(string name) {
+    cout << "finding symbol " <<  name << " in local table" << endl;
     auto it = sym_table.find(name);
+    cout << "after sym_table.find\n"; 
     if (it == sym_table.end()) {
         return NULL;
     }
+    cout << "after sym_table.end check. sym found\n"; 
     return it->second;
 }
 
@@ -82,7 +96,6 @@ SymTabEntry* LocalSymbolTable::get_symbol_from_class(string name) {
     sym = get_symbol_from_table(name);
     if (!is_null(sym))
         return sym;
-
 
     sym = container_class->get_var(name);
 
@@ -116,7 +129,7 @@ void ClassDefinition::add_method(MethodDefinition *mthd) {
         deque<MethodDefinition *> &q = it->second;
         for (auto &m : q) {
             if (m->args_str == mthd->args_str) {
-                cerr << "declaration of function with same again, previous declaration at line: " << m->line_no << endl;
+                cerr << yylineno << ":declaration of function with same again, previous declaration at line: " << m->line_no << endl;
                 free(mthd);
                 exit (1);
             }
@@ -128,13 +141,13 @@ void ClassDefinition::add_method(MethodDefinition *mthd) {
 void ClassDefinition::add_constructor(MethodDefinition *constr) {
     if (constr->name != this->name) {
         free(constr);
-        cerr << constr->name << "does not match " << this->name << ". constructor name should be same as class name" << endl;
+        cerr << yylineno << ":" << constr->name << "does not match " << this->name << ". constructor name should be same as class name" << endl;
         exit (1);
     }
     for (auto c : constructors) {
         if (c->args_str == constr->args_str) {
             free(constr);
-            cerr << "multiple definitions of constructor found. first defined at line: " << c->line_no << endl;
+            cerr << yylineno << ":multiple definitions of constructor found. first defined at line: " << c->line_no << endl;
             exit (1);
         } 
     }
@@ -142,13 +155,19 @@ void ClassDefinition::add_constructor(MethodDefinition *constr) {
 }
 
 void ClassDefinition::add_var(SymTabEntry *symbol) {
+    /* Check if instance variable is declared with same class types in current class*/
+    if (symbol->type->name == this->name) {
+        cerr << "Error on line " << yylineno << ": variable of same class declared in the class instance variables\n";
+        exit(1);
+    }
+    /* Check for previous declaration of instance variable with same name*/
     SymTabEntry *sym = get_var( symbol->name );
     if ( !is_null(sym) ) {
         free(symbol);
-        cerr << "declaration of variable with same name, previous declaration at line: " << sym->line_no << endl;
+        cerr << yylineno << ":declaration of variable with same name, previous declaration at line: " << sym->line_no << endl;
         exit (1);
     }
-
+    
     symbol->is_initialized = true;
     inst_vars.insert( {symbol->name, symbol} );
 }
@@ -178,12 +197,16 @@ Type* ClassDefinition::get_var_type(string name) {
 MethodDefinition* ClassDefinition::get_method(string name, string args) {
 
     auto it = methods.find(name);
+    cout << __func__ << " after find 1\n";
     if (it == methods.end()) {
         return NULL;
     }
     else {
-        for( auto &m: it->second) {
+        cout << __func__ << " after find 2\n";
+        for( auto m: it->second) {
+            cout << __func__ << " after find 3\n";
             if (m->args_str == args) {
+            cout << __func__ << " after find 4\n";
                 return m;
             }
         }
@@ -192,6 +215,7 @@ MethodDefinition* ClassDefinition::get_method(string name, string args) {
 }
 
 bool ClassDefinition::find_constructor(string args) {
+    cout << __func__ << " args = " << args << " class: " << name <<  endl;
     if (constructors.empty() && args == "")
         return true;
     
@@ -253,7 +277,10 @@ bool Type::is_pointer() {
 
 bool operator==(Type &obj1, Type &obj2) {
     // cout << "Type Names: " << obj1.name << " " << obj2.name << "\n";
-    
+    // cout << obj1.is_primitive << " " << obj2.is_primitive << "\n";
+    // cout << obj1.is_numeric << " " << obj2.is_numeric << "\n";
+    // cout << obj1.arr_dim << " " << obj2.arr_dim << "\n";
+
     if (obj1.is_class && obj2.is_class) {
         // both are ref types
         return ((obj1.name == obj2.name) && (obj1.arr_dim == obj2.arr_dim));
@@ -263,7 +290,12 @@ bool operator==(Type &obj1, Type &obj2) {
             if(obj1.name == __SHORT && obj2.name == __CHAR){
                 return false;
             }
-            return (obj1.size > obj2.size) && (obj1.arr_dim == obj2.arr_dim);
+
+            if(obj1.is_integral && !(obj2.is_integral)){
+                return false;
+            }
+
+            return (obj1.size >= obj2.size) && (obj1.arr_dim == obj2.arr_dim);
         }
         else return ((obj1.name == obj2.name) && (obj1.arr_dim == obj2.arr_dim));
     }
@@ -284,7 +316,7 @@ void GlobalSymbolTable::add_class( ClassDefinition *cls ) {
     auto it = classes.find(cls->name);
     if ( it != classes.end() ) {
         free(cls);
-        cerr << "class declared with same name again. previous declaration at line: " << it->second->line_no << endl;
+        cerr << yylineno << ":class declared with same name again. previous declaration at line: " << it->second->line_no << endl;
         exit (1);
     }
 
@@ -302,34 +334,61 @@ ClassDefinition *GlobalSymbolTable::get_class( string name ) {
 
 void GlobalSymbolTable::dump_table() {
     ClassDefinition *cls;
+    cout << "Name" << "\t \t" << "Scope" << "\t \t" << "Modifier" << "\t \t" << "Nature" << "\t \t" << "Offset" << "\t \t" << "Line Num" << "\t \t" << "\n";
     for(auto it : classes) {
         // print classes information
+        cout << "############################CLASS##################################\n";
         cls = it.second;
-        cout << cls->name << endl;
-        cout << "modifier: ";
+
+        cout << cls->name << "\t \t" << 0 << "\t \t";
         print_modifier(cls->modifier);
-        cout << endl;
-        cout << "entering for loop" <<  endl;
+        cout << "\t \t" << "Class" << "\t \t" << "#print sum of ins var" << "\t \t" << cls->line_no << "\t \t" << "\n";
+
+
         if (cls->inst_vars.empty()) {
-            cout << "instance variables not prsent\n";
+            cout << "~~~~~~~~~~~instance variables not prsent~~~~~~~~~~~~~~~~~~~\n";
+        } else{
+            cout << "~~~~~~~~~~~~~~~INSTANCE_VARIABLES~~~~~~~~~~~~~~~~\n";
+            SymTabEntry* ins;
+            for (auto it2:cls->inst_vars) {
+                ins = it2.second;
+                cout << ins->name << "\t \t" << ins->level << "\t \t" ;
+                print_modifier(ins->modifier);
+                cout << "\t \t" << "Variable" << "\t \t" << ins->offset << "\t \t" << ins->line_no << "\t \t" << "\n";
+                cout << "Extra Information: \n";
+                cout << "\t Is Initialised: " << ins->is_initialized << "\n";
+                print_type(ins->type);
+                cout << "\n";
+            }
         }
-        for (auto it2:cls->inst_vars) {
-            cout << it2.second->name << endl;
-            cout << "Type: " << it2.second->type->name << endl;
-        }
-        cout << "entering for loop 2" <<  endl;
+
+        cout << "\n\n";
+        cout << "~~~~~~~~~~~~~~~CLASS_METHODS~~~~~~~~~~~~~~~~\n";
         for( auto it2: cls->methods) {
             auto &q = it2.second;
             for (auto it3 : q) {
-                cout << it3->name << " args: " << it3->args_str << "ret type: " << it3->ret_type->name << "modifier: " << it3->modifier <<  endl;
+                cout << it3->name << "\t \t" << 0 << "\t \t";
+                print_modifier(it3->modifier);
+                cout << "\t \t" << "Function" << "\t \t" << 0 << "\t \t" << it3->line_no << "\t \t" << "\n";
+                cout << "Extra Information: \n";
+                cout << "Return Type: ";
+                print_type(it3->ret_type);
+                cout << "Args Str: " << it3->args_str << "\n";
+                cout << "\n";
             }
         }   
-        cout << "entering for loop 3" <<  endl;
-        
+        cout << "\n\n";
+        cout << "~~~~~~~~~~~~~~~CONSTRUCTORS~~~~~~~~~~~~~~~~\n";
         for(auto it2: cls->constructors) {
-            cout << it2->name << " args: " << it2->args_str << "ret type: " << it2->ret_type->name << "modifier: " << it2->modifier <<  endl;
+            cout << it2->name << "\t \t" << 0 << "\t \t";
+                print_modifier(it2->modifier);
+                cout << "\t \t" << "Constructor" << "\t \t" << 0 << "\t \t" << it2->line_no << "\t \t" << "\n";
+                cout << "Extra Information: \n";
+                cout << "Args Str: " << it2->args_str << "\n";
+                cout << "\n";
         }
 
+        cout << "############################CLASS_ENd##################################\n\n";
     }
 }
 

@@ -44,7 +44,7 @@ stackentry *find_variable_in_class( string token, bool );
 bool find_variable_in_closest_function_scope( string token );
 void clear_current_scope( );
 void add_class(int8_t modifier, string token);
-void add_variable(string token, int8_t modifier, Type *type, bool is_fun_arg);
+void add_variable(string token, int8_t modifier, Type *type, int offset, bool is_fun_arg, bool initialized);
 void add_function(string token, string argument_type, Type* return_type, int8_t modifier);
 void add_constructor(string token, string argument_type, int8_t modifier);
 Type *get_type(string name);
@@ -53,7 +53,7 @@ TypeName *make_typename(Identifier *id) ;
 void append_typename(Identifier *id, TypeName *tn);
 stackentry *make_stackentry(const char *token, unsigned int);
 
-stackentry *make_stackentry(const char *token, string type, unsigned int );
+stackentry *make_stackentry(const char *token, Type *type, unsigned int );
 
 void check_boolean(Type *t);
 
@@ -90,3 +90,4 @@ void EnhancedForCondition(stackentry* e1);
 void intialize_types();
 void verify_pass1();
 void print_modifier(int8_t mod);
+void print_type(Type* t);

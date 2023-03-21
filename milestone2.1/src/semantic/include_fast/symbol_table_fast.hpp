@@ -38,8 +38,8 @@
     // bool is_double;
 
     unsigned int arr_dim;
+    int size;
     string name;
-    size_t size;
 
     ClassDefinition *class_def;
 
@@ -117,7 +117,6 @@
       unsigned long line_no;
       unsigned int col_no;
       size_t offset;
-      unsigned int id;
       int8_t modifier;
       bool is_initialized;
       SymTabEntry( string name_parameter, unsigned int line_no);

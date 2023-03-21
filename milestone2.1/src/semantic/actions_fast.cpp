@@ -19,6 +19,7 @@ LocalSymbolTable *current_table;
 GlobalSymbolTable *global_table;
 
 scope current_scope;
+int global_offset = 0;
 
 unordered_map<string, Type *> defined_types;
 
@@ -55,55 +56,61 @@ bool check_return_type(Type *type1, Type *type2) {
     return (t1 == t2);
 }
 
-Type *_get_final_ref_type(char *split_token, unsigned int dot_count) {
+// Type *_get_final_ref_type(char *token, unsigned int dot_count) {
     
-    Type *type;
-    string tmp_str;
-    ClassDefinition *cls;
-    SymTabEntry *sym;
+//     Type *type;
+//     string tmp_str;
+//     ClassDefinition *cls;
+//     SymTabEntry *sym;
+//     char* split_token;
 
-    int count = 0;
+//     int count = 0;
 
-    if (count == dot_count)
-        return NULL;
-   
-    tmp_str = split_token;
-    sym = current_table->get_symbol_from_class(tmp_str);
 
-    if (is_null(sym)) {
-        cerr << "variable not declared in this scope " << tmp_str << endl;
-        exit (1);
-    }
-
-    type = sym->type;
-    if (!type->is_class) {
-        cerr << tmp_str << " : variable of non-reference type cannot be referenced" << endl;
-        exit (1);
-    }
-    cls = type->class_def;
+//     if (count == dot_count)
+//         return NULL;
     
-    split_token = strtok(NULL, ".");
-    count ++;
 
-    while(split_token != NULL) {
-        if (count != dot_count) {
-            tmp_str =  split_token;
-            type = cls->get_var_type(tmp_str);
-            if(!type->is_class){
-                cerr << tmp_str << " : variable of non-reference type cannot be referenced" << endl;
-                exit (1);
-            }
-            cls = type->class_def;
-            split_token = strtok(NULL, ".");
-            count++;
-        }
-        else 
-            return type;
-    }
+//     split_token = strtok(token, ".");
+//     tmp_str = split_token;
 
-    // should not reach here
-    return NULL;
-}
+//     sym = current_table->get_symbol_from_class(tmp_str);
+//     if (is_null(sym)) {
+//         cerr << "variable not declared in this scope " << tmp_str << endl;
+//         exit (1);
+//     }
+
+//     type = sym->type;
+
+//     if (!type->is_class) {
+//         cerr << tmp_str << " : variable of non-reference type cannot be referenced" << endl;
+//         exit (1);
+//     }
+//     cls = type->class_def;
+    
+//     split_token = strtok(NULL, ".");
+//     count ++;
+
+//     while(split_token != NULL) {
+//         cout << "split_token: "<<split_token << "\n";
+//         if (count != dot_count) {
+//             tmp_str =  split_token;
+//             type = cls->get_var_type(tmp_str);
+//             if(!type->is_class){
+//                 cerr << tmp_str << " : variable of non-reference type cannot be referenced" << endl;
+//                 exit (1);
+//             }
+//             cls = type->class_def;
+//             split_token = strtok(NULL, ".");
+//             count++;
+//         }
+//         else 
+//             return type;
+//     }
+
+//     // should not reach here
+//     return NULL;
+// }
 
 
 Type *check_constructor(string token, string argument_type) {
@@ -121,35 +128,74 @@ Type *check_function_in_class(string token, string argument_type, string nature)
         return check_constructor(token, argument_type);
     }
     
-    const char* str = token.c_str();
-    char *split_token = strtok((char*)str, ".");
     unsigned int dot_count = 0, count = 0;
-    ClassDefinition *cls;
-
     for(int i = 0; i < token.size(); i++){
         if(token[i] == '.') dot_count ++;
     }
 
-    Type *ref_type = _get_final_ref_type(split_token, dot_count);
+    const char* str = token.c_str();
+    char *split_token = strtok((char*)str, ".");
+    string tmp_str;
+    ClassDefinition *cls;
+    Type *ref_type;
+    SymTabEntry *sym;
     
-    if (is_null(ref_type))
-        cls = current_class;
     
-    else cls = ref_type->class_def;
 
-    while(split_token != NULL) {
+    if(dot_count == 0) {
+        cls = current_class;
+    }
+    else {
+        tmp_str = split_token;
+
+        sym = current_table->get_symbol_from_class(tmp_str);
+        if (is_null(sym)) {
+            cerr << "variable not declared in this scope " << tmp_str << endl;
+            exit (1);
+        }
+
+        ref_type = sym->type;
+
+        if (!ref_type->is_class) {
+            cerr << tmp_str << " : variable of non-reference type cannot be referenced" << endl;
+            exit (1);
+        }
+        cls = ref_type->class_def;
         
-        if(count != dot_count){
-           split_token = strtok(NULL, ".");
-            count++;        
-        } else {
+        split_token = strtok(NULL, ".");
+        count ++;
+    }
+
+    cout << "Ref Type: " << cls->name << "\n";
+
+
+    cout << "dot_count: " << dot_count << " count: " << count << "\n";
+    while(split_token != NULL) {
+        cout << "split token: " << split_token << "\n";
+        if (count != dot_count) {
+            tmp_str = split_token;
+            ref_type = cls->get_var_type(tmp_str);
+            if(!ref_type->is_class){
+                cerr << tmp_str << " : variable of non-reference type cannot be referenced" << endl;
+                exit (1);
+            }
+            cls = ref_type->class_def;
+        }
+        else {
             string mthd_name = split_token;
+            cout << "mthd name: " << mthd_name << " args: " << argument_type << endl;
             MethodDefinition *mthd = cls->get_method(mthd_name, argument_type);
             if (!is_null(mthd)){
                 return mthd->ret_type;
             }
+            else {
+                cerr << "Error on line " << yylineno << " " << mthd_name << " not found in class " << cls->name << endl;
+                exit(1);
+            }
         }
        
+        split_token = strtok(NULL, ".");
+        count++;
     }
 
     return NULL;
@@ -162,13 +208,18 @@ Type *check_function_in_class(string token, string argument_type, string nature)
 
 ///////////////////////TODO////////////////////////////////////////////
 stackentry *find_variable_in_class(string name, bool intialize) {
-    
-    SymTabEntry *sym = current_table->get_symbol_from_class(name);
-    if (is_null(sym)) {
-        cerr << name << ": variable not found. used on line " << yylineno << endl;
+    SymTabEntry *sym;
+    if (current_scope == scope_class) {
+        sym = current_class->get_var(name);
+    }
+    else {
+        sym = current_table->get_symbol_from_class(name);
+    }
+    if(is_null(sym)) {
+        cerr << "Error on line " << yylineno << " " << name << ": variable not found. used on line " << yylineno << endl;
         exit(1);
     }
-    sym->is_initialized = intialize;
+    sym->is_initialized = sym->is_initialized | intialize;
     if (sym->is_initialized) {
         stackentry *s = make_stackentry(name.c_str(), sym->line_no);
         s->type = sym->type;
@@ -223,26 +274,32 @@ end:
 }
 
 
-void add_variable(string token, int8_t modifier, Type *type, bool is_fun_arg) {
+void add_variable(string token, int8_t modifier, Type *type, int offset, bool is_fun_arg, bool intialized) {
     SymTabEntry *sym = new SymTabEntry(token, yylineno);
     sym->type = type;
     sym->modifier = modifier;
+    sym->offset = offset;
     switch (current_scope) {
         case scope_class:
-            cout << sym->name << " " << sym->line_no << " " << sym->type->name << endl;
+            // cout << sym->name << " " << sym->line_no << " " << sym->type->name << endl;
+            if(is_fun_arg) {
+                cout << "adding arguments in function: " << sym->name << "\n";
+                current_table->add_to_table(sym, is_fun_arg);
+                return;
+            }
             current_class->add_var(sym);
             break;
         case scope_method:
-            current_table->add_to_table(sym, is_fun_arg);
+            current_table->add_to_table(sym, intialized);
             break;
     }
 }
 
 void add_function(string token, string argument_type, Type* return_type, int8_t modifier) {
     if (pass_no == 2) {
-        current_table->empty_table();
         current_table->method_name = token;
         current_table->container_class = current_class;
+        current_table->return_type = return_type;
         return;
     }
     MethodDefinition *new_mthd = new MethodDefinition(token, argument_type, return_type, modifier, yylineno);
@@ -251,15 +308,16 @@ void add_function(string token, string argument_type, Type* return_type, int8_t 
 }
 
 void add_constructor(string token, string argument_type, int8_t modifier) {
+    Type *ret_type =  get_type(__VOID);
     if (pass_no == 2) {
-        current_table->empty_table();
         current_table->method_name = token;
         current_table->container_class = current_class;
+        current_table->return_type = ret_type;
         return;
     }
 
     MethodDefinition *constr;
-    constr = new MethodDefinition(token, argument_type, NULL, modifier, yylineno);
+    constr = new MethodDefinition(token, argument_type, ret_type, modifier, yylineno);
     current_class->add_constructor(constr);
 }
 
@@ -340,14 +398,21 @@ stackentry *make_stackentry(const char *token, unsigned int line) {
     return s;
 }
 
-stackentry *make_stackentry(const char *token, string type, unsigned int line) {
+stackentry *make_stackentry(const char *token, Type *type, unsigned int line) {
+    if (is_null(type)) {
+        cerr << "Error: global type is null. this should not happen" << endl;
+        exit (1);
+    }
     stackentry *s = new stackentry(token, line);
-    s->type = get_type(type);
+    s->type = type;
     return s;
 }
 
 void check_boolean(Type *t) {
-    assert(t == defined_types[__BOOLEAN]);
+    if (!(t->name == __BOOLEAN)) {
+        cerr << "Error on line " << yylineno << ". Type should be boolean\n";
+        exit(1);
+    }
 }
 
 void check_cast_types(Type *t1, Type *t2) {
@@ -398,7 +463,7 @@ stackentry *assign_arr_dim(stackentry *e1, stackentry *e2) {
     return e1;
 }
 stackentry *assign_arr_dim(Type *t, stackentry *e1, stackentry *e2) {
-    unsigned int dims = e1->type->arr_dim++;
+    unsigned int dims = e1->type->arr_dim + e2->type->arr_dim;
     *(e1->type) = *t;
     e1->type->arr_dim = dims;
     free(e2->type);
@@ -459,7 +524,7 @@ stackentry* ShiftExpression(stackentry* e1, stackentry* e2) {
 
 stackentry* RelationalExpression(stackentry* e1, stackentry* e2) {
     if(check_if_numeric_type(e1->type) && check_if_numeric_type(e2->type) ) {
-        return  make_stackentry("", __BOOLEAN, yylineno);
+        return  make_stackentry("", get_type(__BOOLEAN), yylineno);
     } else {
         cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator \n first type: "<< e1->type << "\nsecond type: " << e2->type << "\n";
         exit(-1);
@@ -474,7 +539,7 @@ stackentry* EqualityExpression(stackentry* e1, stackentry* e2) {
         }
     }
 
-    return make_stackentry("", __BOOLEAN, yylineno);
+    return make_stackentry("", get_type(__BOOLEAN), yylineno);
 }
 
 stackentry* BitwiseExpression (stackentry* e1, stackentry* e2) {
@@ -566,7 +631,9 @@ void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no) {
     if(rule_no == 1){
                 
         if ((pass_no == 1 && current_scope == scope_class) || (pass_no == 2 && current_scope == scope_method)) {
-            add_variable(e1->token, global_modifier, e1->type, false);
+            cout << __func__ << ": adding symbol: " << e1->token << " " << e1->type->name << endl;
+            add_variable(e1->token, global_modifier, e1->type, global_offset, false, true);
+            global_offset += e1->type->size;
             if(e2->type == NULL) {
                 // Means a empty array declaration: int a[] = {}; which is perfectly valid
                 // Make its type same as (1)->type
@@ -580,16 +647,21 @@ void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no) {
                 e2->type = e1->type;
             }
 
-            cout << e1->type->name << " " << e1->type->arr_dim << " " << e2->type->name << " " << e2->type->arr_dim << "\n";
+            // cout << e1->type->name << " " << e1->type->arr_dim << " " << e2->type->name << " " << e2->type->arr_dim << "\n";
 
             if(!check_return_type(e1->type,e2->type)){
                 if(e1->type->arr_dim){
                     cerr << "Line No: " <<  yylineno <<"Error: Cannot assign "<<e2->type->name;
                     int count = 0;
+                    while((count++) < e2->type->arr_dim) 
+                        cerr << "[]";
+
+                    cerr <<" to "<<e1->type->name;
+                    count = 0;
                     while((count++) < e1->type->arr_dim) 
-                        cout << "[]";
+                        cerr << "[]";
                     
-                    cout <<" to "<<e1->type->name<<endl;
+                    cerr << endl;
                 }
                 else 
                     cerr << "Line No: " <<  yylineno <<"Error: Cannot assign "<<e2->type->name<<" to "<<e1->type->name<<endl;
@@ -598,8 +670,10 @@ void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no) {
         }
 
     } else {
-        if (pass_no == 1 || (pass_no == 2 && current_scope == scope_method))
-            add_variable(e1->token, global_modifier, e1->type, 0);
+        if ((pass_no == 1 && current_scope == scope_class) || (pass_no == 2 && current_scope == scope_method)){
+            add_variable(e1->token, global_modifier, e1->type, global_offset, false, false);
+            global_offset += e1->type->size;
+        }
     }
 }
 
@@ -710,3 +784,14 @@ void print_modifier(int8_t mod) {
     if((mod & __FINAL) == __FINAL)
         cout << "final ";
 }
+
+void print_type(Type* t) {
+    cout << "\t Type_Name: " << t->name << "\tType_Size:" <<  t->size << "\tType_ArrDim"<<  t->arr_dim <<"\n";
+}
+
+
+
+
+
+// 3ac functions
+

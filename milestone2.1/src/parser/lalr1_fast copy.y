@@ -41,7 +41,7 @@
 
     extern unordered_map<string, Type *> defined_types;
 
-    extern int global_offset;
+    int global_offset = 0;
 
     int8_t global_modifier;
     Type* global_type;
@@ -68,6 +68,7 @@
     struct Type *type;
     struct Identifier *id;
     // Type *type_;
+    struct entry3ac;
 }
 
 %token<str> INT LONG BYTE CHAR SHORT FLOAT DOUBLE BOOLEAN VAR
@@ -153,12 +154,6 @@
 %type<stack_entry> ExplicitConstructorInvocation
 %type<stack_entry> ArrayInitializer
 %type<stack_entry> VariableInitializerList
-/* %type<stack_entry> InterfaceDeclaration
-%type<stack_entry> InterfaceExtends
-%type<stack_entry> InterfaceBody
-%type<stack_entry> InterfaceMembers
-%type<stack_entry> InterfaceMemberDeclaration
-%type<stack_entry> InterfaceMethodDeclaration */
 %type<stack_entry> Primary
 %type<stack_entry> PrimaryNoNewArray
 %type<stack_entry> ClassInstanceCreationExpression
@@ -237,35 +232,35 @@
 %type<type> Var
 %type<type> Void
 %type<stack_entry> This
-%type If
-%type Else
-%type For
-%type While
-%type Break
-%type Continue
-%type New
-%type Return
-%type Class
-%type Assert
-%type Plus
-%type Minus
-%type Div
-%type Modulo
-%type Increment
-%type Decrement
-%type Geq
-%type Leq
-%type Gt
-%type Lt
-%type Neq
-%type Deq
-%type Bitwise_and
-%type Bitwise_or
-%type Bitwise_xor
-%type Bitwise_complement
-%type Left_shift
-%type Right_shift
-%type Unsigned_right_shift
+%type<entry3ac> If
+%type<entry3ac> Else
+%type<entry3ac> For
+%type<entry3ac> While
+%type<entry3ac> Break /* jump to endloop<loopnum> */
+%type<entry3ac> Continue /* jump to loop<loopnum> */
+%type<entry3ac> New
+%type<entry3ac> Return
+%type<entry3ac> Class
+%type<entry3ac> Assert
+%type<entry3ac> Plus
+%type<entry3ac> Minus
+%type<entry3ac> Div
+%type<entry3ac> Modulo
+%type<entry3ac> Increment
+%type<entry3ac> Decrement
+%type<entry3ac> Geq
+%type<entry3ac> Leq
+%type<entry3ac> Gt
+%type<entry3ac> Lt
+%type<entry3ac> Neq
+%type<entry3ac> Deq
+%type<entry3ac> Bitwise_and
+%type<entry3ac> Bitwise_or
+%type<entry3ac> Bitwise_xor
+%type<entry3ac> Bitwise_complement
+%type<entry3ac> Left_shift
+%type<entry3ac> Right_shift
+%type<entry3ac> Unsigned_right_shift
 %type And
 %type Or
 %type Not
@@ -282,41 +277,23 @@
 %type Dot
 %type<stack_entry> Instanceof
 %type<stack_entry> Throw
-/* %type<stack_entry> Implements
-%type<stack_entry> Interface
-%type<stack_entry> Extends */
 %type Package
 %type Import
-%type Asterik
+%type<entry3ac> Asterik
 %type SynchronizedStatement
 %type DoStatement
 %type TryStatement
-// %type<stack_entry> SwitchBlock
-// %type<stack_entry> SwitchBlockStatementGroup
-// %type<stack_entry> SwitchBlockStatementGroups
-// %type<stack_entry> SwitchLabel
-// %type<stack_entry> SwitchLabelColons
-// %type<stack_entry> SwitchRule
-// %type<stack_entry> SwitchRules
-// %type<stack_entry> SwitchStatement
 %type CatchClause
 %type Catches
 %type CatchFormalParameter
 %type CatchType
 %type Finally
-// %type<stack_entry> CaseConstant
-// %type<stack_entry> CaseConstants
 %type<stack_entry> do_
-/* %type<stack_entry> switch_ */
-/* %type<stack_entry> yield_ */
 %type<stack_entry> try_
 %type<stack_entry> catch_
 %type<stack_entry> finally_
 %type<stack_entry> synchronized_
 %type<stack_entry> throws_
-/* %type<stack_entry> case_ */
-/* %type<stack_entry> default_ */
-/* %type<stack_entry> arrow_ */
 %type<stack_entry> endoffile
 %type<stack_entry> ImportDeclarations
 %type<stack_entry> Throws
@@ -335,23 +312,10 @@
 %type<stack_entry> Private
 %type<stack_entry> Static
 %type<stack_entry> Final
-/* %type<stack_entry> Interfaces */
-/* %type<stack_entry> InterfaceTypeList */
 %type<stack_entry> ThrowStatement
-/* %type<stack_entry> YieldStatement */
-/* %type<stack_entry> Super  */
 
 %type<b_no> Modifier
 %type<b_no> Modifiers
-/* %type<type_> UnannType
-%type<type_> PrimitiveType
-%type<type_> NumericType
-%type<type_> IntegralType
-%type<type_> FloatingPointType
-%type<type_> ReferenceType
-%type<type_> ClassOrInterfaceType
-%type<type_> ArrayType
-%type<type_> Dims */
 
 %start Program
 %%
@@ -547,7 +511,7 @@ Modifier:
 
 
 ClassDeclaration:
-    Modifiers Class Identifier { add_class($1, ($3)->name);} ClassBody { current_class = NULL; current_scope = scope_global; global_offset = 0; }
+    Modifiers Class Identifier { add_class($1, ($3)->name); global_offset = 0;} ClassBody { current_class = NULL; current_scope = scope_global; }
 |   Class Identifier { add_class(0b0, ($2)->name);} ClassBody { current_class = NULL; current_scope = scope_global;}
 ;
 
@@ -634,7 +598,7 @@ VariableInitializer:
 MethodDeclaration:
     MethodHeader{
                     add_function(($1)->token, ($1)->argument_type, ($1)->type, ($1)->modifier);   current_scope = scope_method;
-                } MethodBody {  current_scope = scope_class; current_table->empty_table(); global_offset = 0;}
+                } MethodBody {  current_scope = scope_class; current_table->empty_table();}
 ;
 
 MethodHeader:
@@ -730,8 +694,7 @@ FormalParameter:
                                                 $$->argument_type = $2->type->name;
                                                 global_type = NULL;
                                                 if (pass_no == 2 && current_scope == scope_class)
-                                                    add_variable($2->token, 0b0, $2->type, global_offset, true, true);
-                                                    global_offset += ($2)->type->size;
+                                                    add_variable($2->token, 0b0, $2->type, true);
                                             } 
 ;
 
@@ -1051,7 +1014,7 @@ Assignment:
     LeftHandSide AssignmentOperator Expression  {   
                                                     if(pass_no == 2 ){  
                                                         if(!check_return_type(($1)->type, ($3)->type)) {
-                                                            cerr << "Line No: " <<  yylineno  << " incompatible types: "<< ($3)->type->name << " cannot be converted to " << ($1)->type->name <<"\n";
+                                                            cerr << "Line No: " <<  yylineno  << " incompatible types: "<< ($1)->type->name << " cannot be converted to " << ($3)->type->name <<"\n";
                                                             exit(-1);
                                                         }
 
@@ -1061,7 +1024,7 @@ Assignment:
 |   LeftHandSide Assign Expression              {   
                                                     if(pass_no == 2 ){  
                                                         if(!check_return_type(($1)->type, ($3)->type)) {
-                                                            cerr << "Line No: " <<  yylineno  << " incompatible types: "<< ($3)->type->name << " cannot be converted to " << ($1)->type->name <<"\n";
+                                                            cerr << "Line No: " <<  yylineno  << " incompatible types: "<< ($1)->type->name << " cannot be converted to " << ($3)->type->name <<"\n";
                                                             exit(-1);
                                                         }
 
@@ -1148,12 +1111,12 @@ AndExpression:  EqualityExpression  { if(pass_no == 2 ) $$ = $1; }
 EqualityExpression: RelationalExpression { if(pass_no == 2 ) $$ = $1; }
 |                   EqualityExpression Deq RelationalExpression     {   
                                                                         if(pass_no == 2 ){  
-                                                                            $$ = EqualityExpression($1, $3);
+                                                                            EqualityExpression($1, $3);
                                                                         }
                                                                     }
 |                   EqualityExpression Neq RelationalExpression     {   
                                                                         if(pass_no == 2 ){  
-                                                                            $$ = EqualityExpression($1, $3);
+                                                                            EqualityExpression($1, $3);
                                                                         }
                                                                     }
 ;
@@ -1598,22 +1561,8 @@ ContinueStatement:   Continue Semicolon {}
 ;
 
 ReturnStatement:
-    Return Expression Semicolon {   
-                                    if(pass_no == 2){
-                                        if(!check_return_type(current_table->return_type, ($2)->type)) {
-                                            cout << "Cannot return " << ($2)->type->name << " from function whose return type is " << current_table->return_type->name << "\n";
-                                            exit(-1);
-                                        }
-                                    }
-                                }
-|   Return  Semicolon {     
-                            if(pass_no == 2){
-                                if(!check_return_type(current_table->return_type, get_type(__VOID))) {
-                                            cout << "Cannot return " << __VOID << " from function whose return type is " << current_table->return_type->name << "\n";
-                                            exit(-1);
-                                }
-                            }
-                     }
+    Return Expression Semicolon { }
+|   Return  Semicolon { }
 ;
 
 ThrowStatement:    Throw Expression Semicolon   { }
@@ -1675,7 +1624,7 @@ Boolean : BOOLEAN       { $$ = get_type(__BOOLEAN); }
 Var : VAR               { $$ = get_type(__VAR); }
 ;
 
-If : IF { }
+If : IF { $$ }
 ;
 
 Else : ELSE { }
@@ -1770,64 +1719,64 @@ synchronized_ : SYNCHRONIZED { }
 
 /* default_ : DEFAULT { } */
 
-Plus : PLUS { }
+Plus : PLUS { $$->threeac = $1; }
 ;
 
-Minus : MINUS { }
+Minus : MINUS { $$->threeac = $1; }
 ;
 
-Div : DIV { }
+Div : DIV { $$->threeac = $1; }
 ;
 
-Asterik : ASTERIK { }
+Asterik : ASTERIK { $$->threeac = $1; }
 ;
 
-Modulo : MODULO { }
+Modulo : MODULO { $$->threeac = $1; }
 ;
 
-Increment : INCREMENT { }
+Increment : INCREMENT { $$->threeac = $1; }
 ;
 
-Decrement : DECREMENT { }
+Decrement : DECREMENT { $$->threeac = $1; }
 ;
 
-Geq : GEQ { }
+Geq : GEQ { $$->threeac = $1; }
 ;
 
-Leq : LEQ { }
+Leq : LEQ { $$->threeac = $1; }
 ;
 
-Gt : GT { }
+Gt : GT { $$->threeac = $1; }
 ;
 
-Lt : LT { }
+Lt : LT { $$->threeac = $1; }
 ;
 
-Neq : NEQ { }
+Neq : NEQ { $$->threeac = $1; }
 ;
 
-Deq : DEQ { }
+Deq : DEQ { $$->threeac = $1; }
 ;
 
-Bitwise_and : BITWISE_AND { }
+Bitwise_and : BITWISE_AND { $$->threeac = $1; }
 ;
 
-Bitwise_or : BITWISE_OR { }
+Bitwise_or : BITWISE_OR { $$->threeac = $1; }
 ;
 
-Bitwise_xor : BITWISE_XOR { }
+Bitwise_xor : BITWISE_XOR { $$->threeac = $1; }
 ;
 
-Bitwise_complement : BITWISE_COMPLEMENT { }
+Bitwise_complement : BITWISE_COMPLEMENT { $$->threeac = $1; }
 ;
 
-Left_shift : LEFT_SHIFT { }
+Left_shift : LEFT_SHIFT { $$->threeac = $1; }
 ;
 
-Right_shift : RIGHT_SHIFT { }
+Right_shift : RIGHT_SHIFT { $$->threeac = $1; }
 ;
 
-Unsigned_right_shift : UNSIGNED_RIGHT_SHIFT { }
+Unsigned_right_shift : UNSIGNED_RIGHT_SHIFT { $$->threeac = $1; }
 ;
 
 And : AND { }
@@ -1839,7 +1788,7 @@ Or : OR { }
 Not : NOT { }
 ;
 
-AssignmentOperator:  ASSIGNMENT { }
+AssignmentOperator:  ASSIGNMENT { $$->threeac = $1; }
 ;
 
 Assign: ASSIGN { }
@@ -1880,24 +1829,31 @@ Dot : DOT { }
 /* arrow_ : ARROW { } */
 
 Char_literal : CHAR_LITERAL     { $$ = make_stackentry($1, get_type(__CHAR), yylineno); }
+                                { $$->threeac = $1;}
 ;
 
 Boolean_literal : BOOLEAN_LITERAL { $$ = make_stackentry($1, get_type(__BOOLEAN), yylineno); }
+                                { $$->threeac = $1;}
 ;
 
 Null_literal : NULL_LITERAL     { $$ = make_stackentry($1, yylineno); }
+                                { $$->threeac = $1;}
 ;
 
 Integer_literal : INTEGER_LITERAL { $$ = make_stackentry($1, get_type(__INT), yylineno); }
+                                { $$->threeac = $1;}
 ;
 
 Fp_literal : FP_LITERAL     { $$ = make_stackentry($1, get_type(__FLOAT), yylineno); }
+                                { $$->threeac = $1;}
 ;
 
 String : STRING             { $$ = make_stackentry($1, yylineno); }
+                                { $$->threeac = $1->token;}
 ;
 
 Text_block : TEXT_BLOCK         { $$ = make_stackentry($1, yylineno); }
+                                { $$->threeac = $1->token;}
 ;
 
 Identifier : IDENTIFIER         { $$ = make_identifier($1);}
