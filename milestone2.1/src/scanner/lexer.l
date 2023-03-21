@@ -9,7 +9,8 @@
 
     #include "lalr1_fast.tab.h"
     #define YY_DECL extern "C" int yylex()
-
+    
+    extern int pass_no;
     using namespace std;
 
     void check_for_null(const char* ptr){
@@ -107,17 +108,17 @@ EOL_COMMENT         \/\/[^\n\r]*
 "case"                                    {   
                                             yylval.str = strdup(yytext); 
                                             check_for_null(yylval.str);
-                                            return CASE;
+                                            //return CASE;
                                           }
 "default"                                    {   
                                             yylval.str = strdup(yytext); 
                                             check_for_null(yylval.str);
-                                            return DEFAULT;
+                                            //return DEFAULT;
                                           }
 "switch"                                  {   
                                             yylval.str = strdup(yytext); 
                                             check_for_null(yylval.str);
-                                            return SWITCH;
+                                            //return SWITCH;
                                           }
 
 "int"                                     {   
@@ -320,7 +321,7 @@ EOL_COMMENT         \/\/[^\n\r]*
 "->"                                  {   
                                             yylval.str = strdup(yytext); 
                                             check_for_null(yylval.str);
-                                            return ARROW;
+                                            // return ARROW;
                                       }
 
 ">="						{   
@@ -577,15 +578,20 @@ EOL_COMMENT         \/\/[^\n\r]*
 {WHITESPACE}                           {}
 
 {EOL_COMMENT}                          {
-                                            int c = yyinput();
-                                            if(c == EOF){
+                                          int c = yyinput();
+                                          if(c == EOF){
+                                                // cout <<"Putting downn eof\n";
                                                 unput(c);
-                                            }
+                                          }
                                        }
 
 {TRADITIONAL_COMMENT}                  {/*ignore it*/}
 
-<INITIAL><<EOF>>        { BEGIN(REALLYEND); return EOF_; } 
+
+<INITIAL><<EOF>>        { 
+                              BEGIN(REALLYEND); 
+                              return EOF_; 
+                        } 
 
 <REALLYEND><<EOF>>      { return 0; }
 

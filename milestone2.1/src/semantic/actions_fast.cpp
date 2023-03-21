@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include <bits/stdc++.h>
-#include <marcos.hpp>
+#include <macros.hpp>
 #include <actions_fast.hpp>
 #include <vector>
 #include <unordered_map>
@@ -17,8 +17,6 @@ extern int8_t global_modifier;
 ClassDefinition *current_class;
 LocalSymbolTable *current_table;
 GlobalSymbolTable *global_table;
-
-
 
 scope current_scope;
 
@@ -70,7 +68,7 @@ Type *_get_final_ref_type(char *split_token, unsigned int dot_count) {
         return NULL;
    
     tmp_str = split_token;
-    sym = current_table->get_symbol_from_table(tmp_str);
+    sym = current_table->get_symbol_from_class(tmp_str);
 
     if (is_null(sym)) {
         cerr << "variable not declared in this scope " << tmp_str << endl;
@@ -214,6 +212,8 @@ void add_class(int8_t modifier, string token) {
             break;
         case scope_global:
             global_table->add_class(new_class);
+            Type *t = new Type(token, new_class);
+            add_to_defined_types(t);
             goto end;
             break;
     }
@@ -229,6 +229,7 @@ void add_variable(string token, int8_t modifier, Type *type, bool is_fun_arg) {
     sym->modifier = modifier;
     switch (current_scope) {
         case scope_class:
+            cout << sym->name << " " << sym->line_no << " " << sym->type->name << endl;
             current_class->add_var(sym);
             break;
         case scope_method:
@@ -290,6 +291,7 @@ Type *get_type(TypeName *tn) {
     return get_type(tn->names[0]->name);
 }
 
+
 /*
     make_type functions for array types are pending
 */
@@ -302,9 +304,9 @@ bool check_in_defined_types(Type *type) {
     return true;
 }
 
-Identifier *make_identifier(const char *name, unsigned long line) {
+Identifier *make_identifier(const char *name) {
     
-    Identifier *id = new Identifier(name, line);
+    Identifier *id = new Identifier(name, yylineno);
 
     return id;
 
@@ -325,7 +327,7 @@ stackentry::stackentry(const char *name, unsigned long line) {
     this->token = name;
     this->line_no = line;
     this->type  = NULL;
-    this->scope = current_scope;
+    this->scope_ = current_scope;
     this->modifier = (int8_t)0;
     this->argument_type = "";
     this->nature = "";
@@ -348,15 +350,15 @@ void check_boolean(Type *t) {
     assert(t == defined_types[__BOOLEAN]);
 }
 
-void check_cast_types(Type *t1, Type *t2, unsigned long line) {
+void check_cast_types(Type *t1, Type *t2) {
      if( ((t1 == defined_types[__BOOLEAN]) && (t2 == defined_types[__BOOLEAN])) ||
         (t1->is_numeric && t2->is_numeric)){
         return ;
-    } else if(t1->type->name == t2->type->name){
+    } else if(t1->name == t2->name){
         return;
     }
     else {
-        cerr << "Line No: " << line  << "incompatible types: " << t1->name << "cannot be converted to " << t2->name << "\n";
+        cerr << "Line No: " << yylineno  << "incompatible types: " << t1->name << "cannot be converted to " << t2->name << "\n";
         exit (1);
     }
 
@@ -368,6 +370,7 @@ Type *get_array_type() {
     return t;
 }
 
+// Type *get_array_type(s)
 Type *get_array_type(Type *t, stackentry *e) {
     Type *new_t = new Type();
     *new_t = *t;
@@ -378,6 +381,11 @@ Type *get_array_type(Type *t, stackentry *e) {
 }
 
 stackentry *increase_dims(stackentry *e) {
+    if (!e->type->is_pointer()) {
+        Type *t = e->type;
+        e->type = get_array_type();
+        return assign_arr_dim(t, e);
+    }
     e->type->arr_dim++;
     return e;
 }
@@ -385,6 +393,7 @@ stackentry *increase_dims(stackentry *e) {
 stackentry *assign_arr_dim(stackentry *e1, stackentry *e2) {
     free(e2->type);
     free(e2);
+    
     e1->type->arr_dim++;
     return e1;
 }
@@ -555,7 +564,8 @@ Type* ClassOrInterfaceType(stackentry* e1) {
 void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no) {
     
     if(rule_no == 1){
-        if (pass_no == 1 || (pass_no == 2 && current_scope == scope_method)) {
+                
+        if ((pass_no == 1 && current_scope == scope_class) || (pass_no == 2 && current_scope == scope_method)) {
             add_variable(e1->token, global_modifier, e1->type, false);
             if(e2->type == NULL) {
                 // Means a empty array declaration: int a[] = {}; which is perfectly valid
@@ -563,12 +573,30 @@ void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no) {
                 e2->type = e1->type;
             }
         }
+
         if(pass_no == 2){
+
+            if(e2->type->name == "") {
+                e2->type = e1->type;
+            }
+
+            cout << e1->type->name << " " << e1->type->arr_dim << " " << e2->type->name << " " << e2->type->arr_dim << "\n";
+
             if(!check_return_type(e1->type,e2->type)){
-                cerr << "Line No: " <<  yylineno <<"Error: Cannot assign "<<e2->type<<" to "<<e1->type<<endl;
+                if(e1->type->arr_dim){
+                    cerr << "Line No: " <<  yylineno <<"Error: Cannot assign "<<e2->type->name;
+                    int count = 0;
+                    while((count++) < e1->type->arr_dim) 
+                        cout << "[]";
+                    
+                    cout <<" to "<<e1->type->name<<endl;
+                }
+                else 
+                    cerr << "Line No: " <<  yylineno <<"Error: Cannot assign "<<e2->type->name<<" to "<<e1->type->name<<endl;
                 exit(1);
             }
         }
+
     } else {
         if (pass_no == 1 || (pass_no == 2 && current_scope == scope_method))
             add_variable(e1->token, global_modifier, e1->type, 0);
@@ -644,4 +672,41 @@ void EnhancedForCondition(stackentry* e1){
             exit(1);
         }
     }
+}
+
+void intialize_types() {
+    defined_types.clear();
+    defined_types.insert( {__LONG, new Type(__LONG, true, true, 8)});
+    defined_types.insert( { __INT, new Type(__INT, true, true, 4)} );
+    defined_types.insert( {__BYTE, new Type(__BYTE, true, true, 1)});
+    defined_types.insert( { __CHAR, new Type(__CHAR, true, true, 1)});
+    defined_types.insert( {__SHORT, new Type(__SHORT, true, true, 2)});
+    defined_types.insert( {__FLOAT, new Type(__FLOAT, true, false, 4)});
+    defined_types.insert( {__DOUBLE, new Type(__DOUBLE, true, false, 8)});
+    defined_types.insert( {__VAR, new Type(__VAR, false, false, 4)});
+    defined_types.insert( {__BOOLEAN, new Type(__BOOLEAN, false, false, 1)});
+    defined_types.insert( {__VOID, new Type(__VOID, false, false, 0)});
+}
+
+void verify_pass1() {
+    for(auto it: defined_types) {
+        if (it.second->is_class && is_null(it.second->class_def)) {
+            cerr << it.second->name << ": invalid type" << endl;
+            exit(1);
+        }
+    }
+}
+
+void print_modifier(int8_t mod) {
+
+    if((mod & __PUBLIC) == __PUBLIC){
+        cout << "public ";
+    }else if((mod & __PRIVATE) == __PRIVATE)
+        cout << "private ";
+    
+    if((mod & __STATIC) == __STATIC)
+        cout << "static ";
+    
+    if((mod & __FINAL) == __FINAL)
+        cout << "final ";
 }

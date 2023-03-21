@@ -39,7 +39,7 @@
 
     int8_t global_modifier;
     string global_type;
-    int pass_no;
+    int pass_no = 1;
     stringstream text;
 
     static int node_num=-1;
@@ -59,8 +59,8 @@
     double float_num;
     char* str;
     struct stackentry* stack_entry;
-    Type *type;
-    Identifier *id;
+    struct Type *type;
+    struct Identifier *id;
     // Type *type_;
 }
 
@@ -68,10 +68,10 @@
 
 %token<str> IF ELSE FOR WHILE BREAK CONTINUE
 
-%token<str> VOID NEW RETURN PUBLIC PRIVATE CLASS STATIC FINAL SWITCH CATCH FINALLY SYNCHRONIZED
+%token<str> VOID NEW RETURN PUBLIC PRIVATE CLASS STATIC FINAL CATCH FINALLY SYNCHRONIZED
 /* %token <str> YIELD */
 %token<str> ASSERT PLUS MINUS DIV MODULO INCREMENT DECREMENT GEQ LEQ GT LT NEQ DEQ BITWISE_AND BITWISE_OR BITWISE_XOR BITWISE_COMPLEMENT LEFT_SHIFT RIGHT_SHIFT UNSIGNED_RIGHT_SHIFT AND OR NOT ASSIGNMENT
-%token<str> COLON QM LPAREN RPAREN LCURLY RCURLY LSQUARE RSQUARE SEMICOLON COMMA DOT ARROW
+%token<str> COLON QM LPAREN RPAREN LCURLY RCURLY LSQUARE RSQUARE SEMICOLON COMMA DOT
 %token<str> CHAR_LITERAL BOOLEAN_LITERAL NULL_LITERAL INTEGER_LITERAL FP_LITERAL STRING TEXT_BLOCK
 
 %token<str> IDENTIFIER
@@ -89,8 +89,10 @@
 %token<str> ASTERIK
 %token<str> DO
 %token<str> TRY
-%token<str> CASE
+/* %token<str> CASE
 %token<str> DEFAULT
+%token<str> SWITCH
+%token<str> ARROW */
 
 %left INCREMENT DECREMENT
 %left NOT BITWISE_COMPLEMENT
@@ -227,13 +229,13 @@
 %type<type> Double
 %type<type> Boolean
 %type<type> Var
+%type<type> Void
 %type<stack_entry> If
 %type<stack_entry> Else
 %type<stack_entry> For
 %type<stack_entry> While
 %type<stack_entry> Break
 %type<stack_entry> Continue
-%type<stack_entry> Void
 %type<stack_entry> New
 %type<stack_entry> Return
 %type<stack_entry> Class
@@ -299,16 +301,16 @@
 // %type<stack_entry> CaseConstant
 // %type<stack_entry> CaseConstants
 %type<stack_entry> do_
-%type<stack_entry> switch_
+/* %type<stack_entry> switch_ */
 /* %type<stack_entry> yield_ */
 %type<stack_entry> try_
 %type<stack_entry> catch_
 %type<stack_entry> finally_
 %type<stack_entry> synchronized_
 %type<stack_entry> throws_
-%type<stack_entry> case_
-%type<stack_entry> default_
-%type<stack_entry> arrow_
+/* %type<stack_entry> case_ */
+/* %type<stack_entry> default_ */
+/* %type<stack_entry> arrow_ */
 %type<stack_entry> endoffile
 %type<stack_entry> ImportDeclarations
 %type<stack_entry> Throws
@@ -414,7 +416,7 @@ Literal:    Integer_literal { $$ = $1; }
     int, long, float, char, double, char, byte, short
 */
 UnannTypeSubRoutine:
-    UnannType  { global_type = $1->type; }
+    UnannType  { global_type = $1->name; }
 ;
 UnannType:
     PrimitiveType   { $$ = $1; }
@@ -461,9 +463,10 @@ ClassOrInterfaceType:
 ArrayType:
     PrimitiveType Dims {    
                             $$ = get_array_type($1, $2);
+                            cout << 
                        }
 |   TypeName Dims   { 
-                        $$ = get_array_type(get_type($1), $2);
+                        $$ = get_array_type(get_type(($1)->token), $2);
                     }
 /* |   Identifier Dims {  
                         $$ = ArrayType($1, $2, 2);
@@ -490,7 +493,7 @@ Dims:
 */
 TypeName:
     Identifier  { 
-                    $$ = make_stackentry($1->name, yylineno);
+                    $$ = make_stackentry((($1)->name).c_str(), yylineno);
                     free($1);
                 }
 |   TypeName Dot Identifier {
@@ -503,7 +506,7 @@ TypeName:
 
 /**************************************/
 ModifiersUnannTypeSubRoutine:
-    Modifiers UnannType     { global_modifier = $1; global_type = ($2)->type; }
+    Modifiers UnannType     { global_modifier = $1; global_type = ($2)->name; }
 ;
 
 Modifiers:
@@ -538,8 +541,8 @@ Modifier:
 
 
 ClassDeclaration:
-    Modifiers Class Identifier { add_class($1, ($3)->token);} ClassBody { current_class = NULL; current_scope = scope_global; }
-|   Class Identifier { add_class(0b0, ($2)->token);} ClassBody { current_class = NULL; current_scope = scope_global;}
+    Modifiers Class Identifier { add_class($1, ($3)->name);} ClassBody { current_class = NULL; current_scope = scope_global; }
+|   Class Identifier { add_class(0b0, ($2)->name);} ClassBody { current_class = NULL; current_scope = scope_global;}
 ;
 
 /* Super:
@@ -608,7 +611,7 @@ VariableDeclaratorId:
                                           }
 |   Identifier  {    
                     if((pass_no==1 && current_scope==scope_class) || (pass_no==2)) {
-                        $$ = make_stackentry($1->name, global_type, yylineno);
+                        $$ = make_stackentry((($1)->name).c_str(), global_type, yylineno);
                         free($1);
                     }
                 }
@@ -629,7 +632,7 @@ MethodDeclaration:
 ;
 
 MethodHeader:
-    ModifiersUnannTypeSubRoutine Declarator      {
+    ModifiersUnannTypeSubRoutine Declarator {
                                             struct stackentry* entry = make_stackentry( (($2)->token).c_str(), global_type, yylineno);
                                             entry->modifier = global_modifier; 
                                             entry->argument_type = ($2)->argument_type;
@@ -641,18 +644,18 @@ MethodHeader:
                                             entry->argument_type = ($2)->argument_type;
                                             $$ = entry;
                                             global_type = "";
-                                          }
-|   Modifiers Void Declarator             { 
+                                        }
+|   Modifiers Void Declarator           { 
                                             struct stackentry* entry = make_stackentry((($3)->token).c_str(), __VOID, yylineno);
                                             entry->modifier = $1; 
                                             entry->argument_type = ($3)->argument_type;
                                             $$ = entry;
-                                          }
-|   Void Declarator                       { 
+                                        }
+|   Void Declarator                     { 
                                             struct stackentry* entry = make_stackentry((($2)->token).c_str(), __VOID, yylineno);
                                             entry->argument_type = ($2)->argument_type;
                                             $$ = entry;
-                                          }
+                                        }
 |   ModifiersUnannTypeSubRoutine Declarator Throws { 
                                             struct stackentry* entry = make_stackentry((($2)->token).c_str(), global_type, yylineno);
                                             entry->modifier = global_modifier; 
@@ -702,7 +705,7 @@ ExceptionType:
     Added in place  of MethodDeclarator and ConstructorDeclarator
 */
 Declarator:
-    Identifier Lparen Rparen                    { $$ = make_stackentry(($1->name).c_str, yylineno); free($1); }
+    Identifier Lparen Rparen                    { $$ = make_stackentry(($1->name).c_str(), yylineno); free($1); }
 |   Identifier Lparen FormalParameterList Rparen { $3->token =($1)->name; $$ = $3; }
 ;
 
@@ -733,8 +736,8 @@ StaticInitializer:
 ;
 
 ConstructorDeclaration:
-    Modifiers Declarator { add_constructor(($2)->token, ($2)->argument_type, $1); } ConstructorBody
-|   Declarator { add_constructor(($1)->token, ($1)->argument_type, (int8_t) 0); } ConstructorBody
+    Modifiers Declarator { add_constructor(($2)->token, ($2)->argument_type, $1); } ConstructorBody {}
+|   Declarator { add_constructor(($1)->token, ($1)->argument_type, (int8_t) 0); } ConstructorBody {}
 ;
 
 /*
@@ -771,15 +774,39 @@ ExplicitConstructorInvocation:
 |   super_ Lparen ArgumentList Rparen { }
 ;
 
+// { {8,3}, 4, {4,5} }
 ArrayInitializer: // int a[] = {2,3,4,5,6};
-    Lcurly VariableInitializerList Rcurly { $$ = $2; }         //type wont remain same
+    Lcurly VariableInitializerList Rcurly { 
+                                            if(pass_no == 2) {
+                                                if ($2->type->is_pointer()) {
+                                                    $$ = increase_dims($2);
+                                                } else {
+                                                    $$->type = get_array_type();
+                                                    $$ = assign_arr_dim($2->type, $$);
+                                                }
+                                            }
+                                          }         //type wont remain same
 |   Lcurly Rcurly { /*empty array*/
-                    if(pass_no == 2){ $$ = make_stackentry("", yylineno); }
+                    if(pass_no == 2){ 
+                        $$ = make_stackentry("", yylineno); 
+                        $$->type = get_array_type();
+                    }
                  }
-|   Lcurly VariableInitializerList Comma Rcurly { if(pass_no == 2) $$ = $2; }
+|   Lcurly VariableInitializerList Comma Rcurly { 
+                                                    if(pass_no == 2) {
+                                                        $$ = $2; 
+                                                        if ($2->type->is_pointer()) {
+                                                            $$ = increase_dims($2);
+                                                        } else {
+                                                            $$->type = get_array_type();
+                                                            $$ = assign_arr_dim($2->type, $$);
+                                                        }
+                                                    }
+                                                }
 |   Lcurly Comma Rcurly {   
                             if(pass_no == 2){
                                 $$ = make_stackentry("", yylineno);
+                                $$->type = get_array_type();
                             }
                         }
 ;
@@ -787,17 +814,10 @@ ArrayInitializer: // int a[] = {2,3,4,5,6};
 VariableInitializerList:
     VariableInitializerList Comma VariableInitializer {     
                                                             if(pass_no == 2){
-                                                                if(($1)->type->name == __BOOLEAN || ($3)->type->name == __BOOLEAN) {
-                                                                    if(($1)->type->name == __BOOLEAN)
-                                                                        $$ = $1;
-                                                                    else 
-                                                                        $$ = $3;
-                                                                } else {
-                                                                    if(check_return_type(($1)->type,($3)->type)){
-                                                                        $$ = $1;
-                                                                    } else {
-                                                                        $$ = $3;
-                                                                    }
+                                                                if(check_return_type(($1)->type,($3)->type)){
+                                                                    $$ = $1;
+                                                                } else if(check_return_type(($3)->type,($1)->type)) {
+                                                                    $$ = $3;
                                                                 }
                                                             }
                                                       }
@@ -1628,7 +1648,7 @@ Float : FLOAT           { $$ = get_type(__FLOAT); }
 Double : DOUBLE         { $$ = get_type(__DOUBLE); }
 ;
 
-Boolean : BOOLEAN       { $$ = get_type(__DOUBLE); }
+Boolean : BOOLEAN       { $$ = get_type(__BOOLEAN); }
 ;
 
 Var : VAR               { $$ = get_type(__VAR); }
@@ -1652,7 +1672,7 @@ Break : BREAK { }
 Continue : CONTINUE { }
 ;
 
-Void : VOID { }
+Void : VOID { $$ = get_type(__VOID); }
 ;
 
 New : NEW { }
@@ -1708,7 +1728,7 @@ Import : IMPORT { }
 
 do_: DO { increase_current_level(); }
 
-switch_ : SWITCH { }
+/* switch_ : SWITCH { } */
 
 /* yield_ : YIELD  { } */
 
@@ -1722,9 +1742,9 @@ finally_ : FINALLY { }
 
 synchronized_ : SYNCHRONIZED { }
 
-case_ : CASE { }
+/* case_ : CASE { } */
 
-default_ : DEFAULT { }
+/* default_ : DEFAULT { } */
 
 Plus : PLUS { }
 ;
@@ -1833,7 +1853,7 @@ Comma : COMMA { }
 Dot : DOT { }
 ;
 
-arrow_ : ARROW { }
+/* arrow_ : ARROW { } */
 
 Char_literal : CHAR_LITERAL     { $$ = make_stackentry($1, __CHAR, yylineno); }
 ;
@@ -1867,9 +1887,10 @@ int yywrap()
 {
     if (pass_no == 1) { 
         
-        if(pass_no == 1) {
+        cout << "In yywrap Pass 1\n";
              /* dump_ST(1); */
-        }
+        global_table->dump_table();
+        verify_pass1();
         pass_no++;
         rewind(yyin);
         yylineno = 1; 
@@ -1881,19 +1902,21 @@ int yywrap()
         return 0;
     }
     else {
+        cout << "In yywrap Pass 2\n";
         return 1;
     }
 }
 
- int main(int argc, char *argv[]) 
- {
+int main(int argc, char *argv[]) 
+{
     current_table = new LocalSymbolTable();
     global_table = new GlobalSymbolTable();
     current_scope = scope_global;
     current_class = NULL;
 
     global_modifier = 0b0;
-
+    pass_no = 1;
+    intialize_types();
      /* argparse::ArgumentParser program("javap");
 
      struct args *_args = new struct args;
@@ -1935,7 +1958,7 @@ int yywrap()
      } */
 
 
-     yydebug = 1;
+     /* yydebug = 1; */
      /*
      if (_args->verbose)
          yydebug = 1; */

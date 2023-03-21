@@ -20,7 +20,7 @@ typedef enum {
 class stackentry {
     public:
     string token;           //key
-    scope scope;              
+    scope scope_;              
     int8_t modifier;           //public, private, static, final
     string argument_type;   //argument list of function
     Type *type;            // type for variable and return type for function
@@ -33,6 +33,7 @@ class stackentry {
 
 };
 
+Type *add_to_defined_types(Type *type);
 int8_t set_modifier(int8_t curr_modf, int8_t new_modf);
 void increase_current_level();
 bool check_primitive_types(Type *type);
@@ -58,7 +59,7 @@ void check_boolean(Type *t);
 
 void check_cast_types(Type *t1, Type *t2);
 Type *get_array_type();
-Type *get_array_type(string name);
+Type *get_array_type(Type *t, stackentry *e);
 stackentry *increase_dims(stackentry *e);
 
 stackentry *assign_arr_dim(stackentry *e1, stackentry *e2);
@@ -78,6 +79,7 @@ stackentry* EqualityExpression(stackentry* e1, stackentry* e2);
 stackentry* BitwiseExpression (stackentry* e1, stackentry* e2);
 
 stackentry* ConditionalExpression (stackentry* e1, stackentry* e2);
+Type *add_to_defined_types(Type *);
 Type* ClassOrInterfaceType(stackentry* e1);
 void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no);
 void IfCondition(stackentry* e1);
@@ -85,3 +87,6 @@ void WhileCondition(stackentry* e1);
 void AssertCondition(stackentry* e1);
 void ForCondition(stackentry* e1);
 void EnhancedForCondition(stackentry* e1);
+void intialize_types();
+void verify_pass1();
+void print_modifier(int8_t mod);

@@ -1,5 +1,9 @@
 
 #include <symbol_table_fast.hpp>
+#ifndef ACTIONS_FAST_H
+    #include <actions_fast.hpp>
+#endif
+
 #include <iostream>
 #include <bits/stdc++.h>
 #include <macros.hpp>
@@ -7,6 +11,15 @@
 #include <string>
 
 using namespace std;
+
+SymbolTable::SymbolTable(){
+}
+
+SymTabEntry::SymTabEntry( string name_parameter, unsigned int line_no) {
+    this->name = name_parameter;
+    this->line_no = line_no;
+    this->is_initialized = false;
+}
 
 LocalSymbolTable::LocalSymbolTable() {
     sym_table.clear();
@@ -85,7 +98,7 @@ ClassDefinition::ClassDefinition(string name, int8_t modf, unsigned long line) {
     this->line_no = line;
     inst_vars.clear();
     methods.clear();
-    
+    constructors.clear();
     /*
         set bools here if required
     */
@@ -133,7 +146,6 @@ void ClassDefinition::add_var(SymTabEntry *symbol) {
     if ( !is_null(sym) ) {
         free(symbol);
         cerr << "declaration of variable with same name, previous declaration at line: " << sym->line_no << endl;
-        free( symbol );
         exit (1);
     }
 
@@ -142,9 +154,11 @@ void ClassDefinition::add_var(SymTabEntry *symbol) {
 }
 
 SymTabEntry* ClassDefinition::get_var(string name) {
-    SymTabEntry *sym;
-    sym = inst_vars.find(name);
-    return sym;
+    auto it = inst_vars.find(name);
+    if (it == inst_vars.end()) {
+        return NULL;
+    }
+    return it->second;
 }
 
 Type* ClassDefinition::get_var_type(string name) {
@@ -210,11 +224,23 @@ Type::Type(string name, ClassDefinition *cls) {
     this->is_primitive = false;
     this->is_numeric = false;
     this->is_class = true;
+    this->is_integral = false;
 }
 
-Type::Type(string name, bool is_numeric, size_t size) {
+// Type::Type(string name, bool is_numeric, size_t size) {
+//     this->name = name;
+//     this->is_numeric = is_numeric;
+//     this->is_integral = false;
+//     this->size = size;
+//     this->is_primitive = true;
+//     this->is_class = false;
+//     this->class_def = NULL;
+// }
+
+Type::Type(string name, bool is_numeric, bool is_integral, size_t size) {
     this->name = name;
     this->is_numeric = is_numeric;
+    this->is_integral = is_integral;
     this->size = size;
     this->is_primitive = true;
     this->is_class = false;
@@ -226,23 +252,24 @@ bool Type::is_pointer() {
 }
 
 bool operator==(Type &obj1, Type &obj2) {
+    // cout << "Type Names: " << obj1.name << " " << obj2.name << "\n";
+    
     if (obj1.is_class && obj2.is_class) {
         // both are ref types
-        return obj1.name == obj2.name;
+        return ((obj1.name == obj2.name) && (obj1.arr_dim == obj2.arr_dim));
     }
     else if( obj1.is_primitive && obj2.is_primitive ) {
         if (obj1.is_numeric && obj2.is_numeric) {
             if(obj1.name == __SHORT && obj2.name == __CHAR){
                 return false;
             }
-            return obj1.size > obj2.size;
+            return (obj1.size > obj2.size) && (obj1.arr_dim == obj2.arr_dim);
         }
-        else return obj1.name == obj2.name;
+        else return ((obj1.name == obj2.name) && (obj1.arr_dim == obj2.arr_dim));
     }
 
     return false;
 }
-
 
 bool operator!=(Type &obj1, Type &obj2) {
     return !(obj1 == obj2);
@@ -271,6 +298,39 @@ ClassDefinition *GlobalSymbolTable::get_class( string name ) {
         return NULL;
     }
     return it->second;
+}
+
+void GlobalSymbolTable::dump_table() {
+    ClassDefinition *cls;
+    for(auto it : classes) {
+        // print classes information
+        cls = it.second;
+        cout << cls->name << endl;
+        cout << "modifier: ";
+        print_modifier(cls->modifier);
+        cout << endl;
+        cout << "entering for loop" <<  endl;
+        if (cls->inst_vars.empty()) {
+            cout << "instance variables not prsent\n";
+        }
+        for (auto it2:cls->inst_vars) {
+            cout << it2.second->name << endl;
+            cout << "Type: " << it2.second->type->name << endl;
+        }
+        cout << "entering for loop 2" <<  endl;
+        for( auto it2: cls->methods) {
+            auto &q = it2.second;
+            for (auto it3 : q) {
+                cout << it3->name << " args: " << it3->args_str << "ret type: " << it3->ret_type->name << "modifier: " << it3->modifier <<  endl;
+            }
+        }   
+        cout << "entering for loop 3" <<  endl;
+        
+        for(auto it2: cls->constructors) {
+            cout << it2->name << " args: " << it2->args_str << "ret type: " << it2->ret_type->name << "modifier: " << it2->modifier <<  endl;
+        }
+
+    }
 }
 
 Identifier::Identifier(const char *name, unsigned long line) {
