@@ -84,8 +84,8 @@
     void add_var(SymTabEntry*);
     Type *get_var_type(string);
     SymTabEntry* get_var(string);
-    MethodDefinition *get_method(string, string);
-    bool find_constructor(string);
+    MethodDefinition *get_method(string, vector<Type*>&);
+    bool find_constructor(vector<Type*>&);
   };
 
   class Terminal {
@@ -148,17 +148,15 @@
   class MethodDefinition {
     public:
     string name;
-    list<Type *> args;
+    vector<Type *> args;
     Type *ret_type;
     int8_t modifier;
-    string args_str;
 
     unsigned long line_no;
 
     bool defined;
-    MethodDefinition();
-    MethodDefinition(string, list<Type>, Type*);
-    MethodDefinition(string, string, Type*, int8_t, unsigned long );
+    // MethodDefinition();
+    MethodDefinition(string, vector<Type*>&, Type*, int8_t, unsigned long );
 
   };
 

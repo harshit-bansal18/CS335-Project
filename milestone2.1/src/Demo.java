@@ -16,7 +16,7 @@ class Me{
 
 public class Demo
 {
-	public long b;
+	public long b ;
 	public boolean a = false;
     public double c = 20.0;
 	public static Me m = new Me();
@@ -52,7 +52,9 @@ public class Demo
 		}
 	}
 
-	void funny(int m) {}
+	int funny(int m) {
+		return 3;
+	}
 
 	public static void main(int[] args) {
 		// System.out.println("Hello World!");

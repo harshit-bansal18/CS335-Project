@@ -22,7 +22,7 @@ class stackentry {
     string token;           //key
     scope scope_;              
     int8_t modifier;           //public, private, static, final
-    string argument_type;   //argument list of function
+    vector<Type *> argument_type;   //argument list of function
     Type *type;            // type for variable and return type for function
     string nature;          // class or function or variable etc.
     bool is_var_intialized;
@@ -39,14 +39,14 @@ void increase_current_level();
 bool check_primitive_types(Type *type);
 bool check_if_numeric_type(Type *type);
 bool check_return_type(Type *type1, Type *type2);
-Type *check_function_in_class(string token, string argument_type, string nature);
+Type *check_function_in_class(string token, vector<Type*> &argument_type, string nature);
 stackentry *find_variable_in_class( string token, bool );
 bool find_variable_in_closest_function_scope( string token );
 void clear_current_scope( );
 void add_class(int8_t modifier, string token);
 void add_variable(string token, int8_t modifier, Type *type, int offset, bool is_fun_arg, bool initialized);
-void add_function(string token, string argument_type, Type* return_type, int8_t modifier);
-void add_constructor(string token, string argument_type, int8_t modifier);
+void add_function(string token, vector<Type*> &argument_type, Type* return_type, int8_t modifier);
+void add_constructor(string token, vector<Type*> &argument_type, int8_t modifier);
 Type *get_type(string name);
 Identifier *make_identifier(const char *name);
 TypeName *make_typename(Identifier *id) ;
@@ -87,6 +87,8 @@ void WhileCondition(stackentry* e1);
 void AssertCondition(stackentry* e1);
 void ForCondition(stackentry* e1);
 void EnhancedForCondition(stackentry* e1);
+bool compare_argument_types(vector<Type*>, vector<Type*>);
+bool compare_argument_types_exact(vector<Type*>, vector<Type*>);
 void intialize_types();
 void verify_pass1();
 void print_modifier(int8_t mod);

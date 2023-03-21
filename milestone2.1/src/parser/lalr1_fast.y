@@ -638,18 +638,18 @@ MethodDeclaration:
 ;
 
 MethodHeader:
-    ModifiersUnannTypeSubRoutine Declarator {
-                                            struct stackentry* entry = make_stackentry( (($2)->token).c_str(), global_type, yylineno);
-                                            entry->modifier = global_modifier; 
-                                            entry->argument_type = ($2)->argument_type;
+    Modifiers UnannType Declarator {
+                                            struct stackentry* entry = make_stackentry( (($3)->token).c_str(), $2, yylineno);
+                                            entry->modifier = $1; 
+                                            entry->argument_type = ($3)->argument_type;
                                             $$ = entry; 
-                                            global_modifier = 0b0; global_type = NULL;
+                                            // global_modifier = 0b0; global_type = NULL;
                                         }
-|   UnannTypeSubRoutine Declarator      { 
-                                            struct stackentry* entry = make_stackentry((($2)->token).c_str(), global_type, yylineno); 
+|   UnannType Declarator      { 
+                                            struct stackentry* entry = make_stackentry((($2)->token).c_str(), $1, yylineno); 
                                             entry->argument_type = ($2)->argument_type;
                                             $$ = entry;
-                                            global_type = NULL;
+                                            // global_type = NULL;
                                         }
 |   Modifiers Void Declarator           { 
                                             struct stackentry* entry = make_stackentry((($3)->token).c_str(), get_type(__VOID), yylineno);
@@ -662,19 +662,19 @@ MethodHeader:
                                             entry->argument_type = ($2)->argument_type;
                                             $$ = entry;
                                         }
-|   ModifiersUnannTypeSubRoutine Declarator Throws { 
-                                            struct stackentry* entry = make_stackentry((($2)->token).c_str(), global_type, yylineno);
-                                            entry->modifier = global_modifier; 
-                                            entry->argument_type = ($2)->argument_type;
+|   Modifiers UnannType Declarator Throws { 
+                                            struct stackentry* entry = make_stackentry((($3)->token).c_str(), $2, yylineno);
+                                            entry->modifier = $1; 
+                                            entry->argument_type = ($3)->argument_type;
                                             $$ = entry;
-                                            global_modifier = 0b0; global_type = NULL;
+                                            // global_modifier = 0b0; global_type = NULL;
                                             // Throws ???????????????????????????????????????
                                           }
-|   UnannTypeSubRoutine Declarator Throws           { 
-                                            struct stackentry* entry = make_stackentry((($2)->token).c_str(), global_type, yylineno);  
+|   UnannType Declarator Throws           { 
+                                            struct stackentry* entry = make_stackentry((($2)->token).c_str(), $1, yylineno);  
                                             entry->argument_type = ($2)->argument_type;
                                             $$ = entry;
-                                            global_type = NULL;
+                                            // global_type = NULL;
                                             // Throws ???????????????????????????????????????
                                           }
 |   Modifiers Void Declarator Throws      { 
@@ -904,6 +904,7 @@ ClassInstanceCreationExpression:
                                                         }
 ;
 
+// p.i -> f -> func(1).i.i
 FieldAccess:    Primary Dot Identifier  {   
                                             if(pass_no == 2 ){
                                                 $$ = find_variable_in_class($3->name, true);
@@ -990,15 +991,16 @@ MethodInvocation:   TypeName Lparen Rparen {
 ArgumentList:       Expression  { 
                                     if(pass_no == 2 ){
                                         struct stackentry* entry = make_stackentry("", yylineno); 
-                                        entry->argument_type = ($1)->type->name; 
-                                        $$ = entry; 
+                                        entry->argument_type.push_back(($1)->type);
+                                        $$ = entry;
+                                        free($1);
                                     }
                                 }
 |                   ArgumentList Comma Expression { 
-                                                    if(pass_no == 2 ){      
-                                                        struct stackentry* entry = make_stackentry("", yylineno); 
-                                                        entry->argument_type = ($1)->argument_type + "," + ($3)->type->name; 
-                                                        $$ = entry; 
+                                                    if(pass_no == 2 ){
+                                                        $1->argument_type.push_back($3->type);
+                                                        $$ = $1;
+                                                        free($3);
                                                     }
                                                   }
 ;

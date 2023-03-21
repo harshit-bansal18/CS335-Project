@@ -128,7 +128,7 @@ void ClassDefinition::add_method(MethodDefinition *mthd) {
     else {
         deque<MethodDefinition *> &q = it->second;
         for (auto &m : q) {
-            if (m->args_str == mthd->args_str) {
+            if (compare_argument_types_exact(m->args, mthd->args)) {
                 cerr << yylineno << ":declaration of function with same again, previous declaration at line: " << m->line_no << endl;
                 free(mthd);
                 exit (1);
@@ -145,7 +145,7 @@ void ClassDefinition::add_constructor(MethodDefinition *constr) {
         exit (1);
     }
     for (auto c : constructors) {
-        if (c->args_str == constr->args_str) {
+        if (compare_argument_types_exact(c->args, constr->args)) {
             free(constr);
             cerr << yylineno << ":multiple definitions of constructor found. first defined at line: " << c->line_no << endl;
             exit (1);
@@ -194,7 +194,7 @@ Type* ClassDefinition::get_var_type(string name) {
 }
 
 
-MethodDefinition* ClassDefinition::get_method(string name, string args) {
+MethodDefinition* ClassDefinition::get_method(string name, vector<Type*> &args) {
 
     auto it = methods.find(name);
     cout << __func__ << " after find 1\n";
@@ -202,10 +202,10 @@ MethodDefinition* ClassDefinition::get_method(string name, string args) {
         return NULL;
     }
     else {
-        cout << __func__ << " after find 2\n";
+
         for( auto m: it->second) {
             cout << __func__ << " after find 3\n";
-            if (m->args_str == args) {
+            if (compare_argument_types(m->args, args)) {
             cout << __func__ << " after find 4\n";
                 return m;
             }
@@ -214,13 +214,13 @@ MethodDefinition* ClassDefinition::get_method(string name, string args) {
     return NULL;
 }
 
-bool ClassDefinition::find_constructor(string args) {
-    cout << __func__ << " args = " << args << " class: " << name <<  endl;
-    if (constructors.empty() && args == "")
+bool ClassDefinition::find_constructor(vector<Type*> &args) {
+    // cout << __func__ << " args = " << args << " class: " << name <<  endl;
+    if (constructors.empty() && args.empty())
         return true;
     
     for( auto c: constructors) {
-        if (c->args_str == args) {
+        if (compare_argument_types(c->args, args)) {
             return true;
         }
     }
@@ -228,9 +228,9 @@ bool ClassDefinition::find_constructor(string args) {
     return false;
 }
 
-MethodDefinition::MethodDefinition(string name, string args, Type *ret, int8_t modf, unsigned long line) {
+MethodDefinition::MethodDefinition(string name, vector<Type *> &args, Type *ret, int8_t modf, unsigned long line) {
     this->name = name;
-    this->args_str = args;
+    this->args = args;
     this->ret_type = ret;
     this->modifier = modf;
     this->line_no = line;
@@ -373,7 +373,8 @@ void GlobalSymbolTable::dump_table() {
                 cout << "Extra Information: \n";
                 cout << "Return Type: ";
                 print_type(it3->ret_type);
-                cout << "Args Str: " << it3->args_str << "\n";
+                cout << "Args Str: ";
+                for(auto t:it3->args) cout << t->name << " ";
                 cout << "\n";
             }
         }   
@@ -384,7 +385,8 @@ void GlobalSymbolTable::dump_table() {
                 print_modifier(it2->modifier);
                 cout << "\t \t" << "Constructor" << "\t \t" << 0 << "\t \t" << it2->line_no << "\t \t" << "\n";
                 cout << "Extra Information: \n";
-                cout << "Args Str: " << it2->args_str << "\n";
+                cout << "Args Str: ";
+                for(auto t:it2->args) cout << t->name << " ";
                 cout << "\n";
         }
 

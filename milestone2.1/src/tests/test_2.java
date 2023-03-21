@@ -1,6 +1,6 @@
 public class TypeCheck1 {
     int a;
-    float b;
+    float b = getA();
    
     public TypeCheck1(int a1, int b1) {
         // this.c = a1;
