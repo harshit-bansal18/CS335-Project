@@ -17,7 +17,7 @@ typedef enum {
     scope_method
 } scope;
 
-class stackentry {
+typedef struct stackentry{
     public:
     string token;           //key
     scope scope_;              
@@ -31,7 +31,7 @@ class stackentry {
 
     stackentry(const char *name, unsigned long line);
 
-};
+} stackentry;
 
 Type *add_to_defined_types(Type *type);
 int8_t set_modifier(int8_t curr_modf, int8_t new_modf);
@@ -87,8 +87,8 @@ void WhileCondition(stackentry* e1);
 void AssertCondition(stackentry* e1);
 void ForCondition(stackentry* e1);
 void EnhancedForCondition(stackentry* e1);
-bool compare_argument_types(vector<Type*>, vector<Type*>);
-bool compare_argument_types_exact(vector<Type*>, vector<Type*>);
+bool compare_argument_types(vector<Type*>&, vector<Type*>&);
+bool compare_argument_types_exact(vector<Type*>&, vector<Type*>&);
 void intialize_types();
 void verify_pass1();
 void print_modifier(int8_t mod);

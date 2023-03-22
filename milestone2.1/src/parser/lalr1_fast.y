@@ -85,7 +85,7 @@
 %token<str> INSTANCEOF
 %token<str> SUPER
 %token<str> THROW
-%token<str> THROWS
+/* %token<str> THROWS */
 %token<str> EOF_
 /* %token<str> IMPLEMENTS
 %token<str> INTERFACE
@@ -313,16 +313,16 @@
 %type<stack_entry> catch_
 %type<stack_entry> finally_
 %type<stack_entry> synchronized_
-%type<stack_entry> throws_
+/* %type<stack_entry> throws_ */
 /* %type<stack_entry> case_ */
 /* %type<stack_entry> default_ */
 /* %type<stack_entry> arrow_ */
 %type<stack_entry> endoffile
 %type<stack_entry> ImportDeclarations
-%type<stack_entry> Throws
+/* %type<stack_entry> Throws
 %type<stack_entry> ExceptionType
 %type<stack_entry> ExceptionTypeList
-%type<stack_entry> CommaExceptionTypes
+%type<stack_entry> CommaExceptionTypes */
 %type<stack_entry> Char_literal
 %type<stack_entry> Boolean_literal
 %type<stack_entry> Null_literal
@@ -338,6 +338,8 @@
 /* %type<stack_entry> Interfaces */
 /* %type<stack_entry> InterfaceTypeList */
 %type<stack_entry> ThrowStatement
+%type<stack_entry> UnannTypeSubRoutine
+%type<stack_entry> ModifiersUnannTypeSubRoutine
 /* %type<stack_entry> YieldStatement */
 /* %type<stack_entry> Super  */
 
@@ -422,7 +424,11 @@ Literal:    Integer_literal { $$ = $1; }
     int, long, float, char, double, char, byte, short
 */
 UnannTypeSubRoutine:
-    UnannType  { global_type = $1;}
+    UnannType   { 
+                    global_type = $1;
+
+                    $$ = make_stackentry("", $1, yylineno);
+                }
 ;
 UnannType:
     PrimitiveType   { $$ = $1; }
@@ -469,7 +475,6 @@ ClassOrInterfaceType:
 ArrayType:
     PrimitiveType Dims {    
                             $$ = get_array_type($1, $2);
-                            cout << "ArrayType: Dims value = " << ($$)->arr_dim << endl;
                         }
 |   TypeName Dims   { 
                         $$ = get_array_type(get_type(($1)->token), $2);
@@ -512,7 +517,12 @@ TypeName:
 
 /**************************************/
 ModifiersUnannTypeSubRoutine:
-    Modifiers UnannType     { global_modifier = $1; global_type = $2; }
+    Modifiers UnannType     { 
+                                global_modifier = $1; 
+                                global_type = $2;
+                                $$ = make_stackentry("", $2, yylineno);
+                                $$->modifier = $1;
+                            }
 ;
 
 Modifiers:
@@ -547,8 +557,8 @@ Modifier:
 
 
 ClassDeclaration:
-    Modifiers Class Identifier { add_class($1, ($3)->name);} ClassBody { current_class = NULL; current_scope = scope_global; global_offset = 0; }
-|   Class Identifier { add_class(0b0, ($2)->name);} ClassBody { current_class = NULL; current_scope = scope_global;}
+    Modifiers Class Identifier { add_class($1, ($3)->name); free($3);} ClassBody { current_class = NULL; current_scope = scope_global; global_offset = 0; }
+|   Class Identifier { add_class(0b0, ($2)->name); free($2);} ClassBody { current_class = NULL; current_scope = scope_global;}
 ;
 
 /* Super:
@@ -590,8 +600,8 @@ ClassMemberDeclaration:
 ;
 
 FieldDeclaration:
-    ModifiersUnannTypeSubRoutine VariableDeclaratorList Semicolon { global_modifier = 0b0; global_type = NULL; }
-|   UnannTypeSubRoutine VariableDeclaratorList Semicolon { global_type = NULL; }
+    ModifiersUnannTypeSubRoutine VariableDeclaratorList Semicolon { global_modifier = 0b0; global_type = NULL; free($1);}
+|   UnannTypeSubRoutine VariableDeclaratorList Semicolon { global_type = NULL; free($1);}
 ;
 
 VariableDeclaratorList:
@@ -638,18 +648,19 @@ MethodDeclaration:
 ;
 
 MethodHeader:
-    Modifiers UnannType Declarator {
-                                            struct stackentry* entry = make_stackentry( (($3)->token).c_str(), $2, yylineno);
-                                            entry->modifier = $1; 
-                                            entry->argument_type = ($3)->argument_type;
-                                            $$ = entry; 
-                                            // global_modifier = 0b0; global_type = NULL;
-                                        }
-|   UnannType Declarator      { 
-                                            struct stackentry* entry = make_stackentry((($2)->token).c_str(), $1, yylineno); 
+    ModifiersUnannTypeSubRoutine Declarator {
+                                                struct stackentry* entry = make_stackentry( (($2)->token).c_str(), ($1)->type, yylineno);
+                                                entry->modifier = ($1)->modifier; 
+                                                entry->argument_type = ($2)->argument_type;
+                                                $$ = entry; 
+                                                global_modifier = 0b0;
+                                                free($1);
+                                            }
+|   UnannTypeSubRoutine Declarator      { 
+                                            struct stackentry* entry = make_stackentry((($2)->token).c_str(), ($1)->type, yylineno); 
                                             entry->argument_type = ($2)->argument_type;
-                                            $$ = entry;
-                                            // global_type = NULL;
+                                            $$ = entry; 
+                                            free($1);
                                         }
 |   Modifiers Void Declarator           { 
                                             struct stackentry* entry = make_stackentry((($3)->token).c_str(), get_type(__VOID), yylineno);
@@ -662,7 +673,7 @@ MethodHeader:
                                             entry->argument_type = ($2)->argument_type;
                                             $$ = entry;
                                         }
-|   Modifiers UnannType Declarator Throws { 
+/* |   Modifiers UnannType Declarator Throws { 
                                             struct stackentry* entry = make_stackentry((($3)->token).c_str(), $2, yylineno);
                                             entry->modifier = $1; 
                                             entry->argument_type = ($3)->argument_type;
@@ -689,10 +700,10 @@ MethodHeader:
                                             entry->argument_type = ($2)->argument_type;
                                             $$ = entry;
                                             // Throws ???????????????????????????????????????
-                                          }
+                                          } */
 ;
 
-Throws:
+/* Throws:
     throws_ ExceptionTypeList             { }       
 
 ExceptionTypeList:
@@ -704,7 +715,7 @@ CommaExceptionTypes:
 |   Comma ExceptionType                      { } 
 
 ExceptionType:
-    ClassOrInterfaceType                    { }
+    ClassOrInterfaceType                    { } */
 
 
 /*
@@ -717,7 +728,7 @@ Declarator:
 
 FormalParameterList:
     FormalParameterList Comma FormalParameter {
-                                                $1->argument_type = ($1)->argument_type + "," + ($3)->argument_type;
+                                                $1->argument_type.push_back(($3)->type);
                                                 $$ = $1;
                                                 free($3);
                                              }
@@ -727,11 +738,13 @@ FormalParameterList:
 FormalParameter:
     UnannTypeSubRoutine VariableDeclaratorId {
                                                 $$ = $2;
-                                                $$->argument_type = $2->type->name;
+                                                $$->argument_type.push_back($2->type);
                                                 global_type = NULL;
                                                 if (pass_no == 2 && current_scope == scope_class)
                                                     add_variable($2->token, 0b0, $2->type, global_offset, true, true);
-                                                    global_offset += ($2)->type->size;
+                                                
+                                                global_offset += ($2)->type->size;
+                                                free($1);
                                             } 
 ;
 
@@ -759,10 +772,10 @@ ConstructorDeclaration:
 
 // ExplicitInvocation missed for now (this, super)
 ConstructorBody:
-    Lcurly ScopeIncrement BlockStatements Rcurly { if(pass_no == 2) { clear_current_scope(); } }
-|   Lcurly ScopeIncrement ExplicitConstructorInvocation BlockStatements Rcurly { if(pass_no == 2) { clear_current_scope();} }
-|   Lcurly ScopeIncrement ExplicitConstructorInvocation Rcurly { if(pass_no == 2) { clear_current_scope(); } }
-|   Lcurly ScopeIncrement Rcurly { if(pass_no == 2) { clear_current_scope(); } }
+    Lcurly ScopeIncrement BlockStatements Rcurly { }
+|   Lcurly ScopeIncrement ExplicitConstructorInvocation BlockStatements Rcurly {  }
+|   Lcurly ScopeIncrement ExplicitConstructorInvocation Rcurly {   }
+|   Lcurly ScopeIncrement Rcurly { }
 ;
 
 ExplicitConstructorInvocation:
@@ -885,7 +898,8 @@ PrimaryNoNewArray:  Literal { $$ = $1; }
 ClassInstanceCreationExpression: 
     New ClassOrInterfaceType Lparen Rparen  {
                                                 if(pass_no == 2){
-                                                    if(is_null(check_function_in_class(($2)->name, "", CONSTRUCTOR))) {
+                                                    vector<Type *>v;
+                                                    if(is_null(check_function_in_class(($2)->name, v, CONSTRUCTOR))) {
                                                         cerr << "Line No: " <<  yylineno << "Unknown constructor used"<<endl;
                                                         exit(1);
                                                     }
@@ -958,7 +972,8 @@ ArrayAccess:    TypeName Lsquare Expression Rsquare {
 
 MethodInvocation:   TypeName Lparen Rparen {    
                                                 if(pass_no == 2 ){
-                                                    Type* return_type = check_function_in_class(($1)->token, "", FUNCTION);
+                                                    vector<Type *> v;
+                                                    Type* return_type = check_function_in_class(($1)->token, v, FUNCTION);
                                                     if(return_type == NULL){
                                                         cerr << "Line No: " <<  yylineno  << "Undeclared function called\n";
                                                         exit(-1);
@@ -1373,9 +1388,9 @@ BlockStatement:
 LocalVariableDeclarationStatement:    LocalVariableDeclaration  Semicolon { if(pass_no == 2 ){ global_type = NULL; global_modifier= 0b0;} }
 ;
 
-LocalVariableDeclaration:    UnannTypeSubRoutine VariableDeclaratorList   { global_type = NULL; }
+LocalVariableDeclaration:    UnannTypeSubRoutine VariableDeclaratorList   { global_type = NULL; free($1); }
 |                            Var      { if(pass_no == 2 ) global_type = get_type(__VAR); }  VariableDeclaratorList   { }
-|                            Final { if(pass_no == 2 ) global_modifier = __FINAL; } UnannTypeSubRoutine VariableDeclaratorList { global_type = NULL; }
+|                            Final { if(pass_no == 2 ) global_modifier = __FINAL; } UnannTypeSubRoutine VariableDeclaratorList { global_type = NULL; free($3); }
 |                            Final { if(pass_no == 2 ) global_modifier = __FINAL; } Var    { if(pass_no == 2 ) global_type = get_type(__VAR); }  VariableDeclaratorList  { }
 ;
 
@@ -1402,7 +1417,7 @@ StatementWithoutTrailingSubstatement:   Block   {}
 |                                       BreakStatement  {}
 |                                       ContinueStatement {}   
 |                                       ReturnStatement {}
-|                                       ThrowStatement {} 
+|                                       ThrowStatement {}
 // |                                       SwitchStatement  
 |                                       DoStatement   {}
 |                                       SynchronizedStatement {}
@@ -1760,7 +1775,7 @@ do_: DO { increase_current_level(); }
 
 try_ : TRY { }
 
-throws_ : THROWS { }
+/* throws_ : THROWS { } */
 
 catch_ : CATCH { }
 
@@ -1925,6 +1940,8 @@ int yywrap()
         global_modifier = 0b0;
         global_type = NULL;
         current_class = NULL;
+
+        cout << "Syntactic\t Lexeme \t Type \t Modifiers \t Line No \t Scope level\n";
         return 0;
     }
     else {
@@ -1994,11 +2011,13 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
+    freopen("symtable_dump.txt", "w", stdout);
+
     do {
         yyparse();
     } while(!feof(yyin));
 
-
+    /* freclose("symtable_dump.txt"); */
      return 0;
  }
 

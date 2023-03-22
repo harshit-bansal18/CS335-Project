@@ -1,6 +1,8 @@
 class Me{
-	Me(int b){
+	int vars = 90;
+	private Me(int b){
 		int a;
+		// vars = 89;
 		a= 20;
 		b = 5;
 		double[] b_ = {20,4};
@@ -9,32 +11,40 @@ class Me{
 
 	Me() {}
 
-	void func1() {
-		return ;
+	void func1(long a) {
+
 	}
+
+	static int func1(int a) {
+		return a;
+	}
+
+	
 }
 
 public class Demo
 {
-	public long b ;
-	public boolean a = false;
+	private long b ;
+	Example ex;
+	public long a = ex.x;
     public double c = 20.0;
 	public static Me m = new Me();
     public double[] array = {};
 	double [][]array1 = new double[3][];
-	
+	Me m2 = new Me();
+	int a__ = m.func1(1);
     public Demo(int a1, int b1) {
-        this.c = a1;
+        this.a = a1;
         this.b = b1;
     }
 
-	void funny(){
+	static void funny(){
 		int a = 12;
 		int b = 23;
-
-		int i;
+		m.vars = 12;
+		final int i = 0;
 		for(int j = 0; j < 10; j++) {
-			i = 9;
+			
 			int d = i << 2;
 			for(int k=2; k<5; k++){
 				if(k==2){
@@ -52,7 +62,7 @@ public class Demo
 		}
 	}
 
-	int funny(int m) {
+	int funny(long m, boolean p, double x, int y) {
 		return 3;
 	}
 
@@ -68,10 +78,14 @@ public class Demo
 }
 
 class Example {
-    int x;
-    static double y;
-    
-    public void foo(int a, int b) {
+    final int x ;
+    double y;
+	Demo demo;
+	int n = 3;
+	public void fun1() {
+		n = x;
+	}
+    public static void foo(int a, int b) {
         double c = 1.23;
         char d = 'x';
     }
@@ -81,5 +95,6 @@ class Example {
         int s = 2;
         Example e = new Example();
         e.foo(i, s);
+		// e.demo.b = 20;
     }
 }

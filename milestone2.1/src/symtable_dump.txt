@@ -1,0 +1,237 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+In yywrap Pass 1
+Name	 	Scope	 	Modifier	 	Nature	 	Offset	 	Line Num	 	
+############################CLASS##################################
+Example	 	0	 		 	Class	 	#print sum of ins var	 	80	 	
+~~~~~~~~~~~~~~~INSTANCE_VARIABLES~~~~~~~~~~~~~~~~
+n	 	0	 		 	Variable	 	12	 	84	 	
+Extra Information: 
+	 Is Initialised: 1
+	 Type_Name: int	Type_Size:4	Type_ArrDim0
+
+demo	 	0	 		 	Variable	 	12	 	83	 	
+Extra Information: 
+	 Is Initialised: 1
+	 Type_Name: Demo	Type_Size:0	Type_ArrDim0
+
+y	 	0	 		 	Variable	 	4	 	82	 	
+Extra Information: 
+	 Is Initialised: 1
+	 Type_Name: double	Type_Size:8	Type_ArrDim0
+
+x	 	0	 	final 	 	Variable	 	0	 	81	 	
+Extra Information: 
+	 Is Initialised: 1
+	 Type_Name: int	Type_Size:4	Type_ArrDim0
+
+
+
+~~~~~~~~~~~~~~~CLASS_METHODS~~~~~~~~~~~~~~~~
+example_f	 	0	 	public static 	 	Function	 	0	 	93	 	
+Extra Information: 
+Return Type: 	 Type_Name: void	Type_Size:0	Type_ArrDim0
+Args Str: int 
+foo	 	0	 	public static 	 	Function	 	0	 	88	 	
+Extra Information: 
+Return Type: 	 Type_Name: void	Type_Size:0	Type_ArrDim0
+Args Str: int int 
+fun1	 	0	 	public 	 	Function	 	0	 	85	 	
+Extra Information: 
+Return Type: 	 Type_Name: void	Type_Size:0	Type_ArrDim0
+Args Str: 
+
+
+~~~~~~~~~~~~~~~CONSTRUCTORS~~~~~~~~~~~~~~~~
+############################CLASS_ENd##################################
+
+############################CLASS##################################
+Demo	 	0	 	public 	 	Class	 	#print sum of ins var	 	25	 	
+~~~~~~~~~~~~~~~INSTANCE_VARIABLES~~~~~~~~~~~~~~~~
+a__	 	0	 		 	Variable	 	40	 	35	 	
+Extra Information: 
+	 Is Initialised: 1
+	 Type_Name: int	Type_Size:4	Type_ArrDim0
+
+m2	 	0	 		 	Variable	 	40	 	34	 	
+Extra Information: 
+	 Is Initialised: 1
+	 Type_Name: Me	Type_Size:0	Type_ArrDim0
+
+array1	 	0	 		 	Variable	 	32	 	33	 	
+Extra Information: 
+	 Is Initialised: 1
+	 Type_Name: double	Type_Size:8	Type_ArrDim2
+
+array	 	0	 	public 	 	Variable	 	24	 	32	 	
+Extra Information: 
+	 Is Initialised: 1
+	 Type_Name: double	Type_Size:8	Type_ArrDim1
+
+m	 	0	 	public static 	 	Variable	 	24	 	31	 	
+Extra Information: 
+	 Is Initialised: 1
+	 Type_Name: Me	Type_Size:0	Type_ArrDim0
+
+c	 	0	 	public 	 	Variable	 	16	 	30	 	
+Extra Information: 
+	 Is Initialised: 1
+	 Type_Name: double	Type_Size:8	Type_ArrDim0
+
+a	 	0	 	public 	 	Variable	 	8	 	29	 	
+Extra Information: 
+	 Is Initialised: 1
+	 Type_Name: long	Type_Size:8	Type_ArrDim0
+
+ex	 	0	 		 	Variable	 	8	 	28	 	
+Extra Information: 
+	 Is Initialised: 1
+	 Type_Name: Example	Type_Size:0	Type_ArrDim0
+
+b	 	0	 	private 	 	Variable	 	0	 	27	 	
+Extra Information: 
+	 Is Initialised: 1
+	 Type_Name: long	Type_Size:8	Type_ArrDim0
+
+
+
+~~~~~~~~~~~~~~~CLASS_METHODS~~~~~~~~~~~~~~~~
+main	 	0	 	public static 	 	Function	 	0	 	69	 	
+Extra Information: 
+Return Type: 	 Type_Name: void	Type_Size:0	Type_ArrDim0
+Args Str: int 
+funny	 	0	 		 	Function	 	0	 	65	 	
+Extra Information: 
+Return Type: 	 Type_Name: int	Type_Size:4	Type_ArrDim0
+Args Str: long boolean double int 
+funny	 	0	 	static 	 	Function	 	0	 	41	 	
+Extra Information: 
+Return Type: 	 Type_Name: void	Type_Size:0	Type_ArrDim0
+Args Str: 
+
+
+~~~~~~~~~~~~~~~CONSTRUCTORS~~~~~~~~~~~~~~~~
+Demo	 	0	 	public 	 	Constructor	 	0	 	36	 	
+Extra Information: 
+Args Str: int int 
+############################CLASS_ENd##################################
+
+############################CLASS##################################
+Me	 	0	 		 	Class	 	#print sum of ins var	 	1	 	
+~~~~~~~~~~~~~~~INSTANCE_VARIABLES~~~~~~~~~~~~~~~~
+vars	 	0	 		 	Variable	 	0	 	2	 	
+Extra Information: 
+	 Is Initialised: 1
+	 Type_Name: int	Type_Size:4	Type_ArrDim0
+
+
+
+~~~~~~~~~~~~~~~CLASS_METHODS~~~~~~~~~~~~~~~~
+func1	 	0	 	static 	 	Function	 	0	 	18	 	
+Extra Information: 
+Return Type: 	 Type_Name: int	Type_Size:4	Type_ArrDim0
+Args Str: int 
+func1	 	0	 		 	Function	 	0	 	14	 	
+Extra Information: 
+Return Type: 	 Type_Name: void	Type_Size:0	Type_ArrDim0
+Args Str: long 
+
+
+~~~~~~~~~~~~~~~CONSTRUCTORS~~~~~~~~~~~~~~~~
+Me	 	0	 	private 	 	Constructor	 	0	 	3	 	
+Extra Information: 
+Args Str: int 
+Me	 	0	 		 	Constructor	 	0	 	12	 	
+Extra Information: 
+Args Str: 
+############################CLASS_ENd##################################
+
+Syntactic	 Lexeme 	 Type 	 Modifiers 	 Line No 	 Scope level
+Identifier 		b		int				3		0
+Fuction Name: Me
+Identifier 		a		int				4		1
+Identifier 		b_		double[]				8		1
+
+Fuction Name: Me
+
+Identifier 		a		long				14		0
+Fuction Name: func1
+
+
+Identifier 		a		int				18		0
+Fuction Name: func1
+
+
+Identifier 		a1		int				36		0
+Identifier 		b1		int				36		0
+Fuction Name: Demo
+
+Fuction Name: funny
+Identifier 		a		int				42		1
+Identifier 		b		int				43		1
+Identifier 		i		int		final 		45		1
+Identifier 		j		int				46		2
+Identifier 		d		int				48		3
+Identifier 		k		int				49		4
+
+
+
+
+
+
+
+Identifier 		x		int				59		3
+
+Identifier 		x		int				61		3
+
+
+
+
+Identifier 		m		long				65		0
+Identifier 		p		boolean				65		0
+Identifier 		x		double				65		0
+Identifier 		y		int				65		0
+Fuction Name: funny
+
+
+Identifier 		args		int[]				69		0
+Fuction Name: main
+Identifier 		m		Me				71		1
+Identifier 		a_		int				72		1
+Identifier 		b_		int				73		1
+Identifier 		ff		int				74		1
+Identifier 		c		int				75		1
+
+
+Fuction Name: fun1
+
+
+Identifier 		a		int				88		0
+Identifier 		b		int				88		0
+Fuction Name: foo
+Identifier 		c		double				89		1
+Identifier 		d		char				90		1
+
+
+Identifier 		args		int[]				93		0
+Fuction Name: example_f
+Identifier 		i		int				94		1
+Identifier 		s		int				95		1
+Identifier 		e		Example				96		1
+
+
+In yywrap Pass 2
+In yywrap Pass 2

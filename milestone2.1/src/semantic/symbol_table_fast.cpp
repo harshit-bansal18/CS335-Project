@@ -18,19 +18,35 @@ extern "C" int yylineno;
 SymbolTable::SymbolTable(){
 }
 
-SymTabEntry::SymTabEntry( string name_parameter, unsigned int line_no) {
+SymTabEntry::SymTabEntry( string name_parameter, Type *type, int8_t modf, unsigned int line_no) {
     this->name = name_parameter;
     this->line_no = line_no;
+    this->type = type;
+    this->modifier = modf;
     this->is_initialized = false;
+
+    if((modf & __PUBLIC) == __PUBLIC)
+        this->is_private = false;
+    else if((modf & __PRIVATE) == __PRIVATE)
+        this->is_private = true;
+    
+    if((modf & __STATIC) == __STATIC)
+        this->is_static = true;
+
 }
 
 LocalSymbolTable::LocalSymbolTable() {
     sym_table.clear();
     current_level =0;
+    ss.clear();
+    ss.str(string());   
 }
 
 void LocalSymbolTable::increase_level() {
     current_level++;
+    // cout << ss.str() << endl;
+    // ss.clear();
+    // ss.str(string());
 }
 
 void LocalSymbolTable::clear_current_level() {
@@ -53,25 +69,50 @@ void LocalSymbolTable::clear_current_level() {
         sym_table.erase(k);
     }
     current_level--;
+
     //write to file now using stringstream
+    cout << ss.str() << "\n";
+    ss.clear();
+    ss.str(string());
 }
 
 void LocalSymbolTable::empty_table() {
-    cout << "in empty table\n";
     sym_table.clear();
     current_level = 0;
     method_name = "";
     return_type = NULL;
     container_class = NULL;
+    cout << ss.str() << endl;
+    ss.clear();
+    ss.str(string());
 }
 
 void LocalSymbolTable::add_to_table(SymTabEntry *symbol, bool is_fun_arg) {
     auto it = sym_table.find(symbol->name);
     if (it == sym_table.end()) {
-        cout << "adding symbol to local table: " << symbol->name << " " << symbol->type->name << endl;
+        // cout << "adding symbol to local table: " << symbol->name << " " << symbol->type->name << endl;
         symbol->level = current_level;
         symbol->is_initialized = is_fun_arg;
+        symbol->is_instance_var = false;
         sym_table.insert( {symbol->name, symbol} );
+
+        ss << "Identifier \t\t" << symbol->name << "\t\t" << symbol->type->name;
+        for(int count = 0; count < symbol->type->arr_dim; count++)
+            ss << "[]";
+        ss << "\t\t";
+        if ((symbol->modifier & __PUBLIC) == __PUBLIC)
+            ss << "public ";
+        else if ((symbol->modifier & __PRIVATE) == __PRIVATE)
+            ss << "private ";
+        
+        if ((symbol->modifier & __STATIC) == __STATIC)
+            ss << "static ";
+        
+        if((symbol->modifier & __FINAL) == __FINAL)
+            ss << "final ";
+        
+        ss << "\t\t" << symbol->line_no << "\t\t" <<  symbol->level << "\n";
+
     }
     else  {
         cerr << yylineno << ":identifier declared with same name. previous declaration at line: " << it->second->line_no << endl;
@@ -80,13 +121,10 @@ void LocalSymbolTable::add_to_table(SymTabEntry *symbol, bool is_fun_arg) {
 }
 
 SymTabEntry* LocalSymbolTable::get_symbol_from_table(string name) {
-    cout << "finding symbol " <<  name << " in local table" << endl;
     auto it = sym_table.find(name);
-    cout << "after sym_table.find\n"; 
     if (it == sym_table.end()) {
         return NULL;
     }
-    cout << "after sym_table.end check. sym found\n"; 
     return it->second;
 }
 
@@ -169,6 +207,7 @@ void ClassDefinition::add_var(SymTabEntry *symbol) {
     }
     
     symbol->is_initialized = true;
+    symbol->is_instance_var = true;
     inst_vars.insert( {symbol->name, symbol} );
 }
 
@@ -194,19 +233,34 @@ Type* ClassDefinition::get_var_type(string name) {
 }
 
 
-MethodDefinition* ClassDefinition::get_method(string name, vector<Type*> &args) {
-
+MethodDefinition *ClassDefinition::get_method_call(string name, vector<Type *> &args) {
     auto it = methods.find(name);
-    cout << __func__ << " after find 1\n";
     if (it == methods.end()) {
         return NULL;
     }
     else {
-
         for( auto m: it->second) {
-            cout << __func__ << " after find 3\n";
+            if (compare_argument_types_exact(m->args, args)) {
+                return m;
+            }
+        }
+        for( auto m: it->second) {
             if (compare_argument_types(m->args, args)) {
-            cout << __func__ << " after find 4\n";
+                return m;
+            }
+        }
+    }
+    return NULL;
+}
+MethodDefinition* ClassDefinition::get_method(string name, vector<Type*> &args) {
+
+    auto it = methods.find(name);
+    if (it == methods.end()) {
+        return NULL;
+    }
+    else {
+        for( auto m: it->second) {
+            if (compare_argument_types_exact(m->args, args)) {
                 return m;
             }
         }
@@ -215,7 +269,6 @@ MethodDefinition* ClassDefinition::get_method(string name, vector<Type*> &args) 
 }
 
 bool ClassDefinition::find_constructor(vector<Type*> &args) {
-    // cout << __func__ << " args = " << args << " class: " << name <<  endl;
     if (constructors.empty() && args.empty())
         return true;
     
@@ -228,12 +281,31 @@ bool ClassDefinition::find_constructor(vector<Type*> &args) {
     return false;
 }
 
+MethodDefinition *ClassDefinition::get_constructor(vector<Type*> &args) {
+    
+    for(auto c : constructors) {
+        if (compare_argument_types_exact(c->args, args)) {
+            return c;
+        }
+    }
+
+    return NULL;
+}
 MethodDefinition::MethodDefinition(string name, vector<Type *> &args, Type *ret, int8_t modf, unsigned long line) {
     this->name = name;
     this->args = args;
     this->ret_type = ret;
     this->modifier = modf;
     this->line_no = line;
+    
+    if((modf & __PUBLIC) == __PUBLIC)
+        this->is_private = false;
+    else if((modf & __PRIVATE) == __PRIVATE)
+        this->is_private = true;
+    
+    if((modf & __STATIC) == __STATIC)
+        this->is_static = true;
+     
 }
 
 Type::Type() {

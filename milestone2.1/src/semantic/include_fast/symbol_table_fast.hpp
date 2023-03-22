@@ -21,7 +21,6 @@
   class ClassDefinition;
   class MethodDefinition;
   class SymTabEntry;
-  class Identifier;
   // class Type;
 
   typedef struct Type {
@@ -85,20 +84,15 @@
     Type *get_var_type(string);
     SymTabEntry* get_var(string);
     MethodDefinition *get_method(string, vector<Type*>&);
+    MethodDefinition *get_method_call(string, vector<Type*>&);
     bool find_constructor(vector<Type*>&);
+    MethodDefinition *get_constructor(vector<Type *>&);
   };
 
   class Terminal {
     public:
     string name;
     unsigned long line_no;
-  };
-
-  class TypeName {
-    public:
-    vector<Identifier *> names;
-    TypeName(Identifier *id);
-    void append_name(Identifier *id);
   };
 
   typedef struct Identifier {
@@ -108,6 +102,15 @@
     bool is_initialized;
     Identifier(const char* name, unsigned long line_no);
   } Identifier;
+
+  class TypeName {
+    public:
+    vector<Identifier *> names;
+    TypeName(Identifier *id);
+    void append_name(Identifier *id);
+  };
+
+
 
   class SymTabEntry {
     public:
@@ -119,7 +122,10 @@
       size_t offset;
       int8_t modifier;
       bool is_initialized;
-      SymTabEntry( string name_parameter, unsigned int line_no);
+      bool is_private;
+      bool is_static;
+      bool is_instance_var;
+      SymTabEntry( string name_parameter, Type *type, int8_t modf, unsigned int line_no);
   };
 
   // class FuncEnt : public SymTabEntry {
@@ -154,7 +160,8 @@
 
     unsigned long line_no;
 
-    bool defined;
+    bool is_private;
+    bool is_static;
     // MethodDefinition();
     MethodDefinition(string, vector<Type*>&, Type*, int8_t, unsigned long );
 
@@ -183,7 +190,7 @@
       size_t offset;
       Type *return_type;
       ClassDefinition *container_class;
-
+      MethodDefinition *method;
       void increase_level();
       void clear_current_level();
       void empty_table();

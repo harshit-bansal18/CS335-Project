@@ -274,7 +274,7 @@ EOL_COMMENT         \/\/[^\n\r]*
 "throws"                                   {   
                                             yylval.str = strdup(yytext); 
                                             check_for_null(yylval.str);
-                                            return THROWS;
+                                          //   return THROWS;
                                           }
 
 "synchronized"                            {   
