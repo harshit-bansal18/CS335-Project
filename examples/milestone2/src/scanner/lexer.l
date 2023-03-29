@@ -9,8 +9,7 @@
 
     #include "parser.tab.h"
     #define YY_DECL extern "C" int yylex()
-    
-    extern int pass_no;
+
     using namespace std;
 
     void check_for_null(const char* ptr){
@@ -105,6 +104,21 @@ EOL_COMMENT         \/\/[^\n\r]*
                                             check_for_null(yylval.str);
                                             return DO;
                                           }
+"case"                                    {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return CASE;
+                                          }
+"default"                                    {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return DEFAULT;
+                                          }
+"switch"                                  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return SWITCH;
+                                          }
 
 "int"                                     {   
                                             yylval.str = strdup(yytext); 
@@ -183,6 +197,27 @@ EOL_COMMENT         \/\/[^\n\r]*
                                             check_for_null(yylval.str);
                                             return CONTINUE;
                                           }
+"yield"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return YIELD;
+                                          }
+
+"try"                                     {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return TRY;
+                                          }
+"catch"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return CATCH;
+                                          }
+"finally"                                {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return FINALLY;
+                                          }
 
 "void"                                    {   
                                             yylval.str = strdup(yytext); 
@@ -235,6 +270,17 @@ EOL_COMMENT         \/\/[^\n\r]*
                                             check_for_null(yylval.str);
                                             return THROW;
                                           }
+"throws"                                   {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return THROWS;
+                                          }
+
+"synchronized"                            {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return SYNCHRONIZED;
+                                          }
 
 "+"                                   {   
                                             yylval.str = strdup(yytext); 
@@ -271,6 +317,12 @@ EOL_COMMENT         \/\/[^\n\r]*
                                             check_for_null(yylval.str);
                                             return DECREMENT;
                                       }
+"->"                                  {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return ARROW;
+                                      }
+
 ">="						{   
                                             yylval.str = strdup(yytext); 
                                             check_for_null(yylval.str);
@@ -437,6 +489,42 @@ EOL_COMMENT         \/\/[^\n\r]*
                                             check_for_null(yylval.str);
                                             return THIS;
                                       }
+"instanceof"                          {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return INSTANCEOF;
+                                      }
+"super"                               {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return SUPER;
+                                      }
+"implements"                          {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return IMPLEMENTS; 
+                                      }
+"interface"                           {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return INTERFACE; 
+                                      }
+"extends"                             {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return EXTENDS; 
+                                      }
+"package"                             {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return PACKAGE; 
+                                      }
+"import"                              {   
+                                            yylval.str = strdup(yytext); 
+                                            check_for_null(yylval.str);
+                                            return IMPORT; 
+                                      }
+
 {CHAR_LITERAL}                          {   
                                             yylval.str = strdup(yytext); 
                                             check_for_null(yylval.str);
@@ -489,20 +577,15 @@ EOL_COMMENT         \/\/[^\n\r]*
 {WHITESPACE}                           {}
 
 {EOL_COMMENT}                          {
-                                          int c = yyinput();
-                                          if(c == EOF){
-                                                // cout <<"Putting downn eof\n";
+                                            int c = yyinput();
+                                            if(c == EOF){
                                                 unput(c);
-                                          }
+                                            }
                                        }
 
 {TRADITIONAL_COMMENT}                  {/*ignore it*/}
 
-
-<INITIAL><<EOF>>        { 
-                              BEGIN(REALLYEND); 
-                              return EOF_; 
-                        } 
+<INITIAL><<EOF>>        { BEGIN(REALLYEND); return EOF_; } 
 
 <REALLYEND><<EOF>>      { return 0; }
 

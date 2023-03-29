@@ -1,4 +1,4 @@
-all: milestone1
+all: milestone2
 
 G++ := g++ -O3 -Wno-write-strings
 MILESTONE1 := milestone1/src
@@ -7,26 +7,30 @@ Lexer_Src := scanner/lexer.l
 Parser_Out := parser.tab.c
 Parser_Header := parser.tab.h
 Lexer_Out := lexer.yy.c
-Binary := javap
+Binary1 := javap
 INCLUDE1 := -I ./milestone1/include/
 
 MILESTONE2 := milestone2/src
-INCLUDE2 := -I ./milestone2.1/semantic/include/ -I ./milestone1/include/
+INCLUDE2 := -I ./milestone2/src/semantic/include/ -I ./milestone2/include/
 Semantic := semantic
-build/milestone1:
-	mkdir -p build/milestone1
-	bison -t --header=$@/${Parser_Header} -o $@/${Parser_Out} ${MILESTONE1}/${Parser_Src}
-	flex -o $@/${Lexer_Out} ${MILESTONE1}/${Lexer_Src}
-	${G++} ${INCLUDE1} -o $@/${Binary} $@/*.c
+Binary2 := javas
 
-milestone1: build/milestone1
+# build/milestone1:
+# 	mkdir -p build/milestone1
+# 	bison -t --header=$@/${Parser_Header} -o $@/${Parser_Out} ${MILESTONE1}/${Parser_Src}
+# 	flex -o $@/${Lexer_Out} ${MILESTONE1}/${Lexer_Src}
+# 	${G++} ${INCLUDE1} -o $@/${Binary} $@/*.c
+
+# milestone1: build/milestone1
 
 build/milestone2:
 	mkdir -p build/milestone2
+	mkdir -p build/milestone2/dump
 	bison -t --header=$@/${Parser_Header} -o $@/${Parser_Out} ${MILESTONE2}/${Parser_Src}
 	flex -o $@/${Lexer_Out} ${MILESTONE2}/${Lexer_Src}
-	${G++} ${INCLUDE2} -o $@/${Binary} $@/*.c ${MILESTONE1}/${Semantic}/*.cpp
+	${G++} ${INCLUDE2} -o $@/${Binary2} $@/*.c ${MILESTONE2}/${Semantic}/*.cpp
 
 milestone2: build/milestone2
+
 clean:
 	rm -rf build
