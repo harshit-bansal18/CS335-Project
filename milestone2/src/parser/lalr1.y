@@ -1096,7 +1096,7 @@ ArgumentList:       Expression  {
                                                     if(pass_no == 2 ){
                                                         $1->argument_type.push_back($3->type);
                                                         $$ = $1;
-                                                        emit("param" ,($1)->threeac,"","");
+                                                        emit("param" ,($3)->threeac,"","");
                                                         paramcount++;
                                                         free($3);
                                                     }
@@ -1384,14 +1384,36 @@ AdditiveExpression: MultiplicativeExpression { if(pass_no == 2 ) $$ = $1; }
                                                                             if(pass_no == 2 ){  
                                                                                 $$ = check_additive_types($1, $3);
                                                                                 $$->threeac = get_temp();
-                                                                                emit("+", ($1)->threeac, ($3)->threeac, ($$)->threeac);
+                                                                                if($$->type->name != $1->type->name){
+                                                                                    string temp = get_temp();
+                                                                                    emit("cast_to_"+$$->type->name, $1->threeac, temp,"");
+                                                                                    emit("+"+$$->type->name, temp, ($3)->threeac, ($$)->threeac);
+                                                                                }
+                                                                                else if($$->type->name != $3->type->name){
+                                                                                    string temp = get_temp();
+                                                                                    emit("cast_to_"+$$->type->name, $3->threeac, temp,"");
+                                                                                    emit("+"+$$->type->name, ($1)->threeac, temp, ($$)->threeac);
+                                                                                }
+                                                                                else
+                                                                                    emit("+"+$$->type->name, ($1)->threeac, ($3)->threeac, ($$)->threeac);
                                                                             }
                                                                         } 
 |                   AdditiveExpression Minus MultiplicativeExpression   {   
                                                                             if(pass_no == 2 ){  
                                                                                 $$ = check_additive_types($1, $3);
                                                                                 $$->threeac = get_temp();
-                                                                                emit("-", ($1)->threeac, ($3)->threeac, ($$)->threeac);
+                                                                                if($$->type->name != $1->type->name){
+                                                                                    string temp = get_temp();
+                                                                                    emit("cast_to_"+$$->type->name, $1->threeac, temp,"");
+                                                                                    emit("-"+$$->type->name, temp, ($3)->threeac, ($$)->threeac);
+                                                                                }
+                                                                                else if($$->type->name != $3->type->name){
+                                                                                    string temp = get_temp();
+                                                                                    emit("cast_to_"+$$->type->name, $3->threeac, temp,"");
+                                                                                    emit("-"+$$->type->name, ($1)->threeac, temp, ($$)->threeac);
+                                                                                }
+                                                                                else
+                                                                                    emit("-"+$$->type->name, ($1)->threeac, ($3)->threeac, ($$)->threeac);
                                                                             }
                                                                         }
 ;
@@ -1636,7 +1658,8 @@ CastExpression:     Lparen PrimitiveType Rparen UnaryExpression                 
                                                                                         check_cast_types($2, $4->type);
                                                                                         $$ = make_stackentry("", $2, yylineno);
                                                                                         $$->threeac = get_temp();
-                                                                                        emit($4->type->name + "to" + $2->name, $4->threeac, "", $$->threeac);
+                                                                                        emit("cast_to_" + $2->name, $4->threeac, "", $$->threeac);
+                                                                                        // emit($4->type->name + "to_" + $2->name, $4->threeac, "", $$->threeac);
                                                                                     }
                                                                                 }
 |                   Lparen ReferenceType Rparen UnaryExpressionNotPlusMinus     {   
@@ -1644,7 +1667,8 @@ CastExpression:     Lparen PrimitiveType Rparen UnaryExpression                 
                                                                                         check_cast_types($2, $4->type);
                                                                                         $$ = make_stackentry("", $2, yylineno);
                                                                                         $$->threeac = get_temp();
-                                                                                        emit($4->type->name + "to" + $2->name, $4->threeac, "", $$->threeac);
+                                                                                        emit("cast_to_" + $2->name, $4->threeac, "", $$->threeac);
+                                                                                        // emit($4->type->name + "to_" + $2->name, $4->threeac, "", $$->threeac);
                                                                                     }
                                                                                 }
 ;
