@@ -1,0 +1,223 @@
+popparam src  
+popparam sink  
+= 0  t1
+= t1  dist
+if src N goto(Tt3)
+= true  t3
+goto(TEndt3)
+
+Tt3:
+   
+= false  t3
+
+TEndt3:
+   
+
+Loop0:
+   
+If  t3 false goto(Endloop0)
+= N  best
+= true  t4
+= t4  found
+= 0  k
+
+ForCondition1:
+   
+< k N goto(Tt6)
+= false  t6
+goto(TEndt6)   
+
+Tt6:
+   
+= true  t6
+
+TEndt6:
+   
+If t6 false goto(EndFor1)
+If t6 true goto(ForBody1)
+
+ForUpdate1:
+   
++ k 1 t7
+= t7  k
+goto(ForCond1)   
+
+ForBody1:
+   
+if  [k] false goto(Else0)
+
+If0:
+   
+goto(Loop1)   
+goto(EndIf0)   
+
+Else0:
+   
+
+EndIf0:
+   
+if [k][src] 0 goto(Tt8)
+= true  t8
+goto(TEndt8)   
+
+Tt8:
+   
+= false  t8
+
+TEndt8:
+   
+if  t8 false goto(Else1)
+
+If1:
+   
++int [src] [src] t9
+-int t9 [k] t10
+-int t10 [k][src] t11
+= t11  val
+> [k] val goto(Tt12)
+= false  t12
+goto(TEndt12)   
+
+Tt12:
+   
+= true  t12
+
+TEndt12:
+   
+if  t12 false goto(Else2)
+
+If2:
+   
+= val  t13
+= t13  dist
+= src  t15
+= t15  dad
+goto(EndIf2)   
+
+Else2:
+   
+
+EndIf2:
+   
+goto(EndIf1)   
+
+Else1:
+   
+
+EndIf1:
+   
+< [src][k] [src][k] goto(Tt17)
+= false  t17
+goto(TEndt17)   
+
+Tt17:
+   
+= true  t17
+
+TEndt17:
+   
+if  t17 false goto(Else3)
+
+If3:
+   
++int [src] [src] t18
+-int t18 [k] t19
++int t19 [src][k] t20
+= t20  val
+> [k] val goto(Tt21)
+= false  t21
+goto(TEndt21)   
+
+Tt21:
+   
+= true  t21
+
+TEndt21:
+   
+if  t21 false goto(Else4)
+
+If4:
+   
+= val  t22
+= t22  dist
+= src  t24
+= t24  dad
+goto(EndIf4)   
+
+Else4:
+   
+
+EndIf4:
+   
+goto(EndIf3)   
+
+Else3:
+   
+
+EndIf3:
+   
+< [k] [best] goto(Tt26)
+= false  t26
+goto(TEndt26)   
+
+Tt26:
+   
+= true  t26
+
+TEndt26:
+   
+if  t26 false goto(Else5)
+
+If5:
+   
+= k  t27
+= t27  best
+goto(EndIf5)   
+
+Else5:
+   
+
+EndIf5:
+   
+goto(ForUpdate1)   
+
+EndFor1:
+   
+= best  t29
+= t29  src
+goto(Loop0)   
+
+Endloop0:
+   
+= 0  k
+
+ForCondition2:
+   
+< k N goto(Tt31)
+= false  t31
+goto(TEndt31)   
+
+Tt31:
+   
+= true  t31
+
+TEndt31:
+   
+If t31 false goto(EndFor2)
+If t31 true goto(ForBody2)
+
+ForUpdate2:
+   
++ k 1 t32
+= t32  k
+goto(ForCond2)   
+
+ForBody2:
+   
+= [k]  t33
+= t33  pi
+goto(ForUpdate2)   
+
+EndFor2:
+   
+return [sink]  

@@ -1,7 +1,6 @@
 #ifndef SYMBOL_TABLE_FAST_H
   #define SYMBOL_TABLE_FAST_H
 
-
   #include <iostream>
   #include <unordered_map>
   #include <list>
@@ -10,7 +9,12 @@
   #include <string>
   #include <deque>
   #include <vector>
+
   #include <macros.hpp>
+  
+  #ifndef THREEAC_H
+    #include <3ac.hpp>
+  #endif
 
   using namespace std;
 
@@ -37,6 +41,10 @@
     // bool is_double;
 
     unsigned int arr_dim;
+    vector<string> arr_dim_val; 
+    // stores array dimension values in reverse order 
+    // eg. int a[2][3] => arr_dim_val = {3, 2}
+
     int size;
     string name;
 
@@ -63,6 +71,7 @@
     unordered_map<string, deque< MethodDefinition *> &> methods;
     vector< MethodDefinition *> constructors;
     bool first_constructor_done;
+    size_t class_width;
     // map<string, ClassDefinition *> inner_classes;
     // list<ClassDefinition *> impl_interfaces;
     // ClassDefinition *parent;
@@ -160,7 +169,8 @@
     vector<Type *> args;
     Type *ret_type;
     int8_t modifier;
-
+    size_t method_width;
+    // vector<Quad *> three_ac;
     unsigned long line_no;
 
     bool is_private;

@@ -10,7 +10,6 @@
 #include <deque>
 #include <string>
 #include <iomanip>
-
 using namespace std;
 
 extern "C" int yylineno;
@@ -44,6 +43,7 @@ SymTabEntry::SymTabEntry( string name_parameter, Type *type, int8_t modf, unsign
 LocalSymbolTable::LocalSymbolTable() {
     sym_table.clear();
     current_level =0;
+    offset = 0;
     ss.clear();
     ss.str(string());   
 }
@@ -71,7 +71,10 @@ void LocalSymbolTable::clear_current_level() {
                 cerr << "Error Line No: " << yylineno << ": " << __func__ << " : Null Pointer cant be freed\n";
                 exit(1);
             }
-            free(it.second);
+            /*
+                Cannot free the SymTabEntry * here this will be passed to 3ac structs and same info used there
+            */
+            // free(it.second);
             it.second = NULL;
             keys.push_back(it.first);
         }
@@ -82,18 +85,22 @@ void LocalSymbolTable::clear_current_level() {
     current_level--;
 
     //write to file now using stringstream
-    cout << ss.str() << "\n";
+    cout << ss.str();
     ss.clear();
     ss.str(string());
 }
 
 void LocalSymbolTable::empty_table() {
+
+    // this->method->method_width = this->offset;
+    
     sym_table.clear();
     current_level = 0;
+    offset = 0;
     method_name = "";
     return_type = NULL;
     container_class = NULL;
-    cout << ss.str() << endl;
+    cout << ss.str();
     ss.clear();
     ss.str(string());
 }
@@ -121,7 +128,7 @@ void LocalSymbolTable::add_to_table(SymTabEntry *symbol, bool is_fun_arg) {
         if((symbol->modifier & __FINAL) == __FINAL)
             ss << "final ";
         
-        ss << "," << symbol->line_no << "," <<  symbol->level << "\n";
+        ss << "," << symbol->line_no << "," <<  symbol->level << "," << symbol->offset <<"\n";
 
     }
     else  {
@@ -161,6 +168,7 @@ ClassDefinition::ClassDefinition(string name, int8_t modf, unsigned long line) {
     methods.clear();
     constructors.clear();
     this->first_constructor_done = false;
+    this->class_width = 0;
     /*
         set bools here if required
     */
@@ -366,6 +374,7 @@ Type::Type(string name, ClassDefinition *cls) {
     this->is_numeric = false;
     this->is_class = true;
     this->is_integral = false;
+    this->size = REF_TYPE_SIZE;
 }
 
 // Type::Type(string name, bool is_numeric, size_t size) {

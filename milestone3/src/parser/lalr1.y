@@ -49,10 +49,6 @@
     extern int paramcount;
     extern string threeac_file_name;
 
-
-    extern int new_offset;
-    stack<int> old_offsets;
-
     int8_t global_modifier;
     Type* global_type;
     int pass_no = 1;
@@ -441,11 +437,14 @@ ArrayType:
 ;
 
 Dims:
-    Lsquare Rsquare Dims    {  $$ = increase_dims($3); $$->threeac = "[]"+ $3->threeac ; }
+    Lsquare Rsquare Dims    {   
+                                $$ = increase_dims($3); 
+                                // $$->threeac = "[]"+ $3->threeac ; 
+                            }
 |   Lsquare Rsquare { 
                         $$ = make_stackentry("", yylineno);
                         $$->type = get_array_type(); 
-                        $$->threeac = "[]";
+                        // $$->threeac = "[]";
                     }
 ;
 
@@ -516,8 +515,8 @@ Modifier:
 
 
 ClassDeclaration:
-    Modifiers Class Identifier { add_class($1, ($3)->name); free($3);} ClassBody { current_class = NULL; current_scope = scope_global; new_offset = 0; }
-|   Class Identifier { add_class(0b0, ($2)->name); free($2);} ClassBody { current_class = NULL; current_scope = scope_global; new_offset = 0;}
+    Modifiers Class Identifier { add_class($1, ($3)->name); free($3);} ClassBody { current_class = NULL; current_scope = scope_global; }
+|   Class Identifier { add_class(0b0, ($2)->name); free($2);} ClassBody { current_class = NULL; current_scope = scope_global;}
 ;
 
 /* Super:
@@ -601,7 +600,8 @@ VariableDeclaratorId:
                                                 if((pass_no==1 && current_scope==scope_class) || (pass_no==2)) {
                                                     $$ = increase_dims($1);
                                                 }
-                                                if(pass_no==2)  $$->threeac = $1->threeac+"["+"]";                                    
+                                                // if(pass_no==2)  $$->threeac = $1->threeac+"["+"]";     
+                                                if(pass_no==2)  $$->threeac = $1->threeac;                                    
                                           }
 |   Identifier  {    
                     if((pass_no==1 && current_scope==scope_class) || (pass_no==2)) {
@@ -632,9 +632,9 @@ MethodDeclaration:
                     // }
                 } MethodBody {  
                                 current_scope = scope_class; 
-                                current_table->empty_table(); 
-                                new_offset = 0;
                                 if(pass_no==2){
+                                    current_table->empty_table(); 
+                                    cout << "After empty table\n";
                                     // $$ = $1;
                                     loopnum=0;
                                     ifnum=0;
@@ -754,10 +754,14 @@ FormalParameter:
                                                 $$ = $2;
                                                 $$->argument_type.push_back($2->type);
                                                 global_type = NULL;
-                                                if (pass_no == 2)
-                                                    add_variable($2->token, 0b0, $2->type, new_offset, true, true);
-                                                
-                                                new_offset += ($2)->type->size;
+                                                if (pass_no == 2){
+                                                    add_variable($2->token, 0b0, $2->type, current_table->offset, true, true);
+                                                    if($2->type->is_pointer())
+                                                        current_table->offset += REF_TYPE_SIZE;
+                                                    else
+                                                        current_table->offset += $2->type->size;
+                                                }
+
                                                 if(pass_no==2){
                                                     emit("popparam", $2->token, "", "");
                                                 }
@@ -768,10 +772,14 @@ FormalParameter:
                                                 $$->modifier = __FINAL;
                                                 $$->argument_type.push_back($3->type);
                                                 global_type = NULL;
-                                                if (pass_no == 2)
-                                                    add_variable($3->token, $$->modifier, $3->type, new_offset, true, true);
+                                                if (pass_no == 2){
+                                                    add_variable($3->token, $$->modifier, $3->type, current_table->offset, true, true);
+                                                    if($2->type->is_pointer())
+                                                        current_table->offset += REF_TYPE_SIZE;
+                                                    else
+                                                        current_table->offset += $2->type->size;
+                                                }
                                                 
-                                                new_offset += ($3)->type->size;
                                                 if(pass_no==2){
                                                     emit("popparam", $3->token, "", "");
                                                 }
@@ -788,27 +796,32 @@ StaticInitializer:
 ;
 
 ConstructorDeclaration:
-    Modifiers Declarator { add_constructor(($2)->token, ($2)->argument_type, $1); current_scope = scope_method; } ConstructorBody { if (pass_no == 2){ check_final_vars(); } current_scope = scope_class; current_table->empty_table();
+    Modifiers Declarator { add_constructor(($2)->token, ($2)->argument_type, $1); current_scope = scope_method; } ConstructorBody {current_scope = scope_class;
                                                                                                                                         if(pass_no==2){
-                                                                                                                                                        // $$ = $1;
-                                                                                                                                                        loopnum=0;
-                                                                                                                                                        ifnum=0;
-                                                                                                                                                        tcount=0;
-                                                                                                                                                        paramcount=0;
-                                                                                                                                                        threeac_file_name = DUMP_DIR + current_class->name + "." +  ($2)->token + three_ac_type_dump(($2)->argument_type) + ".3ac";
-                                                                                                                                                        dump_3ac(threeac_file_name);
-                                                                                                                                                    }
+                                                                                                                                            // $$ = $1;
+                                                                                                                                            check_final_vars();
+                                                                                                                                            current_table->empty_table();
+                                                                                                                                            loopnum=0;
+                                                                                                                                            ifnum=0;
+                                                                                                                                            tcount=0;
+                                                                                                                                            paramcount=0;
+                                                                                                                                            threeac_file_name = DUMP_DIR + current_class->name + "." +  ($2)->token + three_ac_type_dump(($2)->argument_type) + ".3ac";
+                                                                                                                                            dump_3ac(threeac_file_name);
+                                                                                                                                        }
                                                                                                                                     }
-|   Declarator { add_constructor(($1)->token, ($1)->argument_type, (int8_t) 0); current_scope = scope_method; } ConstructorBody  { if(pass_no == 2) {check_final_vars();} current_scope = scope_class; current_table->empty_table();
+|   Declarator { add_constructor(($1)->token, ($1)->argument_type, (int8_t) 0); current_scope = scope_method; } ConstructorBody  { current_scope = scope_class;
                                                                                                                                         if(pass_no==2){
-                                                                                                                                                        // $$ = $1;
-                                                                                                                                                        loopnum=0;
-                                                                                                                                                        ifnum=0;
-                                                                                                                                                        tcount=0;
-                                                                                                                                                        paramcount=0;
-                                                                                                                                                        threeac_file_name = DUMP_DIR + current_class->name + "." +  ($1)->token + three_ac_type_dump(($1)->argument_type) + ".3ac";
-                                                                                                                                                        dump_3ac(threeac_file_name);
-                                                                                                                                                    }
+                                                                                                                                            // $$ = $1;
+                                                                                                
+                                                                                                                                            check_final_vars();
+                                                                                                                                            current_table->empty_table();
+                                                                                                                                            loopnum=0;
+                                                                                                                                            ifnum=0;
+                                                                                                                                            tcount=0;
+                                                                                                                                            paramcount=0;
+                                                                                                                                            threeac_file_name = DUMP_DIR + current_class->name + "." +  ($1)->token + three_ac_type_dump(($1)->argument_type) + ".3ac";
+                                                                                                                                            dump_3ac(threeac_file_name);
+                                                                                                                                        }
                                                                                                                                 }
 ;
 
@@ -987,8 +1000,10 @@ ClassInstanceCreationExpression:
 // p.i -> f -> func(1).i.i
 FieldAccess:    Primary Dot Identifier  {   
                                             if(pass_no == 2 ){
-                                                $$ = find_variable_in_class($3->name, true);
-                                                $$->threeac = $1->threeac + "." + $3->name;
+                                                $$ = find_variable_in_type($3->name, $1->type);
+                                                $$->threeac = field_access_3ac($1->threeac, $$->offset);
+                                                // free_type($1->type);
+                                                free($1);
                                                 free($3);
                                             }
                                         }
@@ -1013,9 +1028,21 @@ ArrayAccess:    TypeName Lsquare Expression Rsquare {
                                                             }
                                                             t->arr_dim--;
                                                             $$ = $1; 
-                                                            $$->threeac = $1->threeac + "[" + $3->threeac + "]";
+                                                            // $$->threeac = $1->threeac + "[" + $3->threeac + "]";
+                                                            
+                                                            $$->type = t;
+                                                            string temp1 = get_temp();
+                                                            string temp2 = get_temp();
+                                                            if(t->arr_dim == 0){
+                                                                emit("*", $3->threeac , "size_of("+ $$->type->name +")", temp1);
+                                                            }
+                                                            else{
+                                                                emit("*", $3->threeac , to_string(REF_TYPE_SIZE), temp1);
+                                                            }
+                                                            emit("+", $1->token, temp1, temp2);
+                                                            $$->threeac = "*" + temp2;
+                                                            
                                                             free($3);
-                                                            $$->type = t; 
                                                         }
                                                     }
 |               PrimaryNoNewArray Lsquare Expression Rsquare    {   
@@ -1034,10 +1061,20 @@ ArrayAccess:    TypeName Lsquare Expression Rsquare {
                                                                 exit(1);
                                                             }
                                                             t->arr_dim--;
-                                                            free($3);
                                                             $$ = $1; 
                                                             $$->type = t;
-                                                            $$->threeac = $1->threeac + "[" + $3->threeac + "]";
+                                                            string temp1 = get_temp();
+                                                            string temp2 = get_temp();
+                                                            if(t->arr_dim == 0){
+                                                                emit("*", $3->threeac , to_string($$->type->size) , temp1);
+                                                            }
+                                                            else{
+                                                                emit("*", $3->threeac , to_string(REF_TYPE_SIZE), temp1);
+                                                            }
+                                                            emit("+", $1->threeac, temp1, temp2);
+                                                            $$->threeac = "*" + temp2;
+                                                            
+                                                            free($3);
                                                         }
                                                     }
 ;
@@ -1096,7 +1133,7 @@ ArgumentList:       Expression  {
                                                     if(pass_no == 2 ){
                                                         $1->argument_type.push_back($3->type);
                                                         $$ = $1;
-                                                        emit("param" ,($1)->threeac,"","");
+                                                        emit("param" ,($3)->threeac,"","");
                                                         paramcount++;
                                                         free($3);
                                                     }
@@ -1109,23 +1146,32 @@ ArrayCreationExpression:    New PrimitiveType DimExprs Dims         {
                                                                                             $$ = assign_arr_dim($2, $3, $4); 
                                                                                             $$->threeac = $2->name + $3->threeac + $4->threeac;
                                                                                         } 
-                                                                    }
+                                                                    } // 3ac not done
 |                           New ClassOrInterfaceType DimExprs Dims  {  
                                                                         if(pass_no == 2 ){
                                                                                             $$ = assign_arr_dim($2, $3, $4); 
                                                                                             $$->threeac = $2->name + $3->threeac + $4->threeac;
                                                                                         } 
-                                                                    }
+                                                                    } //3ac not done
 |                           New PrimitiveType DimExprs              {  
                                                                         if(pass_no == 2 ){
                                                                                             $$ = assign_arr_dim($2, $3); 
-                                                                                            $$->threeac = $2->name + $3->threeac;
+                                                                                            int size = get_array_size($3->type->arr_dim_val);
+                                                                                            size = size * $2->size;
+                                                                                            $$->threeac = get_temp();
+                                                                                            emit("param", to_string(size), "", "");
+                                                                                            emit("call", "malloc", "1", $$->threeac);
                                                                                         } 
                                                                     }
 |                           New ClassOrInterfaceType DimExprs       {  
                                                                         if(pass_no == 2 ){
                                                                                             $$ = assign_arr_dim($2, $3); 
-                                                                                            $$->threeac = $2->name + $3->threeac;
+                                                                                            // $$->threeac = $2->name + $3->threeac;
+                                                                                            int size = get_array_size($3->type->arr_dim_val);
+                                                                                            size = size * $2->size;
+                                                                                            $$->threeac = get_temp();
+                                                                                            emit("param", to_string(size), "", "");
+                                                                                            emit("call", "malloc", "1", $$->threeac);
                                                                                         } 
                                                                     }
 |                           New PrimitiveType Dims ArrayInitializer {  
@@ -1133,19 +1179,25 @@ ArrayCreationExpression:    New PrimitiveType DimExprs Dims         {
                                                                                             $$ = assign_arr_dim($2, $3); 
                                                                                             $$->threeac = $2->name + $3->threeac;
                                                                                         } 
-                                                                    }
+                                                                    } //3ac not done
 |                           New ClassOrInterfaceType Dims ArrayInitializer {  
                                                                                 if(pass_no == 2 ){
                                                                                                     $$ = assign_arr_dim($2, $3); 
                                                                                                     $$->threeac = $2->name + $3->threeac;
                                                                                                 } 
-                                                                            }
+                                                                            } //3ac not done
 ;
+
+
 // ArrayCreationExpression -> new B C ArrayInitializer    $$.type = $2.type + ("*")*(stringtoint($3.type))
 // ArrayCreationExpression -> new B C     $$.type = $2.type + ("*")*(stringtoint($3.type))
 // ArrayCreationExpression -> new B C D    $$.type = $2.type + ("*")*(stringtoint($3.type) + stringtoint($3.type))
 
-DimExprs:   DimExpr  { if(pass_no == 2) $$ = $1; }
+DimExprs:   DimExpr { if(pass_no == 2) {
+                            $$ = $1; 
+                            $$->type->arr_dim_val.push_back($1->threeac);
+                        }
+                    }
 |           DimExprs DimExpr {  if(pass_no == 2 ){  $$ = assign_arr_dim($1, $2); $$->threeac = $1->threeac + $2->threeac;  } }
 ;
 // A -> B C    $$.type = $1.type + $2.type 
@@ -1164,7 +1216,8 @@ DimExpr:    Lsquare Expression Rsquare {
 
                                                 $$ = make_stackentry("", yylineno);
                                                 $$->type = get_array_type();
-                                                $$->threeac = "[" + ($2)->threeac + "]";
+                                                // $$->threeac = "[" + ($2)->threeac + "]";
+                                                $$->threeac = ($2)->threeac;
                                             }
                                         }
                                         
@@ -1216,7 +1269,7 @@ Assignment:
                                                         }
 
                                                         $$ = $1;
-                                                        $$->threeac = assign_operator_3ac($1->token, $3->threeac);
+                                                        $$->threeac = assign_operator_3ac($1->threeac, $3->threeac);
                                                     }
                                                 }
 ;
@@ -1226,7 +1279,7 @@ LeftHandSide:
                 if(pass_no == 2 ){ 
                     struct stackentry* entry = find_variable_in_class(($1)->token, true);
                     $$ = entry;
-                    
+                    $$->threeac = $1->token;
                 }
             }
 |   FieldAccess { if(pass_no == 2 ) $$ = $1; }
@@ -1384,14 +1437,36 @@ AdditiveExpression: MultiplicativeExpression { if(pass_no == 2 ) $$ = $1; }
                                                                             if(pass_no == 2 ){  
                                                                                 $$ = check_additive_types($1, $3);
                                                                                 $$->threeac = get_temp();
-                                                                                emit("+", ($1)->threeac, ($3)->threeac, ($$)->threeac);
+                                                                                if($$->type->name != $1->type->name){
+                                                                                    string temp = get_temp();
+                                                                                    emit("cast_to_"+$$->type->name, $1->threeac, temp,"");
+                                                                                    emit("+"+$$->type->name, temp, ($3)->threeac, ($$)->threeac);
+                                                                                }
+                                                                                else if($$->type->name != $3->type->name){
+                                                                                    string temp = get_temp();
+                                                                                    emit("cast_to_"+$$->type->name, $3->threeac, temp,"");
+                                                                                    emit("+"+$$->type->name, ($1)->threeac, temp, ($$)->threeac);
+                                                                                }
+                                                                                else
+                                                                                    emit("+"+$$->type->name, ($1)->threeac, ($3)->threeac, ($$)->threeac);
                                                                             }
-                                                                        } 
+                                                                        }
 |                   AdditiveExpression Minus MultiplicativeExpression   {   
                                                                             if(pass_no == 2 ){  
                                                                                 $$ = check_additive_types($1, $3);
                                                                                 $$->threeac = get_temp();
-                                                                                emit("-", ($1)->threeac, ($3)->threeac, ($$)->threeac);
+                                                                                if($$->type->name != $1->type->name){
+                                                                                    string temp = get_temp();
+                                                                                    emit("cast_to_"+$$->type->name, $1->threeac, temp,"");
+                                                                                    emit("-"+$$->type->name, temp, ($3)->threeac, ($$)->threeac);
+                                                                                }
+                                                                                else if($$->type->name != $3->type->name){
+                                                                                    string temp = get_temp();
+                                                                                    emit("cast_to_"+$$->type->name, $3->threeac, temp,"");
+                                                                                    emit("-"+$$->type->name, ($1)->threeac, temp, ($$)->threeac);
+                                                                                }
+                                                                                else
+                                                                                    emit("-"+$$->type->name, ($1)->threeac, ($3)->threeac, ($$)->threeac);
                                                                             }
                                                                         }
 ;
@@ -1401,21 +1476,54 @@ MultiplicativeExpression:   UnaryExpression                             { if(pas
                                                                             if(pass_no == 2 ){  
                                                                                 $$ = check_additive_types($1, $3);
                                                                                 $$->threeac = get_temp();
-                                                                                emit("*", ($1)->threeac, ($3)->threeac, ($$)->threeac);
+                                                                                if($$->type->name != $1->type->name){
+                                                                                    string temp = get_temp();
+                                                                                    emit("cast_to_"+$$->type->name, $1->threeac, temp,"");
+                                                                                    emit("*"+$$->type->name, temp, ($3)->threeac, ($$)->threeac);
+                                                                                }
+                                                                                else if($$->type->name != $3->type->name){
+                                                                                    string temp = get_temp();
+                                                                                    emit("cast_to_"+$$->type->name, $3->threeac, temp,"");
+                                                                                    emit("*"+$$->type->name, ($1)->threeac, temp, ($$)->threeac);
+                                                                                }
+                                                                                else
+                                                                                    emit("*"+$$->type->name, ($1)->threeac, ($3)->threeac, ($$)->threeac);
                                                                             }
                                                                         }
 |                   MultiplicativeExpression Div UnaryExpression        {   
                                                                             if(pass_no == 2 ){  
                                                                                 $$ = check_additive_types($1, $3);
                                                                                 $$->threeac = get_temp();
-                                                                                emit("/", ($1)->threeac, ($3)->threeac, ($$)->threeac);
+                                                                                if($$->type->name != $1->type->name){
+                                                                                    string temp = get_temp();
+                                                                                    emit("cast_to_"+$$->type->name, $1->threeac, temp,"");
+                                                                                    emit("/"+$$->type->name, temp, ($3)->threeac, ($$)->threeac);
+                                                                                }
+                                                                                else if($$->type->name != $3->type->name){
+                                                                                    string temp = get_temp();
+                                                                                    emit("cast_to_"+$$->type->name, $3->threeac, temp,"");
+                                                                                    emit("/"+$$->type->name, ($1)->threeac, temp, ($$)->threeac);
+                                                                                }
+                                                                                else
+                                                                                    emit("/"+$$->type->name, ($1)->threeac, ($3)->threeac, ($$)->threeac);
                                                                             }
                                                                         }
 |                   MultiplicativeExpression Modulo UnaryExpression     {   
                                                                             if(pass_no == 2 ){  
                                                                                 $$ = check_additive_types($1, $3);
                                                                                 $$->threeac = get_temp();
-                                                                                emit("%", ($1)->threeac, ($3)->threeac, ($$)->threeac);
+                                                                                if($$->type->name != $1->type->name){
+                                                                                    string temp = get_temp();
+                                                                                    emit("cast_to_"+$$->type->name, $1->threeac, temp,"");
+                                                                                    emit("%"+$$->type->name, temp, ($3)->threeac, ($$)->threeac);
+                                                                                }
+                                                                                else if($$->type->name != $3->type->name){
+                                                                                    string temp = get_temp();
+                                                                                    emit("cast_to_"+$$->type->name, $3->threeac, temp,"");
+                                                                                    emit("%"+$$->type->name, ($1)->threeac, temp, ($$)->threeac);
+                                                                                }
+                                                                                else
+                                                                                    emit("%"+$$->type->name, ($1)->threeac, ($3)->threeac, ($$)->threeac);
                                                                             }
                                                                         }
 ;
@@ -1636,7 +1744,9 @@ CastExpression:     Lparen PrimitiveType Rparen UnaryExpression                 
                                                                                         check_cast_types($2, $4->type);
                                                                                         $$ = make_stackentry("", $2, yylineno);
                                                                                         $$->threeac = get_temp();
-                                                                                        emit($4->type->name + "to" + $2->name, $4->threeac, "", $$->threeac);
+
+                                                                                        emit("cast_to_" + $2->name, $4->threeac, "", $$->threeac);
+                                                                                        // emit($4->type->name + "to_" + $2->name, $4->threeac, "", $$->threeac);
                                                                                     }
                                                                                 }
 |                   Lparen ReferenceType Rparen UnaryExpressionNotPlusMinus     {   
@@ -1644,7 +1754,9 @@ CastExpression:     Lparen PrimitiveType Rparen UnaryExpression                 
                                                                                         check_cast_types($2, $4->type);
                                                                                         $$ = make_stackentry("", $2, yylineno);
                                                                                         $$->threeac = get_temp();
-                                                                                        emit($4->type->name + "to" + $2->name, $4->threeac, "", $$->threeac);
+
+                                                                                        emit("cast_to_" + $2->name, $4->threeac, "", $$->threeac);
+                                                                                        // emit($4->type->name + "to_" + $2->name, $4->threeac, "", $$->threeac);
                                                                                     }
                                                                                 }
 ;
@@ -2531,7 +2643,6 @@ void reset_global_params() {
     // rewind(yyin);
     yylineno = 1; 
     current_scope = scope_global;
-    new_offset = 0;
     global_modifier = 0b0;
     global_type = NULL;
     current_class = NULL;

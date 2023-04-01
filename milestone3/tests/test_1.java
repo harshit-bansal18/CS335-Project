@@ -28,11 +28,15 @@ public class MinCostMaxFlow {
  
     // Function to check if it is possible to
     // have a flow from the src to sink
+
     boolean search(int src, int sink)
     {
  
         // Distance from the source node
         dist[src] = 0;
+        Hello h;
+
+        long[] long_arr;
  
         // Iterate until src reaches N
         while (src != N) {
@@ -154,4 +158,8 @@ public class MinCostMaxFlow {
             int x = 2;
          }
     }
+}
+
+public class Hello {
+
 }

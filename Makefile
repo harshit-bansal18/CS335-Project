@@ -1,4 +1,4 @@
-all: milestone2
+all: milestone3
 
 G++ := g++ -O3 -Wno-write-strings
 MILESTONE1 := milestone1/src
@@ -17,6 +17,7 @@ Binary2 := javas
 
 MILESTONE3 := milestone3/src
 INCLUDE3 := -I ./milestone3/src/semantic/include/ -I ./milestone3/include/
+Runtime := runtime
 Binary3 := javair
 # build/milestone1:
 # 	mkdir -p build/milestone1

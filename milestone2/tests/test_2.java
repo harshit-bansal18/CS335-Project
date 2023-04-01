@@ -24,13 +24,14 @@ public class TypeCheck1 {
     }
 
     public static void main(int[] args) {
+        int [] a = new int[10];
         TypeCheck1 obj = new TypeCheck1(1, 2);
         float e;
         float f=14.9;
         float g=4.5;
         e=f+g;
         // Same names
-        int a = obj.a;
+        // int a = obj.a;
         float b = obj.b;
 
         // Different names

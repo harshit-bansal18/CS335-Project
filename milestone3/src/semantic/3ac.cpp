@@ -1,6 +1,10 @@
 #include <bits/stdc++.h>
-#include <actions_fast.hpp>
+#include <3ac.hpp>
 #include <sstream>
+
+#ifndef ACTIONS_FAST_H
+    #include <actions_fast.hpp>
+#endif
 
 using namespace std;
 
@@ -142,6 +146,15 @@ string post_decreament_3ac(string e1){
     return temp;
 }
 
+string field_access_3ac(string tac_name, int offset) {
+    if (current_scope != scope_method)
+        return "";
+
+    string temp2 = get_temp();
+    tacss << "= " << "*(" << tac_name << "+" << offset << ") " << temp2 << "\n";
+    return temp2;
+}
+
 void dump_3ac(string filename){
     ofstream outss(filename.c_str());
     outss << tacss.str() << endl;
@@ -149,3 +162,11 @@ void dump_3ac(string filename){
     tacss.str(string());
     outss.close();
 }   
+
+int get_array_size(vector<string> array_dims){
+    int size = 1;
+    for(int i=0; i<array_dims.size(); i++){
+        size *= stoi(array_dims[i]);
+    }
+    return size;
+}

@@ -1,7 +1,12 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-#define REF_TYPE_SIZE 4
+class MachineStatus {
+    public:
+    unsigned long sp;
+    unsigned long top_sp;
+};
+
 
 /**
 * ActivationRecord:
@@ -41,13 +46,6 @@ class RuntimeStack {
     void pop_activation_record();
     void store_on_stack(size_t bytes);
 };
-
-class MachineStatus {
-    public:
-    unsigned long sp;
-    unsigned long top_sp;
-};
-
 
 struct x86_regs {
     // declare 32 x86 registers here

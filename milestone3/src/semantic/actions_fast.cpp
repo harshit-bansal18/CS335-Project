@@ -1,10 +1,12 @@
 #include <iostream>
 #include <bits/stdc++.h>
-#include <macros.hpp>
-#include <actions_fast.hpp>
+
 #include <vector>
 #include <unordered_map>
 #include <cstring>
+#ifndef ACTIONS_FAST_H
+    #include <actions_fast.hpp>
+#endif
 
 using namespace std;
 
@@ -17,7 +19,7 @@ LocalSymbolTable *current_table;
 GlobalSymbolTable *global_table;
 
 scope current_scope;
-int new_offset = 0;
+
 int dump_counter = 1;
 unordered_map<string, Type *> defined_types;
 
@@ -445,14 +447,14 @@ Type *get_type(string name) {
     return it->second;
 }
 
-/*
-    When TypeName is name of a class and is used to declares objects of a class (reference type)
-    Since inner class is not supported yet, we can have only one identifier in the TypeName 
-*/
-Type *get_type(TypeName *tn) {
-    assert(tn->names.size() == 1);
-    return get_type(tn->names[0]->name);
-}
+// /*
+//     When TypeName is name of a class and is used to declares objects of a class (reference type)
+//     Since inner class is not supported yet, we can have only one identifier in the TypeName 
+// */
+// Type *get_type(TypeName *tn) {
+//     assert(tn->names.size() == 1);
+//     return get_type(tn->names[0]->name);
+// }
 
 
 /*
@@ -496,6 +498,12 @@ stackentry::stackentry(const char *name, unsigned long line) {
     this->nature = "";
     this->is_var_intialized = false;
     this->offset = 0;
+}
+
+stackentry *make_dup_stackentry(SymTabEntry *sym) {
+    stackentry *s =  make_stackentry(sym->name.c_str(), sym->type, sym->line_no);
+    s->offset = sym->offset;
+    return s; 
 }
 
 stackentry *make_stackentry(const char *token, unsigned int line) {
@@ -595,6 +603,7 @@ stackentry *increase_dims(stackentry *e) {
 }
 
 stackentry *assign_arr_dim(stackentry *e1, stackentry *e2) {
+    e1->type->arr_dim_val.push_back(e2->threeac);
     free(e2->type);
     free(e2);
     
@@ -612,8 +621,10 @@ stackentry *assign_arr_dim(Type *t, stackentry *e1, stackentry *e2) {
 
 stackentry *assign_arr_dim(Type *t, stackentry *e1) {
     unsigned int dims = e1->type->arr_dim;
+    vector<string> arr_dim_val = e1->type->arr_dim_val;
     *(e1->type) = *t;
     e1->type->arr_dim = dims;
+    e1->type->arr_dim_val = arr_dim_val;
     return e1;
 }
 
@@ -820,14 +831,26 @@ void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no) {
                 
         if ((pass_no == 1 && current_scope == scope_class) || (pass_no == 2 && current_scope == scope_method)) {
             // cerr << __func__ << ": adding symbol: " << e1->token << " " << e1->type->name << endl;
-            add_variable(e1->token, global_modifier, e1->type, new_offset, false, true);
-            new_offset += e1->type->size;
+            if(current_scope == scope_class){
+                add_variable(e1->token, global_modifier, e1->type, current_class->class_width, false, true);
+                if(e1->type->is_pointer())
+                    current_class->class_width += REF_TYPE_SIZE;
+                else
+                    current_class->class_width += e1->type->size;
+            }
+            else {
+                add_variable(e1->token, global_modifier, e1->type, current_table->offset, false, true);
+                if(e1->type->is_pointer())
+                    current_table->offset += REF_TYPE_SIZE;
+                else
+                    current_table->offset += e1->type->size;
+            }
+
             if(e2->type == NULL) {
                 // Means a empty array declaration: int a[] = {}; which is perfectly valid
                 // Make its type same as (1)->type
                 e2->type = e1->type;
             }
-    
         }
 
         if(pass_no == 2){
@@ -849,8 +872,20 @@ void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no) {
 
     } else {
         if ((pass_no == 1 && current_scope == scope_class) || (pass_no == 2 && current_scope == scope_method)){
-            add_variable(e1->token, global_modifier, e1->type, new_offset, false, false);
-            new_offset += e1->type->size;
+            if(current_scope == scope_class){
+                add_variable(e1->token, global_modifier, e1->type, current_class->class_width, false, false);
+                if(e1->type->is_pointer())
+                    current_class->class_width += REF_TYPE_SIZE;
+                else
+                    current_class->class_width += e1->type->size;
+            }
+            else {
+                add_variable(e1->token, global_modifier, e1->type, current_table->offset, false, false);
+                if(e1->type->is_pointer())
+                    current_table->offset += REF_TYPE_SIZE;
+                else
+                    current_table->offset += e1->type->size;
+            }
         }
     }
 }
@@ -926,7 +961,7 @@ void EnhancedForCondition(stackentry* e1){
     }
 }
 
-Type *find_variable_in_type(string name, Type *type) {
+stackentry *find_variable_in_type(string name, Type *type) {
     if(!type->is_class) {
         cerr << "Error on line " << yylineno << ". cannot reference non-reference type " << cerr_type(type) <<  endl;
         exit(1);    
@@ -938,7 +973,7 @@ Type *find_variable_in_type(string name, Type *type) {
         cerr << "Error on line " << yylineno << ". " << name << " not present in class " << cls->name << endl;
         exit(1);
     }
-    return sym->type;
+    return make_dup_stackentry(sym);
 }
 
 
@@ -1036,6 +1071,13 @@ string three_ac_type_dump(vector<Type*> t) {
     return r;
 }
 
-
+/*
+    Free the type pointer only if it is of array type
+*/
+void free_type(Type *t) {
+    if (t->is_pointer()) {
+        free(t);
+    }
+}
 // 3ac functions
 
