@@ -1,3 +1,4 @@
+#pragma once
 #ifndef ACTIONS_FAST_H
     #define ACTIONS_FAST_H
 
@@ -43,7 +44,11 @@
     bool check_primitive_types(Type *type);
     bool check_if_numeric_type(Type *type);
     bool check_return_type(Type *type1, Type *type2);
-    Type *check_function_in_class(string token, vector<Type*> &argument_type, string nature);
+
+    pair<Type*, vector<Type*>> check_function_in_class(TypeName *token, vector<Type*> &argument_type, string nature);
+    pair<Type*, vector<Type*>> check_function_in_class(string token, vector<Type*> &argument_type, string nature);
+
+    stackentry *find_variable_in_class( TypeName *token, bool );
     stackentry *find_variable_in_class( string token, bool );
     bool find_variable_in_closest_function_scope( string token );
     void clear_current_scope( );
@@ -84,7 +89,7 @@
 
     stackentry* ConditionalExpression (stackentry* e1, stackentry* e2);
     Type *add_to_defined_types(Type *);
-    Type* ClassOrInterfaceType(stackentry* e1);
+    Type* ClassOrInterfaceType(TypeName* e1);
     void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no);
     void IfCondition(stackentry* e1);
     void WhileCondition(stackentry* e1);
@@ -100,6 +105,6 @@
     void print_modifier(int8_t mod);
     void print_type(Type* t);
     string cerr_type(Type*t);
-    string three_ac_type_dump(vector<Type*> t);
+    string threeac_filename(string class_name, string method_name, vector<Type*> t);
 
 #endif

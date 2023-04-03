@@ -1,15 +1,16 @@
+#pragma once
 #ifndef THREEAC_H
     #define THREEAC_H
 
     #include <bits/stdc++.h>
     #include <string>
-    // #ifndef ACTIONS_FAST_H
-    //     #include <actions_fast.hpp>
-    // #endif
+    #ifndef SYMBOL_TABLE_FAST_H
+        #include <symbol_table_fast.hpp>
+    #endif
 
     using namespace std;
 
-
+    struct TypeName;
 
     // typedef struct entry3ac{
     //     string threeac="";
@@ -33,7 +34,6 @@
     //     string operation;
 
     // };
-
 
     void emit(string op, string arg1, string arg2, string result);
 
@@ -74,10 +74,11 @@
 
     void dump_3ac(string filename);
 
-    int get_array_size(vector<string> array_dims);
+    string get_array_size(vector<string> array_dims);
 
     string field_access_3ac(string cls_name, int offset);
 
+    string type_name_3ac(TypeName* type_name, bool is_func);
 
 
 #endif

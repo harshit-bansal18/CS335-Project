@@ -22,7 +22,7 @@ scope current_scope;
 
 int dump_counter = 1;
 unordered_map<string, Type *> defined_types;
-
+extern ofstream symtable_out;
 int8_t set_modifier(int8_t curr_modf, int8_t new_modf) {
     if (curr_modf & new_modf) {
         cerr << "Line no: " << yylineno << " conflicting modifiers\n";
@@ -42,8 +42,6 @@ bool check_primitive_types(Type *type) {
 
 bool check_if_numeric_type(Type *type) {
     if (!type->is_numeric) {
-        // cerr << "Line No: " <<  yylineno  << "Array dimensions should be numeric\n";
-        // exit(1);
         return false;
     }
 
@@ -56,16 +54,121 @@ bool check_return_type(Type *type1, Type *type2) {
     return (t1 == t2);
 }
 
-Type *check_constructor(string token, vector<Type*>& argument_type) {
+pair<Type*, vector<Type*>> check_constructor(string token, vector<Type*>& argument_type) {
     Type *t =  get_type(token);
     ClassDefinition *cls = t->class_def;
-    if (cls->find_constructor(argument_type)){
-        return t;
+    MethodDefinition m = cls->find_constructor(argument_type);
+    if (!is_null(m.ret_type)){
+        return make_pair(m.ret_type, m.args);
     }
-    return NULL;
+    return make_pair(nullptr, m.args);
 }
 
-Type *check_function_in_class(string token, vector<Type *> &argument_type, string nature) {
+pair<Type *, vector<Type *>> check_function_in_class(TypeName *type_name, vector<Type *>&argument_type, string nature) {
+    /*
+        If the function called is a constructor, then we assume that there will be single name in the vector
+        This will have to handled if Inner Classes are supported in future!!!
+    */
+
+    if (nature == CONSTRUCTOR) {
+        return check_constructor(type_name->names[0]->name, argument_type);
+    }
+    
+    int num_names = type_name->names.size();
+    vector<Identifier *> ids = type_name->names;
+    string tmp_str;
+    ClassDefinition *cls;
+    Type *ref_type;
+    SymTabEntry *sym;
+    bool check_static = (current_scope == scope_method && current_table->method->is_static);
+    
+
+    if(num_names == 1) {
+        tmp_str = ids[0]->name;
+        cls = current_class;
+        MethodDefinition *mthd = cls->get_method_call(tmp_str, argument_type);
+
+        if (!is_null(mthd)){
+            if (check_static && !mthd->is_static) {
+                cerr << "Error Line no: " << yylineno << ": error: cannot call non-static method " << tmp_str << " from static method\n";
+                exit(1);
+            }
+            ids[0]->type = mthd->ret_type;
+            return make_pair(mthd->ret_type, mthd->args);
+        }
+        else {
+            cerr << "Error on line " << yylineno << " " << tmp_str << " not found in class " << cls->name << endl;
+            exit(1);
+        }
+    }
+    else {
+        tmp_str = ids[0]->name;
+
+        if (current_scope == scope_class)
+            sym = current_class->get_var(tmp_str);
+        else
+            sym = current_table->get_symbol_from_class(tmp_str);
+    
+        if (is_null(sym)) {
+            cerr << "Error Line No: "<<yylineno <<": variable not declared in this scope. Variable Name: " << tmp_str << endl;
+            exit (1);
+        }
+        if (check_static && sym->is_instance_var && !sym->is_static) {
+            cerr << "Error Line No: " << yylineno << ": error: non-static variable " << sym->name << " accessed in static method " << current_table->method_name << endl;
+            exit(1);
+        }
+
+        ref_type = sym->type;
+
+        if(is_null(ref_type)) {
+            cerr << "Error Line No: "<< yylineno << " : Reference type of object is null. This should not happen\n";
+            exit(-1);
+        }
+
+        if (!ref_type->is_class) {
+            cerr << "Error Line No: " << yylineno << ":  "<< tmp_str << " : variable of non-reference type cannot be referenced" << endl;
+            exit (1);
+        }
+        cls = ref_type->class_def;
+
+        ids[0]->type = ref_type;
+        ids[0]->offset = sym->offset;
+
+        for(int i = 1; i < num_names - 1; i++) {
+
+            tmp_str = ids[i]->name;
+            ref_type = cls->get_var_type(tmp_str);
+
+            if(is_null(ref_type)) {
+                cerr << "Error Line No: " << yylineno << " : " << tmp_str << " is not a member of class " << cls->name << "\n";
+                exit(-1);
+            }
+
+            if(!ref_type->is_class){
+                cerr << "Error Line No: " << yylineno << " " << tmp_str << " : variable of non-reference type cannot be referenced" << endl;
+                exit (1);
+            }
+            cls = ref_type->class_def;
+            ids[i]->type = ref_type;
+            ids[i]->offset = sym->offset;
+        }
+        string mthd_name = ids[num_names-1]->name;
+        MethodDefinition *mthd = cls->get_method_call(mthd_name, argument_type);
+        if (!is_null(mthd)){
+            ids[num_names-1]->type = mthd->ret_type;
+            return make_pair(mthd->ret_type, mthd->args);
+        }
+        else {
+            cerr << "Error Line No: " << yylineno << " " << mthd_name << " not found in class " << cls->name << endl;
+            exit(1);
+        }
+    }
+
+    vector<Type*> v;
+    return make_pair(nullptr, v);
+}
+
+pair<Type*, vector<Type*>> check_function_in_class(string token, vector<Type *> &argument_type, string nature) {
     
     if (nature == CONSTRUCTOR) {
         return check_constructor(token, argument_type);
@@ -95,7 +198,7 @@ Type *check_function_in_class(string token, vector<Type *> &argument_type, strin
                 cerr << "Error Line no: " << yylineno << ": error: cannot call non-static method " << token << " from static method\n";
                 exit(1);
             }
-            return mthd->ret_type;
+            return make_pair(mthd->ret_type, mthd->args);
         }
         else {
             cerr << "Error on line " << yylineno << " " << token << " not found in class " << cls->name << endl;
@@ -155,17 +258,10 @@ Type *check_function_in_class(string token, vector<Type *> &argument_type, strin
             }
             else {
                 string mthd_name = split_token;
-                // cout << "mthd name: " << mthd_name << " args: " << argument_type << endl;
-                // cerr << "Args: ";
-                // for (auto v:argument_type){
-                //     cerr << v->name;
-                //     for (int i = 0; i < v->arr_dim; i++) cerr << "[]";
-                //     cerr << ", ";
-                // }
 
                 MethodDefinition *mthd = cls->get_method_call(mthd_name, argument_type);
                 if (!is_null(mthd)){
-                    return mthd->ret_type;
+                    return make_pair(mthd->ret_type, mthd->args);
                 }
                 else {
                     cerr << "Error Line No: " << yylineno << " " << mthd_name << " not found in class " << cls->name << endl;
@@ -178,15 +274,142 @@ Type *check_function_in_class(string token, vector<Type *> &argument_type, strin
         }
     }
 
-    return NULL;
+    vector<Type *> v;
+    return make_pair(nullptr, v);
 }
 
-////////////////////// Jaya Open //////////////////////////////////
-// stackentry* get_variable_stackentry(vector< stackentry* > &stack, string token) {
+stackentry *find_variable_in_class(TypeName *name, bool initialize) {
+    SymTabEntry *sym;
+    bool check_static;
+    string tmp_str;
+    ClassDefinition *cls;
+    Type *ref_type;
+    int num_names = name->names.size();
+    vector<Identifier *> ids = name->names;
+    check_static = (current_scope == scope_method && current_table->method->is_static);
+    
+    if(num_names == 1) {
+        tmp_str = ids[0]->name;
+        if (current_scope == scope_class) {
+            sym = current_class->get_var(tmp_str);
+        }
+        else {
+            sym = current_table->get_symbol_from_class(tmp_str);
+        }
+        if(is_null(sym)) {
+            cerr << "Error on line " << yylineno << " " << tmp_str << ": variable not found. used on line " << yylineno << endl;
+            exit(1);
+        }
 
-// }
+        if (check_static && sym->is_instance_var && !sym->is_static) {
+            cerr << "Line No: " << yylineno << ": error: non-static variable " << sym->name << " accessed in static method " << current_table->method_name << endl;
+            exit(1);
+        }
+        ids[0]->type = sym->type;
+        ids[0]->offset = sym->offset;
+        goto end;
+    }
+    else {
+        tmp_str = ids[0]->name;
 
-///////////////////////TODO////////////////////////////////////////////
+        if(current_scope == scope_class) {
+            sym = current_class->get_var(tmp_str);
+        } else {
+            sym = current_table->get_symbol_from_class(tmp_str);
+        }
+
+        if (is_null(sym)) {
+            cerr << "Error Line No: " << yylineno << "variable not declared in this scope " << tmp_str << endl;
+            exit (1);
+        }
+
+        if (check_static && sym->is_instance_var && !sym->is_static) {
+            cerr << "Error Line No: " << yylineno << ": error: non-static variable " << sym->name << " accessed in static method " << current_table->method_name << endl;
+            exit(1);
+        }
+        ref_type = sym->type;
+        if(is_null(ref_type)) {
+            cerr << "Error Line No: " << yylineno << " : Reference type of object is null. This should not happen\n";
+            exit(-1);
+        }
+
+        if (!ref_type->is_class) {
+            cerr << "Error Line No: " << yylineno << " " << tmp_str << " : variable of non-reference type cannot be referenced" << endl;
+            exit (1);
+        }
+        cls = ref_type->class_def;
+        
+        ids[0]->type = ref_type;
+        ids[0]->offset = sym->offset;
+
+        for(int i = 1; i < num_names-1; i++) {
+            tmp_str = ids[i]->name;
+            sym = cls->get_var(tmp_str);
+            
+            if(is_null(sym)) {
+                cerr << "Error Line No: " <<  yylineno << " : " << tmp_str << " is not a member of class " << cls->name << "\n";
+                exit(-1);
+            }
+            
+            if(sym->is_private){
+                cerr << "Error Line No: " <<  yylineno << " : " << "Cannot access Private Variable " << tmp_str << " of class " << cls->name << " from its object\n";
+                exit(-1);
+            }
+
+            ref_type = sym->type;
+
+            if(!ref_type->is_class){
+                cerr << "Error Line No: " <<  yylineno << " "<<tmp_str << " : variable of non-reference type cannot be referenced" << endl;
+                exit (1);
+            }
+            cls = ref_type->class_def;
+            ids[i]->type = ref_type;
+            ids[i]->offset = sym->offset;
+        }
+        tmp_str = ids[num_names-1]->name;
+        sym = cls->get_var(tmp_str);
+        if(is_null(sym)) {
+            cerr  << "Error on line " << yylineno << " " << tmp_str << ": variable not found. used on line " << yylineno << endl;
+            exit(1);
+        }
+
+        if(sym->is_private){
+            cerr << "Line No: " <<  yylineno << " : " << "Cannot access Private Variable " << tmp_str << " of class " << cls->name << " from its object\n";
+            exit(-1);
+        }
+
+        goto end;
+    }
+    
+end:
+
+    if(current_scope == scope_method && current_table->nature == CONSTRUCTOR) {
+        if(initialize && sym->is_final && sym->is_final_initialized) {
+            cerr << "Line No: "<<  yylineno << ": error: " << "Cannot assign value to final variable " << sym->name << "\n";
+            exit(1);
+        }
+        
+    }
+    else if (initialize && sym->is_final && (sym->is_instance_var || sym->is_final_initialized)) {
+        cerr << " Line No: "<< yylineno << ": error: variable " << sym->name << " cannot be assigned here" << endl;
+        exit(1);
+    }
+    
+    sym->is_initialized = sym->is_initialized || initialize;
+    sym->is_final_initialized = sym->is_initialized;
+
+    if (sym->is_initialized) {
+        ids[num_names-1]->type = sym->type;
+        ids[num_names-1]->offset = sym->offset;
+        stackentry *s = make_stackentry(tmp_str.c_str(), sym->type, sym->line_no);
+        return s;
+    }
+    else {
+        cerr << "Error Line No: " <<  name << ": variable not intialized. used on line " << yylineno << endl;
+        exit(1);
+    }
+}
+
 stackentry *find_variable_in_class(string token, bool intialize) {
     SymTabEntry *sym;
     bool check_static;
@@ -255,7 +478,6 @@ stackentry *find_variable_in_class(string token, bool intialize) {
         count ++;
 
         while(split_token != NULL) {
-            // cout << "split token: " << split_token << "\n";
             if (count != dot_count) {
                 tmp_str = split_token;
                 sym = cls->get_var(tmp_str);
@@ -280,7 +502,6 @@ stackentry *find_variable_in_class(string token, bool intialize) {
             }
             else {
                 string var_name = split_token;
-                // cout << "var name: " << var_name << endl;
                 sym = cls->get_var(var_name);
                 if(is_null(sym)) {
                     cerr  << "Error on line " << yylineno << " " << name << ": variable not found. used on line " << yylineno << endl;
@@ -396,8 +617,11 @@ void add_function(string token, vector<Type*> &argument_type, Type* return_type,
         current_table->return_type = return_type;
         current_table->nature = FUNCTION;
         current_table->method = current_class->get_method(token, argument_type);
-        freopen((DUMP_DIR + current_class->name + "." + token + "_" + to_string(dump_counter) + ".st").c_str(), "w", stdout);
-        cout << "token,lexeme,type,modifiers,line_no,scope(inside function)\n";
+        if(symtable_out.is_open())
+            symtable_out.close();
+        
+        symtable_out.open((DUMP_DIR + current_class->name + "." + token + "_" + to_string(dump_counter) + ".st").c_str());
+        symtable_out << "token,lexeme,type,modifiers,line_no,scope(inside function),offset\n";
         dump_counter++;
         return;
     }
@@ -413,8 +637,10 @@ void add_constructor(string token, vector<Type*> &argument_type, int8_t modifier
         current_table->return_type = ret_type;
         current_table->nature = CONSTRUCTOR;
         current_table->method = current_class->get_constructor(argument_type);
-        freopen((DUMP_DIR + current_class->name + "." + token + "_" + to_string(dump_counter)+ ".st").c_str(), "w", stdout);
-        cout << "token,lexeme,type,modifiers,line_no,scope(inside function)\n";
+        if(symtable_out.is_open())
+            symtable_out.close();
+        symtable_out.open((DUMP_DIR + current_class->name + "." + token + "_" + to_string(dump_counter)+ ".st").c_str());
+        symtable_out << "token,lexeme,type,modifiers,line_no,scope(inside function),offset\n";
         dump_counter++;
         return;
     }
@@ -799,13 +1025,13 @@ Type* get_type_pass1(string name) {
     return it->second;
 }
 
-Type* ClassOrInterfaceType(stackentry* e1) {
+Type* ClassOrInterfaceType(TypeName* e1) {
 
     if( pass_no == 2){
-        return get_type(e1->token);
+        return get_type(e1->names[0]->name);
     }
     
-    return get_type_pass1(e1->token);
+    return get_type_pass1(e1->names[0]->name);
 }
 
 // stackentry* ArrayType(stackentry* e1, stackentry* e2, int rule_no) {
@@ -1037,19 +1263,19 @@ void check_final_vars() {
 void print_modifier(int8_t mod) {
 
     if((mod & __PUBLIC) == __PUBLIC){
-        cout << "public ";
+        symtable_out << "public ";
     }else if((mod & __PRIVATE) == __PRIVATE)
-        cout << "private ";
+        symtable_out << "private ";
     
     if((mod & __STATIC) == __STATIC)
-        cout << "static ";
+        symtable_out << "static ";
     
     if((mod & __FINAL) == __FINAL)
-        cout << "final ";
+        symtable_out << "final ";
 }
 
 void print_type(Type* t) {
-    cout << "\t Type_Name: " << t->name << "\tType_Size:" <<  t->size << "\tType_ArrDim"<<  t->arr_dim <<"\n";
+    symtable_out << "\t Type_Name: " << t->name << "\tType_Size:" <<  t->size << "\tType_ArrDim"<<  t->arr_dim <<"\n";
 }
 
 string cerr_type(Type*t) {
@@ -1061,8 +1287,8 @@ string cerr_type(Type*t) {
     return "";
 }
 
-string three_ac_type_dump(vector<Type*> t) {
-    string r = "";
+string threeac_filename(string class_name, string method_name, vector<Type*> t) {
+    string r = class_name + "." + method_name;
     for(int i=0; i<t.size(); i++){
         r+="_";
         r+=t[i]->name;

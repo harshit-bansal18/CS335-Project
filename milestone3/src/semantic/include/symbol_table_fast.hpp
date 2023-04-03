@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef SYMBOL_TABLE_FAST_H
   #define SYMBOL_TABLE_FAST_H
 
@@ -94,7 +96,7 @@
     SymTabEntry* get_var(string);
     MethodDefinition *get_method(string, vector<Type*>&);
     MethodDefinition *get_method_call(string, vector<Type*>&);
-    bool find_constructor(vector<Type*>&);
+    MethodDefinition find_constructor(vector<Type*>&);
     MethodDefinition *get_constructor(vector<Type *>&);
     void is_final_var_initialized();
   };
@@ -108,19 +110,20 @@
   typedef struct Identifier {
     public:
     string name;
+    Type *type;
+    size_t offset;
     unsigned long line_no;
     bool is_initialized;
     Identifier(const char* name, unsigned long line_no);
   } Identifier;
 
-  class TypeName {
-    public:
-    vector<Identifier *> names;
-    TypeName(Identifier *id);
-    void append_name(Identifier *id);
-  };
-
-
+  typedef struct TypeName {
+      public:
+      vector<Identifier *> names;
+      string threeac;
+      TypeName(Identifier *id);
+      void append_name(Identifier *id);
+  } TypeName;
 
   class SymTabEntry {
     public:
@@ -175,7 +178,7 @@
 
     bool is_private;
     bool is_static;
-    // MethodDefinition();
+    MethodDefinition();
     MethodDefinition(string, vector<Type*>&, Type*, int8_t, unsigned long );
 
   };
@@ -215,4 +218,5 @@
                         //  Declarator *declarator, int *error );
     };
 
+  
 #endif

@@ -48,3 +48,6 @@ milestone3: build/milestone3
 
 clean:
 	rm -rf build
+
+clean_dump:
+	rm -rf build/dump/*

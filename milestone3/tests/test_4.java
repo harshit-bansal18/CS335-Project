@@ -19,6 +19,6 @@ class test_25
 		}
 		boolean p = true;
 		A a_ = new A();
-		a_.a = a_.b;
+		a_.b = 3;
     }  
 }

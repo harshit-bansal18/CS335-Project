@@ -14,6 +14,8 @@ using namespace std;
 
 extern "C" int yylineno;
 
+ofstream symtable_out;
+
 SymbolTable::SymbolTable(){
 }
 
@@ -50,9 +52,6 @@ LocalSymbolTable::LocalSymbolTable() {
 
 void LocalSymbolTable::increase_level() {
     current_level++;
-    // cout << ss.str() << endl;
-    // ss.clear();
-    // ss.str(string());
 }
 
 void LocalSymbolTable::clear_current_level() {
@@ -85,7 +84,7 @@ void LocalSymbolTable::clear_current_level() {
     current_level--;
 
     //write to file now using stringstream
-    cout << ss.str();
+    symtable_out << ss.str();
     ss.clear();
     ss.str(string());
 }
@@ -100,7 +99,7 @@ void LocalSymbolTable::empty_table() {
     method_name = "";
     return_type = NULL;
     container_class = NULL;
-    cout << ss.str();
+    symtable_out << ss.str();
     ss.clear();
     ss.str(string());
 }
@@ -307,17 +306,21 @@ MethodDefinition* ClassDefinition::get_method(string name, vector<Type*> &args) 
     return NULL;
 }
 
-bool ClassDefinition::find_constructor(vector<Type*> &args) {
+MethodDefinition ClassDefinition::find_constructor(vector<Type*> &args) {
+    vector<Type *>v;
+    MethodDefinition cnstr;
+    cnstr.ret_type = get_type(this->name); // cannot be array so no extra copy will be made here
+    cnstr.args = v;  
     if (constructors.empty() && args.empty())
-        return true;
+        return cnstr;
     
     for( auto c: constructors) {
         if (compare_argument_types(c->args, args)) {
-            return true;
+            return *c;
         }
     }
-    
-    return false;
+    cnstr.ret_type = NULL;
+    return cnstr;
 }
 
 MethodDefinition *ClassDefinition::get_constructor(vector<Type*> &args) {
@@ -342,6 +345,10 @@ void ClassDefinition::is_final_var_initialized() {
         sym.second->is_final_initialized = !first_constructor_done;
     }
     if (!first_constructor_done) first_constructor_done = true;
+}
+
+MethodDefinition::MethodDefinition() {
+
 }
 
 MethodDefinition::MethodDefinition(string name, vector<Type *> &args, Type *ret, int8_t modf, unsigned long line) {
@@ -402,10 +409,6 @@ bool Type::is_pointer() {
 }
 
 bool operator==(Type &obj1, Type &obj2) {
-    // cout << "Type Names: " << obj1.name << " " << obj2.name << "\n";
-    // cout << obj1.is_primitive << " " << obj2.is_primitive << "\n";
-    // cout << obj1.is_numeric << " " << obj2.is_numeric << "\n";
-    // cout << obj1.arr_dim << " " << obj2.arr_dim << "\n";
 
     if (obj1.is_class && obj2.is_class) {
         // both are ref types
@@ -466,64 +469,62 @@ ClassDefinition *GlobalSymbolTable::get_class( string name ) {
 void GlobalSymbolTable::dump_table() {
 
     ClassDefinition *cls;
-    // cout << "Name" << "\t \t" << "Scope" << "\t \t" << "Modifier" << "\t \t" << "Nature" << "\t \t" << "Offset" << "\t \t" << "Line Num" << "\t \t" << "\n";
     for(auto it : classes) {
-        // print classes information
-        // std::cout << "############################CLASS##################################\n";
         cls = it.second;
-        freopen((DUMP_DIR + cls->name + ".st").c_str(), "w", stdout);
-
-        std::cout << cls->name << "\t \t" << 0 << "\t \t";
+        symtable_out.open((DUMP_DIR + cls->name + ".st").c_str());
+        symtable_out << cls->name << "\t \t" << 0 << "\t \t";
+        symtable_out << "Syntactic\t Lexeme \t Type \t Modifiers \t Line No \t Scope level\n";
         print_modifier(cls->modifier);
-        cout << "\t \t" << "Class" << "\t \t" << "#print sum of ins var" << "\t \t" << cls->line_no << "\t \t" << "\n";
+        symtable_out << "\t \t" << "Class" << "\t \t" << "#print sum of ins var" << "\t \t" << cls->line_no << "\t \t" << "\n";
 
 
         if (cls->inst_vars.empty()) {
-            cout << "~~~~~~~~~~~instance variables not prsent~~~~~~~~~~~~~~~~~~~\n";
+            symtable_out << "~~~~~~~~~~~instance variables not prsent~~~~~~~~~~~~~~~~~~~\n";
         } else{
-            cout << "~~~~~~~~~~~~~~~INSTANCE_VARIABLES~~~~~~~~~~~~~~~~\n";
+            symtable_out << "~~~~~~~~~~~~~~~INSTANCE_VARIABLES~~~~~~~~~~~~~~~~\n";
             SymTabEntry* ins;
             for (auto it2:cls->inst_vars) {
                 ins = it2.second;
-                cout << ins->name << "\t \t" << ins->level << "\t \t" ;
+                symtable_out << ins->name << "\t \t" << ins->level << "\t \t" ;
                 print_modifier(ins->modifier);
-                cout << "\t \t" << "Variable" << "\t \t" << ins->offset << "\t \t" << ins->line_no << "\t \t" << "\n";
-                cout << "Extra Information: \n";
-                cout << "\t Is Initialised: " << ins->is_initialized << "\n";
+                symtable_out << "\t \t" << "Variable" << "\t \t" << ins->offset << "\t \t" << ins->line_no << "\t \t" << "\n";
+                symtable_out << "Extra Information: \n";
+                symtable_out << "\t Is Initialised: " << ins->is_initialized << "\n";
                 print_type(ins->type);
-                cout << "\n";
+                symtable_out << "\n";
             }
         }
 
-        cout << "\n\n";
-        cout << "~~~~~~~~~~~~~~~CLASS_METHODS~~~~~~~~~~~~~~~~\n";
+        symtable_out << "\n\n";
+        symtable_out << "~~~~~~~~~~~~~~~CLASS_METHODS~~~~~~~~~~~~~~~~\n";
         for( auto it2: cls->methods) {
             auto &q = it2.second;
             for (auto it3 : q) {
-                cout << it3->name << "\t \t" << 0 << "\t \t";
+                symtable_out << it3->name << "\t \t" << 0 << "\t \t";
                 print_modifier(it3->modifier);
-                cout << "\t \t" << "Function" << "\t \t" << 0 << "\t \t" << it3->line_no << "\t \t" << "\n";
-                cout << "Extra Information: \n";
-                cout << "Return Type: ";
+                symtable_out << "\t \t" << "Function" << "\t \t" << 0 << "\t \t" << it3->line_no << "\t \t" << "\n";
+                symtable_out << "Extra Information: \n";
+                symtable_out << "Return Type: ";
                 print_type(it3->ret_type);
-                cout << "Args Str: ";
-                for(auto t:it3->args) cout << t->name << " ";
-                cout << "\n";
+                symtable_out << "Args Str: ";
+                for(auto t:it3->args) symtable_out << t->name << " ";
+                symtable_out << "\n";
             }
         }   
-        cout << "\n\n";
-        cout << "~~~~~~~~~~~~~~~CONSTRUCTORS~~~~~~~~~~~~~~~~\n";
+        symtable_out << "\n\n";
+        symtable_out << "~~~~~~~~~~~~~~~CONSTRUCTORS~~~~~~~~~~~~~~~~\n";
         for(auto it2: cls->constructors) {
-            cout << it2->name << "\t \t" << 0 << "\t \t";
+            symtable_out << it2->name << "\t \t" << 0 << "\t \t";
                 print_modifier(it2->modifier);
-                cout << "\t \t" << "Constructor" << "\t \t" << 0 << "\t \t" << it2->line_no << "\t \t" << "\n";
-                cout << "Extra Information: \n";
-                cout << "Args Str: ";
-                for(auto t:it2->args) cout << t->name << " ";
-                cout << "\n";
+                symtable_out << "\t \t" << "Constructor" << "\t \t" << 0 << "\t \t" << it2->line_no << "\t \t" << "\n";
+                symtable_out << "Extra Information: \n";
+                symtable_out << "Args Str: ";
+                for(auto t:it2->args) symtable_out << t->name << " ";
+                symtable_out << "\n";
         }
 
-        cout << "############################CLASS_ENd##################################\n\n";
+        symtable_out << "############################CLASS_ENd##################################\n\n";
+        symtable_out.close();
     }
     
 }
@@ -534,6 +535,7 @@ Identifier::Identifier(const char *name, unsigned long line) {
 }
 
 TypeName::TypeName(Identifier *id) {
+    this->names.clear();
     this->names.push_back(id);
 }
 

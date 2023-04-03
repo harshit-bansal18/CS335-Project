@@ -151,22 +151,56 @@ string field_access_3ac(string tac_name, int offset) {
         return "";
 
     string temp2 = get_temp();
+    // emit("+", tac_name, to_string(offset), temp2);
     tacss << "= " << "*(" << tac_name << "+" << offset << ") " << temp2 << "\n";
     return temp2;
 }
 
-void dump_3ac(string filename){
+// returns the last name in type_name vector
+string type_name_3ac(TypeName *type_name, bool is_func) {
+    auto ids =  type_name->names;
+    string tmp = ids[0]->name;
+    string arg1, arg2;
+    int num = ids.size();
+    int n = num;
+    if (is_func)
+        n -= 1;
+    
+    for(int i = 1; i < n; i++) {
+        string t = get_temp();
+        arg1 = tmp; arg2 = to_string(ids[i]->offset);
+        emit("+", arg1, arg2, t);
+        tmp = t;
+    }
+    
+    if (num == 1)
+        type_name->threeac = tmp;
+    else 
+        type_name->threeac = "*" + tmp;
+    
+    return ids[num-1]->name;
+}
+
+void dump_3ac(string fname){
+    string filename = DUMP_DIR + fname + ".3ac";
     ofstream outss(filename.c_str());
+    outss << fname << " : \n" << endl;
+    outss << "push ebp" << endl;
+    outss << "= esp ebp\n"<<endl;
     outss << tacss.str() << endl;
     tacss.clear();
     tacss.str(string());
     outss.close();
 }   
 
-int get_array_size(vector<string> array_dims){
-    int size = 1;
+string get_array_size(vector<string> array_dims){
+    string size = get_temp();
+    emit("=", "1", "", size);
+    string temp = get_temp();
+    
     for(int i=0; i<array_dims.size(); i++){
-        size *= stoi(array_dims[i]);
+        emit("*", size, array_dims[i], temp);
+        emit("=", temp, "", size);
     }
     return size;
 }

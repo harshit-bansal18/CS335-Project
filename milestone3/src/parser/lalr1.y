@@ -74,6 +74,7 @@
     struct Type *type;
     struct Identifier *id;
     char* threeac_label;
+    struct TypeName *type_name;
 }
 
 %token<str> INT LONG BYTE CHAR SHORT FLOAT DOUBLE BOOLEAN VAR
@@ -119,7 +120,7 @@
 %type<type> ClassOrInterfaceType
 %type<type> ArrayType
 %type<stack_entry> Dims
-%type<stack_entry> TypeName
+%type<type_name> TypeName
 %type<stack_entry> ClassDeclaration
 %type<stack_entry> ClassBody
 %type<stack_entry> ClassBodyDeclarations
@@ -144,6 +145,7 @@
 %type<stack_entry> VariableInitializerList
 %type<stack_entry> Primary
 %type<stack_entry> PrimaryNoNewArray
+%type<stack_entry> ClassInstanceCreationExpressionSubRoutine
 %type<stack_entry> ClassInstanceCreationExpression
 %type<stack_entry> FieldAccess
 %type<stack_entry> ArrayAccess
@@ -432,7 +434,7 @@ ArrayType:
                             $$ = get_array_type($1, $2);
                         }
 |   TypeName Dims   { 
-                        $$ = get_array_type(get_type(($1)->token), $2);
+                        $$ = get_array_type(get_type(($1)->names[0]->name), $2);
                     }
 ;
 
@@ -460,15 +462,11 @@ Dims:
 */
 TypeName:
     Identifier  { 
-                    $$ = make_stackentry((($1)->name).c_str(), yylineno);
-                    free($1);
-                    $$->threeac = $$->token;
+                    $$ = new TypeName($1);
                 }
 |   TypeName Dot Identifier {
-                                $1->token = $1->token + "." + $3->name;
-                                free($3);
-                                $$ = $1;
-                                $$->threeac = $$->token;
+                               $1->append_name($3);
+                               $$ = $1;
                             }
 ;
 
@@ -558,7 +556,7 @@ ClassMemberDeclaration:
                             //     ifnum=0;
                             //     tcount=0;
                             //     paramcount=0;
-                            //     threeac_file_name = DUMP_DIR + current_class->name + "." + ($1)->token + three_ac_type_dump(($1)->argument_type); + ".3ac";
+                            //     threeac_file_name =current_class->name + "." + ($1)->token + three_ac_type_dump(($1)->argument_type); ;
                             //     dump_3ac(threeac_file_name);
                             // }
                         }
@@ -627,20 +625,19 @@ MethodDeclaration:
                     add_function(($1)->token, ($1)->argument_type, ($1)->type, ($1)->modifier);   
                     current_scope = scope_method;
                     // if(pass_no==2){
-                    //     threeac_file_name = current_class->name + "_" + ($1)->token + ".3ac";
+                    //     threeac_file_name = current_class->name + "_" + ($1)->token ;
                     //     emit("\n\n"+threeac_file_name+":\n\n","","","");
                     // }
                 } MethodBody {  
                                 current_scope = scope_class; 
                                 if(pass_no==2){
                                     current_table->empty_table(); 
-                                    cout << "After empty table\n";
                                     // $$ = $1;
                                     loopnum=0;
                                     ifnum=0;
                                     tcount=0;
                                     paramcount=0;
-                                    threeac_file_name = DUMP_DIR + current_class->name + "." +  ($1)->token + three_ac_type_dump(($1)->argument_type) + ".3ac";
+                                    threeac_file_name =threeac_filename(current_class->name, ($1)->token , ($1)->argument_type) ;
                                     dump_3ac(threeac_file_name);
                                 }
                             }
@@ -730,7 +727,7 @@ DeclaratorSubRoutine:
                             $$ = $1;
                             if(pass_no==2){
                                 current_scope = scope_method;
-                                // threeac_file_name = current_class->name + "_" + ($1)->name + ".3ac";
+                                // threeac_file_name = current_class->name + "_" + ($1)->name ;
                                 // emit("\n\n"+threeac_file_name+":\n\n","","","");
                             }
                         }
@@ -805,7 +802,8 @@ ConstructorDeclaration:
                                                                                                                                             ifnum=0;
                                                                                                                                             tcount=0;
                                                                                                                                             paramcount=0;
-                                                                                                                                            threeac_file_name = DUMP_DIR + current_class->name + "." +  ($2)->token + three_ac_type_dump(($2)->argument_type) + ".3ac";
+                                                                                                                                            // threeac_file_name =current_class->name + "." +  ($2)->token + three_ac_type_dump(($2)->argument_type) ;
+                                                                                                                                            threeac_file_name =threeac_filename(current_class->name ,  ($2)->token ,($2)->argument_type) ;
                                                                                                                                             dump_3ac(threeac_file_name);
                                                                                                                                         }
                                                                                                                                     }
@@ -819,7 +817,7 @@ ConstructorDeclaration:
                                                                                                                                             ifnum=0;
                                                                                                                                             tcount=0;
                                                                                                                                             paramcount=0;
-                                                                                                                                            threeac_file_name = DUMP_DIR + current_class->name + "." +  ($1)->token + three_ac_type_dump(($1)->argument_type) + ".3ac";
+                                                                                                                                            threeac_file_name =threeac_filename(current_class->name , ($1)->token , ($1)->argument_type) ;
                                                                                                                                             dump_3ac(threeac_file_name);
                                                                                                                                         }
                                                                                                                                 }
@@ -847,7 +845,8 @@ ExplicitConstructorInvocation:
                             // This is the default constructor of a class, hence always exists, no need to check anything
                             if(pass_no == 2){
                                 vector <Type*> v;
-                                if(is_null(check_function_in_class( current_class->name, v, CONSTRUCTOR))){
+                                auto method_def_pair = check_function_in_class( current_class->name, v, CONSTRUCTOR);
+                                if(is_null(method_def_pair.first)){
                                     cerr << "Line No: " <<  yylineno  << "No such constructor present in class\n";
                                     exit(-1);
                                 }
@@ -856,7 +855,8 @@ ExplicitConstructorInvocation:
 |   This Lparen ArgumentList Rparen {
                                         // Check if any constructor exists with the same argument type
                                         if(pass_no == 2){
-                                            if(is_null(check_function_in_class( current_class->name, ($3)->argument_type, CONSTRUCTOR))){
+                                            auto method_def_pair = check_function_in_class( current_class->name, ($3)->argument_type, CONSTRUCTOR);
+                                            if(is_null(method_def_pair.first)){
                                                 cerr << "Line No: " <<  yylineno  << "No such constructor present in class\n";
                                                 exit(-1);
                                             }
@@ -968,30 +968,63 @@ PrimaryNoNewArray:  Literal { $$ = $1; }
 |                   MethodInvocation { $$ = $1; }
 ;
 
+ClassInstanceCreationExpressionSubRoutine:
+    New ClassOrInterfaceType Lparen {if(pass_no == 2) {
+                                        $$ = make_stackentry("", ($2), yylineno);
+                                        $$->threeac = get_temp();
+                                        emit("param",to_string($2->class_def->class_width),"","");
+                                        emit("stackpointer","+8","","");
+                                        emit("call", "allocmem", "1", "");
+                                        emit("stackpointer","-8","","");
+                                        emit("=","popparam", $$->threeac,"");
+                                    }}
+
 ClassInstanceCreationExpression: 
-    New ClassOrInterfaceType Lparen Rparen  {
+    ClassInstanceCreationExpressionSubRoutine Rparen  {
                                                 if(pass_no == 2){
                                                     vector<Type *>v;
-                                                    if(is_null(check_function_in_class(($2)->name, v, CONSTRUCTOR))) {
+                                                    auto func_pair = check_function_in_class(($1)->type->name, v, CONSTRUCTOR);
+                                                    if(is_null(func_pair.first)) {
                                                         cerr << "Line No: " <<  yylineno << "Unknown constructor used"<<endl;
                                                         exit(1);
                                                     }
-                                                    $$ = make_stackentry("", ($2), yylineno);
-                                                    $$->threeac = get_temp();
-                                                    emit("newcall", ($2)->name, "0", $$->threeac);
+                                                    $$ = $1;
+
+                                                    int args_size = 4;
+                                                    for(int i=0; i<func_pair.second.size(); i++){
+                                                        args_size += func_pair.second[i]->size;
+                                                    }
+                                                    emit("param",$$->threeac,"","");
+                                                    emit("stackpointer","+ " + to_string(args_size),"","");
+                                                    emit("call", threeac_filename(($1)->type->name, ($1)->type->name, func_pair.second), "1", "");
+                                                    emit("stackpointer","- " + to_string(args_size),"","");
+                                                    // emit("=","popparam", $$->threeac,"");
                                                                 
                                                 } 
                                             }
-|   New ClassOrInterfaceType Lparen ArgumentList Rparen {   
+|   ClassInstanceCreationExpressionSubRoutine ArgumentList Rparen {   
                                                             if(pass_no == 2){
-                                                                if(is_null(check_function_in_class(($2)->name, ($4)->argument_type, CONSTRUCTOR))){
+                                                                
+                                                                auto func_pair = check_function_in_class(($1)->type->name, ($2)->argument_type, CONSTRUCTOR);
+                                                                
+                                                                if(is_null(func_pair.first)){
                                                                     cerr << "Line No: " <<  yylineno <<"Unknown constructor used"<<endl;
                                                                     exit(1);
                                                                 }
+                                                                
+                                                                $$ = $1;
 
-                                                                $$ = make_stackentry("", ($2), yylineno);
-                                                                $$->threeac = get_temp();
-                                                                emit("newcall", ($2)->name, to_string(paramcount), $$->threeac);
+                                                                int args_size = 4;
+                                                                for(int i=0; i<func_pair.second.size(); i++){
+                                                                    // cerr << (func_pair.second[i]->name) << "\n";
+                                                                    args_size += func_pair.second[i]->size;
+                                                                }
+
+                                                                emit("param",$$->threeac,"","");
+                                                                emit("stackpointer","+ " + to_string(args_size),"","");
+                                                                emit("call", threeac_filename(($1)->type->name, ($1)->type->name, func_pair.second), to_string(paramcount+1), "");
+                                                                emit("stackpointer", "- " + to_string(args_size), "","");
+                                                                // emit("=","popparam", $$->threeac,"");
                                                                 paramcount=0;
                                                             }
                                                         }
@@ -1013,35 +1046,52 @@ FieldAccess:    Primary Dot Identifier  {
 
 ArrayAccess:    TypeName Lsquare Expression Rsquare {   
                                                         if(pass_no == 2 ){
+                                                            
                                                             if( !(($3)->type->is_integral)){
                                                                 cerr << "Line No: " <<  yylineno <<"Array index must be integer"<<endl;
                                                                 exit(-1);
                                                             }
-                                                            $1 = find_variable_in_class(($1)->token, false);                
-
+                                                           
+                                                            $$ = find_variable_in_class($1, false);                
+                                                            
                                                             // string id = ($1)->type;
                                                             Type *t = new Type();
-                                                            *t = *(($1)->type);
+                                                            
+                                                            *t = *(($$)->type);
+                                                            
                                                             if(!t->is_pointer()){
                                                                 cerr << "Line No: " <<  yylineno <<"Type of variable must be array type"<<endl;
                                                                 exit(1);
                                                             }
+                                                            
                                                             t->arr_dim--;
-                                                            $$ = $1; 
                                                             // $$->threeac = $1->threeac + "[" + $3->threeac + "]";
                                                             
+                                                            type_name_3ac($1, false);
+
                                                             $$->type = t;
                                                             string temp1 = get_temp();
                                                             string temp2 = get_temp();
-                                                            if(t->arr_dim == 0){
-                                                                emit("*", $3->threeac , "size_of("+ $$->type->name +")", temp1);
+
+                                                            if(!t->is_pointer()){
+
+                                                                if($$->type->is_primitive)
+                                                                    emit("*", $3->threeac , to_string($$->type->size), temp1);
+                                                                else
+                                                                    emit("*", $3->threeac , to_string($$->type->class_def->class_width), temp1);
                                                             }
                                                             else{
                                                                 emit("*", $3->threeac , to_string(REF_TYPE_SIZE), temp1);
                                                             }
-                                                            emit("+", $1->token, temp1, temp2);
+
+                                                            /** Need to correct the output notation
+                                                            *    use temp2 = *(t1 + t2)\
+                                                            */
+                                                            emit("+", $1->threeac, temp1, temp2);
                                                             $$->threeac = "*" + temp2;
                                                             
+
+
                                                             free($3);
                                                         }
                                                     }
@@ -1065,7 +1115,7 @@ ArrayAccess:    TypeName Lsquare Expression Rsquare {
                                                             $$->type = t;
                                                             string temp1 = get_temp();
                                                             string temp2 = get_temp();
-                                                            if(t->arr_dim == 0){
+                                                            if(!t->is_pointer()){
                                                                 emit("*", $3->threeac , to_string($$->type->size) , temp1);
                                                             }
                                                             else{
@@ -1083,29 +1133,72 @@ ArrayAccess:    TypeName Lsquare Expression Rsquare {
 MethodInvocation:   TypeName Lparen Rparen  {    
                                                 if(pass_no == 2 ){
                                                     vector<Type *> v;
-                                                    Type* return_type = check_function_in_class(($1)->token, v, FUNCTION);
-                                                    if(return_type == NULL){
+                                                    
+                                                    auto method_def_pair = check_function_in_class($1, v, FUNCTION);
+                                                    if(is_null(method_def_pair.first)){
                                                         cerr << "Line No: " <<  yylineno  << "Undeclared function called\n";
-                                                        exit(-1);
+                                                        exit(1);
                                                     }
-                                                    $$ = make_stackentry("", yylineno); 
-                                                    $$->type = return_type;
+                                                    // Previously was wrong here. Return type directly used
+                                                    // Maybe if return type was array then code was wrong here
+                                                    // whenever making new stackentry of given type, use only this function
+                                                    // do not manually assign type
+                                                    string mname = type_name_3ac($1, true);
+                                                    $$ = make_stackentry("", method_def_pair.first, yylineno);
                                                     $$->threeac = get_temp();
-                                                    emit("call", ($1)->token, "", $$->threeac );
+                                                    int names_size = ($1)->names.size();
+                                                    string method_name;
+
+                                                    if(names_size > 1){
+                                                        emit("param", $1->threeac, "", "");
+                                                        method_name = threeac_filename(($1)->names[names_size-2]->type->name, mname, method_def_pair.second);
+                                                    } else {
+                                                        method_name = threeac_filename(current_class->name, mname, method_def_pair.second);
+                                                    }
+                                                    
+                                                    int local_args_sum = 4;
+                                                    for(int i =0; i<method_def_pair.second.size();i++){
+                                                        local_args_sum += method_def_pair.second[i]->size;
+                                                    }
+                                                    emit("stackpointer","+ " + to_string(local_args_sum),"","");
+                                                    emit("call", method_name, "1", "");
+                                                    emit("stackpointer","- " + to_string(local_args_sum),"","");
+                                                    if(method_def_pair.first->name !=__VOID)
+                                                        emit("=","popparam", $$->threeac,"");
 
                                                 }
                                             }
 |                   TypeName Lparen ArgumentList Rparen {   
                                                             if(pass_no == 2 ){
-                                                                Type* return_type = check_function_in_class(($1)->token, ($3)->argument_type, FUNCTION);
-                                                                if(return_type == NULL){
+                                                                auto method_def_pair = check_function_in_class($1, ($3)->argument_type, FUNCTION);
+                                                                if(is_null(method_def_pair.first)){
                                                                     cerr << "Line No: " <<  yylineno  << "Undeclared function called\n";
                                                                     exit(-1);
                                                                 }
-                                                                $$ = make_stackentry("", yylineno); 
-                                                                $$->type = return_type;
+                                                                string mname = type_name_3ac($1, true);
+                                                                $$ = make_stackentry("", method_def_pair.first, yylineno); 
                                                                 $$->threeac = get_temp();
-                                                                emit("call", ($1)->token , to_string(paramcount), $$->threeac);
+
+                                                                int local_args_sum = 4;
+                                                                for(int i =0; i<method_def_pair.second.size();i++){
+                                                                    local_args_sum += method_def_pair.second[i]->size;
+                                                                }
+
+                                                                int names_size = ($1)->names.size();
+                                                                string method_name;
+
+                                                                if(names_size > 1){
+                                                                    emit("param", $1->threeac, "", "");
+                                                                    method_name = threeac_filename(($1)->names[names_size-2]->type->name, mname, method_def_pair.second);
+                                                                } else {
+                                                                    method_name = threeac_filename(current_class->name, mname, method_def_pair.second);
+                                                                }
+                                                                
+                                                                emit("stackpointer","+ " + to_string(local_args_sum),"","");
+                                                                emit("call", method_name, to_string(paramcount+1), "");
+                                                                emit("stackpointer","- " + to_string(local_args_sum),"","");
+                                                                if(method_def_pair.first->name !=__VOID)
+                                                                    emit("=","popparam", $$->threeac,"");
                                                                 paramcount=0;
                                                             }
                                                         }
@@ -1156,22 +1249,28 @@ ArrayCreationExpression:    New PrimitiveType DimExprs Dims         {
 |                           New PrimitiveType DimExprs              {  
                                                                         if(pass_no == 2 ){
                                                                                             $$ = assign_arr_dim($2, $3); 
-                                                                                            int size = get_array_size($3->type->arr_dim_val);
-                                                                                            size = size * $2->size;
+                                                                                            $$->type->arr_dim_val.push_back(to_string($2->size));
+                                                                                            string size = get_array_size($3->type->arr_dim_val);
                                                                                             $$->threeac = get_temp();
-                                                                                            emit("param", to_string(size), "", "");
-                                                                                            emit("call", "malloc", "1", $$->threeac);
+                                                                                            emit("param", size, "", "");
+                                                                                            emit("stackpointer","+8","","");
+                                                                                            emit("call", "allocmem", "1", "");
+                                                                                            emit("stackpointer","-8","","");
+                                                                                            emit("=","popparam", $$->threeac,"");
                                                                                         } 
                                                                     }
 |                           New ClassOrInterfaceType DimExprs       {  
                                                                         if(pass_no == 2 ){
                                                                                             $$ = assign_arr_dim($2, $3); 
+                                                                                            $$->type->arr_dim_val.push_back(to_string($2->size));
                                                                                             // $$->threeac = $2->name + $3->threeac;
-                                                                                            int size = get_array_size($3->type->arr_dim_val);
-                                                                                            size = size * $2->size;
+                                                                                            string size = get_array_size($3->type->arr_dim_val);
                                                                                             $$->threeac = get_temp();
-                                                                                            emit("param", to_string(size), "", "");
-                                                                                            emit("call", "malloc", "1", $$->threeac);
+                                                                                            emit("param", size, "", "");
+                                                                                            emit("stackpointer","+8","","");
+                                                                                            emit("call", "allocmem", "1", "");
+                                                                                            emit("stackpointer","-8","","");
+                                                                                            emit("=","popparam", $$->threeac,"");
                                                                                         } 
                                                                     }
 |                           New PrimitiveType Dims ArrayInitializer {  
@@ -1188,10 +1287,6 @@ ArrayCreationExpression:    New PrimitiveType DimExprs Dims         {
                                                                             } //3ac not done
 ;
 
-
-// ArrayCreationExpression -> new B C ArrayInitializer    $$.type = $2.type + ("*")*(stringtoint($3.type))
-// ArrayCreationExpression -> new B C     $$.type = $2.type + ("*")*(stringtoint($3.type))
-// ArrayCreationExpression -> new B C D    $$.type = $2.type + ("*")*(stringtoint($3.type) + stringtoint($3.type))
 
 DimExprs:   DimExpr { if(pass_no == 2) {
                             $$ = $1; 
@@ -1277,9 +1372,10 @@ Assignment:
 LeftHandSide:
     TypeName {  
                 if(pass_no == 2 ){ 
-                    struct stackentry* entry = find_variable_in_class(($1)->token, true);
+                    struct stackentry* entry = find_variable_in_class($1, true);
                     $$ = entry;
-                    $$->threeac = $1->token;
+                    type_name_3ac($1, false);
+                    $$->threeac = $1->threeac;
                 }
             }
 |   FieldAccess { if(pass_no == 2 ) $$ = $1; }
@@ -1543,7 +1639,7 @@ UnaryExpression:    PreIncrementExpression      { if(pass_no == 2 ) $$ = $1; }
                                                         }
                                                         $$ = $2;
                                                     }
-                                                }
+                                                }   //Nashe
 |                   Minus UnaryExpression       {   
                                                     if(pass_no == 2 ){   
                                                         if($2->type->arr_dim) {
@@ -1559,7 +1655,7 @@ UnaryExpression:    PreIncrementExpression      { if(pass_no == 2 ) $$ = $1; }
                                                         $$->threeac = get_temp();
                                                         emit("uminus", ($2)->threeac, "", ($$)->threeac);
                                                     }
-                                                }
+                                                }   //Nashe
 |                   UnaryExpressionNotPlusMinus { if(pass_no == 2 ) $$ = $1; }
 ;
 
@@ -1580,7 +1676,7 @@ PreIncrementExpression: Increment Primary       {
                                                 }
 |                       Increment TypeName      {   
                                                     if(pass_no == 2 ){  
-                                                        $$ = find_variable_in_class(($2)->token, false);
+                                                        $$ = find_variable_in_class($2, false);
 
                                                         if($$->type->arr_dim) {
                                                             cerr << "Line No: " <<  yylineno  << "bad operand type " << cerr_type($$->type) <<" for unary operator '++'\n";
@@ -1591,7 +1687,8 @@ PreIncrementExpression: Increment Primary       {
                                                             cerr << "Line No: " <<  yylineno  << "unary Expression Type should be numeric\n";
                                                             exit(1);
                                                         }
-                                                        $$->threeac = pre_increament_3ac($$->token); 
+                                                        type_name_3ac($2, false);
+                                                        $$->threeac = pre_increament_3ac($2->threeac); 
                                                     }
                                                 }
 ;
@@ -1614,7 +1711,7 @@ PreDecrementExpression: Decrement Primary   {
                                             }
 |                       Decrement TypeName  {       
                                                     if(pass_no == 2 ){  
-                                                        $$ = find_variable_in_class(($2)->token, false);
+                                                        $$ = find_variable_in_class($2, false);
                                                         if($$->type->arr_dim) {
                                                             cerr << "Line No: " <<  yylineno  << "bad operand type " << cerr_type($$->type) <<" for unary operator '+'\n";
                                                             exit(1);
@@ -1624,7 +1721,8 @@ PreDecrementExpression: Decrement Primary   {
                                                             cerr << "Line No: " <<  yylineno  << "unary Expression Type should be numeric\n";
                                                             exit(1);
                                                         }
-                                                        $$->threeac = pre_decreament_3ac($$->token);
+                                                        type_name_3ac($2, false);
+                                                        $$->threeac = pre_decreament_3ac($2->threeac);
                                                     }
                                             }
 ;
@@ -1664,7 +1762,8 @@ UnaryExpressionNotPlusMinus:    PostfixExpression                   { if(pass_no
 
 PostfixExpression:  Primary                 { if(pass_no == 2 ) $$ = $1; }
 |                   TypeName                {   if(pass_no == 2 ) {
-                                                    $$ = find_variable_in_class(($1)->token, false); 
+                                                    $$ = find_variable_in_class($1, false);
+                                                    type_name_3ac($1, false);
                                                     $$->threeac = ($1)->threeac; 
                                                 }
                                             }
@@ -1689,7 +1788,7 @@ PostIncrementExpression:    Primary Increment   {
                                                 }
 |                           TypeName Increment  {   
                                                     if(pass_no == 2 ){  
-                                                        $$ = find_variable_in_class(($1)->token, false);
+                                                        $$ = find_variable_in_class($1, false);
 
                                                         if($$->type->arr_dim) {
                                                             cerr << "Line No: " <<  yylineno  << "bad operand type " << cerr_type($$->type) <<" for unary operator '++'\n";
@@ -1697,10 +1796,11 @@ PostIncrementExpression:    Primary Increment   {
                                                         }
 
                                                         if(!check_if_numeric_type(($$)->type)) {
-                                                            cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '++' \n first type: "<< ($1)->type << "\n";
+                                                            cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '++' \n first type: "<< ($$)->type << "\n";
                                                             exit(-1);
                                                         }
-                                                        $$->threeac = post_increament_3ac($$->token);
+                                                        type_name_3ac($1, false);
+                                                        $$->threeac = post_increament_3ac($1->threeac);
                                                     }
                                                 }
 ;
@@ -1724,17 +1824,20 @@ PostDecrementExpression:    Primary Decrement   {
                                                 }
 |                           TypeName Decrement  {   
                                                     if(pass_no == 2 ){
-                                                        if($1->type->arr_dim) {
-                                                            cerr << "Line No: " <<  yylineno  << "bad operand type " << cerr_type($1->type) <<" for unary operator '--'\n";
+
+                                                        $$ = find_variable_in_class($1, false);
+
+                                                        if($$->type->arr_dim) {
+                                                            cerr << "Line No: " <<  yylineno  << "bad operand type " << cerr_type($$->type) <<" for unary operator '--'\n";
                                                             exit(1);
                                                         }
 
-                                                        $$ = find_variable_in_class(($1)->token, false);
                                                         if(!check_if_numeric_type(($$)->type)) {
-                                                            cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '--' \n first type: "<< ($1)->type << "\n";
+                                                            cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '--' \n first type: "<< ($$)->type << "\n";
                                                             exit(-1);
                                                         }
-                                                        $$->threeac = post_decreament_3ac($$->token);
+                                                        type_name_3ac($1, false);
+                                                        $$->threeac = post_decreament_3ac($1->threeac);
                                                     }
                                                 }
 ;
@@ -1859,7 +1962,7 @@ IfThenStatementSubRoutine:
 
 IfThenStatement:    IfThenStatementSubRoutine Rparen ScopeIncrement Statement   {   
                                                                                     if(pass_no == 2){
-                                                                                        // cout << "If" << current_table->current_level << "\n\n";
+                                                                                        
                                                                                         clear_current_scope(); 
                                                                                         emit("goto(EndIf" + to_string($1) + ")", "", "", "");
                                                                                         emit("\nElse"+to_string($1)+":\n", "", "", "");
@@ -2269,7 +2372,7 @@ ReturnStatement:
     Return Expression Semicolon {   
                                     if(pass_no == 2){
                                         if(!check_return_type(current_table->return_type, ($2)->type)) {
-                                            cout << "Cannot return " << cerr_type(($2)->type) << " from function whose return type is " << cerr_type(current_table->return_type) << "\n";
+                                            cerr << "Cannot return " << cerr_type(($2)->type) << " from function whose return type is " << cerr_type(current_table->return_type) << "\n";
                                             exit(-1);
                                         }
                                         emit("return" , $2->threeac,"","");
@@ -2278,7 +2381,7 @@ ReturnStatement:
 |   Return  Semicolon {     
                             if(pass_no == 2){
                                 if(!check_return_type(current_table->return_type, get_type(__VOID))) {
-                                            cout << "Cannot return " << __VOID << " from function whose return type is " << cerr_type(current_table->return_type) << "\n";
+                                            cerr << "Cannot return " << __VOID << " from function whose return type is " << cerr_type(current_table->return_type) << "\n";
                                             exit(-1);
                                 }
                                 emit("return","","","");
@@ -2715,7 +2818,6 @@ int main(int argc, char *argv[])
     fclose(yyin);
     
     reset_global_params();
-    cout << "Syntactic\t Lexeme \t Type \t Modifiers \t Line No \t Scope level\n";
     
     yylex_destroy();
     
