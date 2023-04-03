@@ -1346,7 +1346,14 @@ Assignment:
                                                         }
 
                                                         $$ = $1;
-                                                        $$->threeac = assignment_operator_3ac($1->token, $2, $3->threeac);
+                                                        if($1->type->name == $3->type->name) {
+                                                            $$->threeac = assignment_operator_3ac($1->token, $2, $3->threeac);
+                                                        }
+                                                        else {
+                                                            string temp = get_temp();
+                                                            emit("cast_to_" + $1->type->name, $3->threeac, "", temp);
+                                                            $$->threeac = assignment_operator_3ac($1->token, $2, temp);
+                                                        }
                                                     }
                                                 }
 |   LeftHandSide Assign Expression              {   
@@ -1364,7 +1371,14 @@ Assignment:
                                                         }
 
                                                         $$ = $1;
-                                                        $$->threeac = assign_operator_3ac($1->threeac, $3->threeac);
+                                                        if($1->type->name == $3->type->name) {
+                                                            $$->threeac = assign_operator_3ac($1->token, $3->threeac);
+                                                        }
+                                                        else {
+                                                            string temp = get_temp();
+                                                            emit("cast_to_" + $1->type->name, $3->threeac, "", temp);
+                                                            $$->threeac = assign_operator_3ac($1->token, temp);
+                                                        }
                                                     }
                                                 }
 ;
