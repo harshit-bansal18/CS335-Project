@@ -1,4 +1,3 @@
-#pragma once
 #ifndef THREEAC_H
     #define THREEAC_H
 
@@ -12,28 +11,53 @@
 
     struct TypeName;
 
-    // typedef struct entry3ac{
-    //     string threeac="";
-    // } entry3ac;
+    class ThreeAC {
+        public:
+        int instr_no;
 
-    // typedef struct loopentry{
-    //     int loopnum;
-    // } loopentry;
+        ThreeAC(int ins);
+    };
 
-    // typedef struct ifentry{
-    //     int ifnum;
-    // } ifentry;
+    class Address {
+        public:
+        string name;
+        int size;
+        bool is_valid;
+    };
 
+    typedef struct _address {
+        Address *addr;
+        struct _address *next_use;
+    }_address;
 
-    // class Address {
-    //     string name;
-    // };
+    class Quad: public ThreeAC {
+        public:
+        _address arg1, arg2, result;
+        string operation;
 
-    // class Quad {
-    //     Address result, arg1, arg2;
-    //     string operation;
+        Quad(Address *_arg1, Address *_arg2, Address *result, string op);
 
-    // };
+    };
+
+    class Label: public ThreeAC {
+        public:
+        string name;
+        unsigned int reference_count;
+        Label(string name);
+    };
+
+    class Goto: public ThreeAC {
+        Label *label;
+        public:
+            _address res;
+    };
+
+    class Arg: public ThreeAC {
+    public:
+        _address *arg;
+        int num;
+        Arg(Address *arg, int count);
+    };
 
     void emit(string op, string arg1, string arg2, string result);
 
@@ -46,12 +70,6 @@
     string ternary_condition_3ac(string cond, string e1, string e2);
 
     string binary_operator_3ac(string e1, string op, string e2);
-
-    string binary_bitwise_operator_3ac(string e1, string op, string e2);
-
-    string and_operator_3ac(string e1, string e2);
-
-    string or_operator_3ac(string e1, string e2);
 
     // string and_operator_3ac(string e1, string e2){
     //     string temp = get_temp();
@@ -78,9 +96,9 @@
 
     string post_decreament_3ac(string e1);
 
-    void dump_3ac(string filename, unsigned long func_local_space_size);
+    void dump_3ac(string filename);
 
-    string get_array_size(vector<string> array_dims, int start_i);
+    string get_array_size(vector<string> array_dims);
 
     string field_access_3ac(string cls_name, int offset);
 

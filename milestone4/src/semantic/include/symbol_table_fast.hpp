@@ -1,4 +1,3 @@
-#pragma once
 
 #ifndef SYMBOL_TABLE_FAST_H
   #define SYMBOL_TABLE_FAST_H
@@ -13,10 +12,9 @@
   #include <vector>
 
   #include <macros.hpp>
-  
-  #ifndef THREEAC_H
-    #include <3ac.hpp>
-  #endif
+
+  #include <3ac.hpp>
+
 
   using namespace std;
 
@@ -27,6 +25,7 @@
   class ClassDefinition;
   class MethodDefinition;
   class SymTabEntry;
+  class ThreeAC;
   // class Type;
 
   typedef struct Type {
@@ -130,7 +129,6 @@
       string name;
       int level;
       Type *type;
-      string threeac;
       unsigned long line_no;
       unsigned int col_no;
       size_t offset;
@@ -174,7 +172,7 @@
     Type *ret_type;
     int8_t modifier;
     size_t method_width;
-    // vector<Quad *> three_ac;
+    vector< ThreeAC * > three_ac;
     unsigned long line_no;
 
     bool is_private;

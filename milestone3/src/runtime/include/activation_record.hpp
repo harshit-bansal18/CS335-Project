@@ -18,6 +18,7 @@ class MachineStatus {
 *   Local Data -> Variables declared in method scope
 *   Temporaries -> Values arising from evaluation of expressions which cannot be held in registers
 */
+
 class ActivationRecord {
     public:
     int args_space;

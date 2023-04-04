@@ -14,4 +14,7 @@ do
     ${MILE1}${BIN} --input $file
 done
 
+# ${MILE1}${BIN} --input ${TEST}"test_0.java"
 # ${MILE1}${BIN} --input ${TEST}"test_15.java"
+
+# ./build/milestone3/javair --input ./milestone3/tests/test_0.java

@@ -19,6 +19,11 @@ MILESTONE3 := milestone3/src
 INCLUDE3 := -I ./milestone3/src/semantic/include/ -I ./milestone3/include/
 Runtime := runtime
 Binary3 := javair
+
+MILESTONE4 := milestone4/src
+INCLUDE4 := -I ./milestone3/src/semantic/include/ -I ./milestone3/include/ -I ./milestone4/src/runtime/include
+Binary4 := java2x86
+
 # build/milestone1:
 # 	mkdir -p build/milestone1
 # 	bison -t --header=$@/${Parser_Header} -o $@/${Parser_Out} ${MILESTONE1}/${Parser_Src}
@@ -46,8 +51,17 @@ build/milestone3:
 
 milestone3: build/milestone3
 
+
+build/milestone4:
+	mkdir -p build/milestone4/dump
+	bison -t --header=$@/${Parser_Header} -o $@/${Parser_Out} ${MILESTONE3}/${Parser_Src}
+	flex -o $@/${Lexer_Out} ${MILESTONE4}/${Lexer_Src}
+	${G++} ${INCLUDE4} -o $@/${Binary4} $@/*.c ${MILESTONE4}/${Semantic}/*.cpp ${MILESTONE4}/${Runtime}/*.cpp
+
+milestone4: build/milestone4
+
 clean:
 	rm -rf build
 
 clean_dump:
-	rm -rf build/dump/*
+	rm -rf build/*/dump/*

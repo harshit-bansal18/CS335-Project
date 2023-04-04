@@ -60,7 +60,6 @@
     Identifier *make_identifier(const char *name);
     TypeName *make_typename(Identifier *id) ;
     void append_typename(Identifier *id, TypeName *tn);
-    stackentry *make_dup_stackentry(SymTabEntry *sym, bool dup_type);
     stackentry *make_stackentry(const char *token, unsigned int);
 
     stackentry *make_stackentry(const char *token, Type *type, unsigned int );

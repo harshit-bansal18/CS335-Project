@@ -1,10 +1,11 @@
 #include <bits/stdc++.h>
-#include <3ac.hpp>
 #include <sstream>
 
 #ifndef ACTIONS_FAST_H
     #include <actions_fast.hpp>
 #endif
+
+#include <3ac.hpp>
 
 using namespace std;
 
@@ -14,6 +15,14 @@ typedef struct entry3ac{
     string threeac="";
 } entry3ac;
 
+// typedef struct loopentry{
+//     int loopnum;
+// } loopentry;
+
+// typedef struct ifentry{
+//     int ifnum;
+// } ifentry;
+
 int loopnum=0;
 int ifnum=0;
 int tcount=0;
@@ -21,6 +30,20 @@ int paramcount=0;
 string threeac_file_name = "";
 // stringstream 3ac_stream(string());
 stringstream tacss;
+
+ThreeAC::ThreeAC(int ins) {
+    instr_no = ins;
+}
+
+Quad::Quad(Address *_arg1, Address *_arg2, Address *_result, string op) {
+    arg1.addr = _arg1;
+    arg1.next_use = nullptr;
+    arg2.addr = _arg2;
+    arg2.next_use = nullptr;
+    result.addr = _result;
+    result.next_use = nullptr;
+    operation =  op;
+}
 
 void emit(string op, string arg1, string arg2, string result){
     if(current_scope != scope_class)
@@ -65,41 +88,17 @@ string binary_operator_3ac(string e1, string op, string e2){
     return temp;
 }
 
-string binary_bitwise_operator_3ac(string e1, string op, string e2){
-    string temp = get_temp();
-    emit(op, e1, e2, temp);
-    return temp;
-}
-
-string or_operator_3ac(string e1, string e2){
-    string temp = get_temp();
-    emit("if", e1, "false", "goto(T" + temp+")" );
-
-    emit("=", e1, "", temp);
-    emit("goto(TEnd"+temp+")","","","");
-
-    emit("\nT"+temp+":\n","","",""); 
-
-    emit("=", e2, "", temp);
-
-    emit("\nTEnd"+temp+":\n","","","");
-    return temp;
-}
-
-string and_operator_3ac(string e1, string e2){
-    string temp = get_temp();
-    emit("if", e1, "true", "goto(T" + temp+")" );
-
-    emit("=", e1, "", temp);
-    emit("goto(TEnd"+temp+")","","","");
-
-    emit("\nT"+temp+":\n","","","");
-    
-    emit("=", e2, "", temp);
-
-    emit("\nTEnd"+temp+":\n","","","");
-    return temp;
-}
+// string and_operator_3ac(string e1, string e2){
+//     string temp = get_temp();
+//     emit("if", e1, "false", "goto(T" + temp+")" );
+//     emit("=", e1, "", temp);
+//     emit("goto(TEnd"+temp+")","","","");
+//     emit("\nT"+temp+":\n","","","");
+//     emit("if", e2, "true", "goto(T" + temp+")" );
+//     emit("=", e2, "", temp);
+//     emit("=", "false", "", temp);
+//     return temp;
+// }
 
 string deq_check_3ac(string e1, string e2){
     string temp = get_temp();
@@ -168,9 +167,8 @@ string field_access_3ac(string tac_name, int offset) {
 
     string temp2 = get_temp();
     // emit("+", tac_name, to_string(offset), temp2);
-    // tacss << "+" << "" << tac_name << "+" << offset << ") " << temp2 << "\n";
-    emit("+", tac_name, to_string(offset), temp2);
-    return ("*"+ temp2);
+    tacss << "= " << "*(" << tac_name << "+" << offset << ") " << temp2 << "\n";
+    return temp2;
 }
 
 // returns the last name in type_name vector
@@ -190,7 +188,7 @@ string type_name_3ac(TypeName *type_name, bool is_func) {
         tmp = t;
     }
     
-    if (num == 1 || is_func)
+    if (num == 1)
         type_name->threeac = tmp;
     else 
         type_name->threeac = "*" + tmp;
@@ -198,33 +196,27 @@ string type_name_3ac(TypeName *type_name, bool is_func) {
     return ids[num-1]->name;
 }
 
-void dump_3ac(string fname, unsigned long func_local_space_size){
+void dump_3ac(string fname){
     string filename = DUMP_DIR + fname + ".3ac";
     ofstream outss(filename.c_str());
     outss << fname << " : \n" << endl;
-    outss << "beginfunc" << "\n";
     outss << "push ebp" << endl;
     outss << "= esp ebp\n"<<endl;
-    outss << "add  esp  " << func_local_space_size << "\t  // space for local variables\n\n"; 
     outss << tacss.str() << endl;
-    outss << "ret: \n";
-    outss << "\t sub  esp  " << func_local_space_size << "\t // manipulate stack pointer to the top of stack removing local variables \n"; 
-    outss << "\t pop ebp" << endl;
-    outss << "\t return" << endl;
-    outss << "\t endfunc" << endl;
     tacss.clear();
     tacss.str(string());
     outss.close();
-}    
+}   
 
-string get_array_size(vector<string> array_dims, int start_i){
+string get_array_size(vector<string> array_dims){
     string size = get_temp();
     emit("=", "1", "", size);
     string temp = get_temp();
     
-    for(int i=start_i; i<array_dims.size(); i++){
+    for(int i=0; i<array_dims.size(); i++){
         emit("*", size, array_dims[i], temp);
         emit("=", temp, "", size);
     }
     return size;
 }
+
