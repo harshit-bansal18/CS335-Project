@@ -1095,14 +1095,19 @@ void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no) {
                 // Make its type same as (1)->type
                 e2->type = e1->type;
             }
+            
         }
 
         if(pass_no == 2){
     
+            if (current_scope == scope_class && e1->type->is_pointer()) {
+                Type * t = current_class->get_var_type(e1->token);
+                t->arr_dim_val = e2->type->arr_dim_val;
+            }
             if(e2->type->name == "") {
                 e2->type = e1->type;
             }
-    
+            
 
             // cerr << e1->type->name << " " << e1->type->arr_dim << " " << e2->type->name << " " << e2->type->arr_dim << "\n";
     
