@@ -580,7 +580,14 @@ VariableDeclarator:
     VariableDeclaratorId Assign VariableInitializer {    
                                                         if((pass_no==1 && current_scope==scope_class) || (pass_no==2)) {
                                                             if(pass_no == 2){
-                                                                string temp = get_temp();
+                                                                /* Harshit: TAC store*/
+                                                                Address *tmp = new_temp();
+                                                                Quad *q1 = create_new_quad(tmp, "=", $3->tac_addr, NULL);
+                                                                Quad *q2 = create_new_quad($1->tac_addr, "=", tmp, NULL);
+                                                                current_table->method->insert_threeac(q1);
+                                                                current_table->method->insert_threeac(q2);
+                                                                /*************************/
+                                                                string temp = tmp->name;
                                                                 emit("=", $3->threeac, "", temp);
                                                                 emit("=", temp, "", $1->threeac);
                                                             }
@@ -776,6 +783,9 @@ FormalParameter:
                                                 }
 
                                                 if(pass_no==2){
+                                                    // Need Arg here
+                                                    Arg *arg1_p = create_new_arg($2->tac_addr, paramcount);
+                                                    current_table->method->insert_threeac(arg1_p);
                                                     emit("popparam", $2->token, "", "");
                                                 }
                                                 free($1);
@@ -798,6 +808,8 @@ FormalParameter:
                                                 }
                                                 
                                                 if(pass_no==2){
+                                                    Arg *arg1_p = create_new_arg($2->tac_addr, paramcount);
+                                                    current_table->method->insert_threeac(arg1_p);
                                                     emit("popparam", $3->token, "", "");
                                                 }
                                                 free($2);
@@ -994,8 +1006,13 @@ PrimaryNoNewArray:  Literal { $$ = $1; }
 
 ClassInstanceCreationExpressionSubRoutine:
     New ClassOrInterfaceType Lparen {if(pass_no == 2) {
+                                        Address *_addr1;
                                         $$ = make_stackentry("", ($2), yylineno);
-                                        $$->threeac = get_temp();
+                                        _addr1 = new_temp();
+                                        $$->threeac = _addr1->name;
+                                        /*
+                                            Harshit: Dont know what to do here
+                                        */
                                         emit("pushparam",to_string($2->class_def->class_width),"","");
                                         emit("add esp "," 4      // space for arguments","","");
                                         emit("add esp "," 4      // space for object reference returned by allocmem","","");
@@ -1020,6 +1037,9 @@ ClassInstanceCreationExpression:
                                                     for(int i=0; i<func_pair.second.size(); i++){
                                                         args_size += func_pair.second[i]->size;
                                                     }
+                                                    /*
+                                                        Harshit: Dont know what to do here
+                                                    */
                                                     emit("pushparam",$$->threeac,"","");
                                                     emit("add "," esp " + to_string(args_size),"","");
                                                     emit("call", threeac_filename(($1)->type->name, ($1)->type->name, func_pair.second), "1", "");
@@ -1046,6 +1066,10 @@ ClassInstanceCreationExpression:
                                                                     args_size += func_pair.second[i]->size;
                                                                 }
 
+                                                                /*
+                                                                    Harshit: Dont know what to do here
+                                                                */
+
                                                                 emit("pushparam",$$->threeac,"","");
                                                                 emit("add "," esp " + to_string(args_size),"","");
                                                                 emit("call", threeac_filename(($1)->type->name, ($1)->type->name, func_pair.second), to_string(paramcount+1), "");
@@ -1060,14 +1084,18 @@ ClassInstanceCreationExpression:
 // this.x , this.y
 FieldAccess:    Primary Dot Identifier  {   
                                             if(pass_no == 2 ){
+                                                Address _addr1;
+
                                                 $$ = find_variable_in_type($3->name, $1->type);
-                                                $1->threeac = get_temp();
+                                                _addr1 = new_temp();
+                                                $1->threeac = _addr1->name;
                                                 if($1->token == "this") {
                                                     // Special handling for this
                                                     emit("mov", "[ebp-0x10]", $1->threeac, "");
                                                 }
-                                                $$->threeac = field_access_3ac($1->threeac, $$->offset);
 
+                                                $$->tac_addr = field_access_3ac(_addr1, $$->offset);
+                                                delete _addr1;
                                                 // free_type($1->type);
                                                 free($1);
                                                 free($3);
@@ -1103,10 +1131,10 @@ ArrayAccess:    TypeName Lsquare Expression Rsquare {
                                                             
                                                             type_name_3ac($1, false);
                                                             string temp1 = get_array_size(t->arr_dim_val, t->arr_dim_val.size() - t->arr_dim - 1);  // 1*3 here
-                                                            string temp3 = get_temp();
-                                                            emit("*", temp1, $3->threeac, temp3);
-                                                            string temp2 = get_temp();
-                                                            emit("+", $1->threeac, temp3, temp2);
+                                                            Address *temp3 = new_temp();
+                                                            emit("*", temp1, $3->threeac, temp3->name);
+                                                            Address *temp2 = new_temp();
+                                                            emit("+", $1->threeac, temp3->name, temp2->name);
 
                                                             // if a.b is a 1-d int array of dim 10
                                                             // for a.b[1] , t->arr_dim is now 0
@@ -1117,7 +1145,9 @@ ArrayAccess:    TypeName Lsquare Expression Rsquare {
                                                             // temp2 =  $1->threeac + temp1
                                                             // $$->threeac = * temp2
                                                             if(!t->is_pointer()){
-                                                                $$->threeac = "*" + temp2;
+                                                                $$->threeac = "*" + temp2->name;
+                                                                // Harshit: Dont know the type of addr to pass
+                                                                $$->tac_addr = create_new_addr_str($$->threeac, MEM);
                                                             }
                                                             // a.b is 3d int array of dimention 2,3,4 
                                                             // for a.b[1] , t->arr_dim is now 2
@@ -1125,7 +1155,9 @@ ArrayAccess:    TypeName Lsquare Expression Rsquare {
                                                             // pointer to a.b stored in $1->threeac.
                                                             // result should be:
                                                             else{
-                                                                $$->threeac = temp2;
+                                                                $$->threeac = temp2->name;
+                                                                // Harshit:: Same as above
+                                                                $$->tac_addr = create_new_addr_str($$->threeac, MEM);
                                                             }
 
                                                             $$->type = t;

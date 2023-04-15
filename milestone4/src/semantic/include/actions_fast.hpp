@@ -33,7 +33,8 @@
         unsigned long line_no;
         string threeac;
         double expr_val;
-
+        Address *tac_addr;
+        
         stackentry(const char *name, unsigned long line);
 
     } stackentry;

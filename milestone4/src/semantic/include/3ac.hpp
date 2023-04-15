@@ -86,7 +86,11 @@
     };
 
     class Arg: public ThreeAC {
-
+    public:
+        Address *arg;
+        int num;
+    
+        Arg(Address *_addr, int count );
     };
     
     typedef enum _const_type {
@@ -128,6 +132,7 @@
     static inline Call * create_new_call( Address * addr , string f_name );
 
     static inline Return * create_new_return(Address * retval);
+    static inline create_new_arg(Address *_addr, int count);
     /**/
 
 

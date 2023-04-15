@@ -261,30 +261,41 @@ string post_decreament_3ac(string e1){
     return temp;
 }
 
-string field_access_3ac(string tac_name, int offset) {
+Address *field_access_3ac(Address *tac_f, int offset) {
+    Address *_addr1;
     if (current_scope != scope_method)
-        return "";
+        return NULL;
 
-    string temp2 = get_temp();
+    _addr1 = new_temp();
     // emit("+", tac_name, to_string(offset), temp2);
+    // Harshit: Need to insert corresponding quad to method body.
     tacss << "= " << "*(" << tac_name << "+" << offset << ") " << temp2 << "\n";
-    return temp2;
+    return _addr1;
 }
 
+/*
+Harshit:
+May also need to create Call pointer here is is_func is true
+*/
 // returns the last name in type_name vector
 string type_name_3ac(TypeName *type_name, bool is_func) {
     auto ids =  type_name->names;
     string tmp = ids[0]->name;
-    string arg1, arg2;
+    Address *arg1, *arg2;
+    Quad *q;
     int num = ids.size();
     int n = num;
     if (is_func)
         n -= 1;
     
     for(int i = 1; i < n; i++) {
-        string t = get_temp();
-        arg1 = tmp; arg2 = to_string(ids[i]->offset);
-        emit("+", arg1, arg2, t);
+        Address *t = new_temp();
+        arg1 = create_new_addr_str(tmp, TEMP);
+        arg2 = create_new_addr_const(ids[i]->offset, TEMP);
+        q = create_new_quad(t, "+", arg1, arg2);
+        current_table->method->insert_threeac(q);
+        // arg1 = tmp; arg2 = to_string(ids[i]->offset);
+        emit("+", arg1->name, to_string(arg2->size), t->name);
         tmp = t;
     }
     
@@ -293,6 +304,8 @@ string type_name_3ac(TypeName *type_name, bool is_func) {
     else 
         type_name->threeac = "*" + tmp;
     
+    // Harshit-> Addr * needed?
+    type_name->tac_addr = create_new_addr_str(type_name->threeac, TEMP);
     return ids[num-1]->name;
 }
 
