@@ -11,54 +11,127 @@
 
     struct TypeName;
 
+    #define TEMP_ID_MASK 0x80000000
+
+    typedef enum {
+        TEMP,
+        MEM,
+        CONST,  
+    } addr_type;
+
     class ThreeAC {
         public:
-        int instr_no;
-
-        ThreeAC(int ins);
+        
     };
 
     class Address {
         public:
-        string name;
-        int size;
-        bool is_valid;
+            string name;
+            int size;
+            ThreeAC *ta_instr;
+            addr_type type;
+            unsigned int table_id;
+
+
+            Address( string name, addr_type type);
+            Address( long value, addr_type type);
     };
 
-    typedef struct _address {
-        Address *addr;
-        struct _address *next_use;
-    }_address;
-
-    class Quad: public ThreeAC {
+    class Quad: public ThreeAC{
         public:
-        _address arg1, arg2, result;
-        string operation;
+            Address *result;
+            Address *arg1;
+            Address *arg2;
+            string operation;
 
-        Quad(Address *_arg1, Address *_arg2, Address *result, string op);
+            Quad( Address *result, string operation, Address *arg1, Address *arg2);
 
     };
 
-    class Label: public ThreeAC {
+    class Return: public ThreeAC {
         public:
-        string name;
-        unsigned int reference_count;
-        Label(string name);
+            Address *ret_value;
+
+            Return( Address * _retval );
+
+        friend Return * create_new_return( Address * retval );
     };
+
+    class Call: public ThreeAC {
+        public:
+            Address *retval;
+            string function_name;
+
+            Call( Address * _addr, string f_name );
+
+    };
+
+    class Label;
 
     class Goto: public ThreeAC {
         Label *label;
-        public:
-            _address res;
+    public:
+        bool condition;
+
+        friend Goto * create_new_goto_cond( bool condition );
+        friend Goto * create_new_goto( Label * label);
+        friend void process_goto( Goto * g );
+    };
+
+    class Label: public ThreeAC {
+    public:
+        string name;
+
+        Label(string _name);
     };
 
     class Arg: public ThreeAC {
-    public:
-        _address *arg;
-        int num;
-        Arg(Address *arg, int count);
-    };
 
+    };
+    
+    typedef enum _const_type {
+        INT3 = 1,
+        FLOAT3
+    } CONST_TYPE;
+
+    #define SAVE_REGS( E, t1, t2 ) { \
+        if ( (t1)->type == TEMP || (t1)->type == MEM ) { \
+            (E)->res = (t1); \
+            (E)->res->type = TEMP; \
+        } else if ( (t2)->type == TEMP || (t2)->type == MEM ){ \
+            (E)->res = (t2); \
+            (E)->res->type = TEMP; \
+        } else { \
+            (E)->res = new_temp(); \
+        } \
+    }
+
+    /* Add functions here*/
+    static inline Address *create_new_addr();
+
+    static inline Quad *create_new_quad(Address *result, string op, Address *arg1, Address *arg2);
+
+    static inline Goto * create_new_goto();
+    Goto * create_new_goto(Label * label);
+    Goto * create_new_goto_cond(bool condition);
+
+    static inline Label * create_new_label(string _name);
+
+    static inline Address * new_temp();
+    static inline Address * new_mem(SymTabEntry * symbol);
+
+    template <typename T>
+    static inline Address * new_const(T val, CONST_TYPE con ) {
+        return new Address(to_string(val), CON);
+    }
+
+    static inline Call * create_new_call( Address * addr , string f_name );
+
+    static inline Return * create_new_return(Address * retval);
+    /**/
+
+
+// #################################################################################################//
     void emit(string op, string arg1, string arg2, string result);
 
     string get_temp();

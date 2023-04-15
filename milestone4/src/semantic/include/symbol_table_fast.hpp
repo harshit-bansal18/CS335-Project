@@ -179,7 +179,8 @@
     bool is_static;
     MethodDefinition();
     MethodDefinition(string, vector<Type*>&, Type*, int8_t, unsigned long );
-
+    void insert_threeac(ThreeAC *three_ac);
+    
   };
 
   class GlobalSymbolTable : public SymbolTable {

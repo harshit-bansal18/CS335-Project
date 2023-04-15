@@ -1,11 +1,14 @@
 #include <bits/stdc++.h>
 using namespace std;
 
+
+
+
 class reg {
     public:
     bool is_used;
+    Address* var; // if it is used which var used it
 };
-
 
 struct x86_regs {
     // declare 32 x86 registers here
@@ -26,3 +29,4 @@ struct x86_regs {
     reg r15;
 
 };
+

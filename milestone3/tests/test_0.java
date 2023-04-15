@@ -6,12 +6,14 @@ class A{
 }
 
 class TestEmployee1 {
+
+    static int f(int a, int b, int c, int d, int e, int f){
+
+    }
+
     public static void main() {
-        // double [][]a = new double [5][6];
-        // a[2][3] = 5;
-        A obj = new A(5);
-        int a = obj.a[2][3];
-        obj.a[2][3] = 1;
+        int a = 1, b = 2, c = 3, d= 4, e= 5,f=6;
+        f(a,b,c,d,e,f);
     }
 }
 

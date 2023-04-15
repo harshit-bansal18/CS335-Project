@@ -11,6 +11,120 @@ using namespace std;
 
 extern scope current_scope;
 
+vector< ThreeAC * > ta_code;
+unsigned long long temporaries = 1;
+#define WORD_SIZE 8
+
+Label::Label(string _name){
+	name = _name;
+}
+
+Label* create_new_label(string _name){
+	Label* l = new Label(_name);
+	ta_code.push_back(l);
+	return l;
+}
+
+Quad::Quad ( Address * _result, string _operation, Address * _arg1, Address * _arg2 ) { 
+	operation = _operation;
+	result = _result;
+    arg1 = _arg1;
+    arg2 = _arg2;
+};
+
+/*
+It will be called when using variable or temporary
+*/
+Address::Address(string _name, addr_type _type ) : name (_name) , size(0), type(_type), ta_instr(nullptr)  {};
+
+/*
+It will called when using constant values
+*/
+Address::Address(long _value, addr_type _type ) : name (to_string(_value)) , size(0), type(_type), ta_instr(nullptr) {};
+
+Address * new_temp() {
+	Address * addr = new Address("t" + to_string(temporaries), TEMP );
+	addr->size = WORD_SIZE;
+	addr->table_id = TEMP_ID_MASK | temporaries;
+	temporaries++;
+	// tac_info_table.insert({addr->table_id,TacInfo(false)});
+	return addr;
+}
+
+Address * new_mem( SymTabEntry * symbol ) {
+	Address * addr = new Address(symbol->name, MEM);
+    addr->size = symbol->type->size;
+	
+    // MEM location or identifiers have no table_id
+
+	// tac_info_table.insert({addr->table_id,TacInfo(symbol)});
+	// main_mem_unit.memory_locations.insert({addr->table_id,create_memory_location( symbol->name, symbol->id, symbol->offset, addr->size )});
+	// if ( symbol->type.is_ea() ) {
+	// 	set_is_ea( symbol->id );
+	// }
+
+	return addr;
+}
+
+
+static inline Address *create_new_addr_str(string name, addr_type _type) {
+    Address *new_addr;
+    new_addr = new Address(name, _type);
+    return new_addr;
+}
+
+static inline Address *create_new_addr_const(long val, addr_type _type) {
+    Address *new_addr;
+    new_addr = new Address(val, _type);
+    return new_addr;
+}
+
+static inline Quad *create_new_quad(Address *result, string op, Address *arg1, Address *arg2) {
+    Quad *new_quad;
+    // Perform any checks on arguments if required
+    new_quad = new Quad(result, op, arg1, arg2);
+    return new_quad;
+}
+
+Goto::Goto () : label(nullptr) { dead = false; };
+
+Goto * create_new_goto() {
+    Goto *new_goto;
+    new_goto = new Goto();
+    return new_goto;
+}
+
+Goto * create_new_goto(Label * label) {
+    Goto *new_goto;
+    new_goto = new Goto();
+    new_goto->label = label;
+    return new_goto;
+}
+
+Goto * create_new_goto_cond(bool condition) {
+    Goto *new_goto;
+    new_goto = new Goto();
+    new_goto->condition = condition;
+    return new_goto;
+}
+
+static inline Call * create_new_call( Address * addr , string f_name ){
+    Call *new_call;
+    new_call = new Call(addr, f_name);
+    return new_call;
+}
+
+Return::Return( Address* _retval ) : ThreeAC() {
+	ret_value = _retval;
+}
+
+static inline Return * create_new_return(Address * retval){
+    Return * _return = new Return(retval);
+	ta_code.push_back(_return);
+	return _return;
+}
+// ##############################################################################################################
+
 typedef struct entry3ac{
     string threeac="";
 } entry3ac;
@@ -30,20 +144,6 @@ int paramcount=0;
 string threeac_file_name = "";
 // stringstream 3ac_stream(string());
 stringstream tacss;
-
-ThreeAC::ThreeAC(int ins) {
-    instr_no = ins;
-}
-
-Quad::Quad(Address *_arg1, Address *_arg2, Address *_result, string op) {
-    arg1.addr = _arg1;
-    arg1.next_use = nullptr;
-    arg2.addr = _arg2;
-    arg2.next_use = nullptr;
-    result.addr = _result;
-    result.next_use = nullptr;
-    operation =  op;
-}
 
 void emit(string op, string arg1, string arg2, string result){
     if(current_scope != scope_class)
