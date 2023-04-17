@@ -54,7 +54,7 @@ Address * new_temp() {
 Address * new_mem( SymTabEntry * symbol ) {
 	Address * addr = new Address(symbol->name, MEM);
     addr->size = symbol->type->size;
-	
+    addr->offset = symbol->offset;
     // MEM location or identifiers have no table_id
 
 	// tac_info_table.insert({addr->table_id,TacInfo(symbol)});

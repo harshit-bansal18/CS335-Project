@@ -35,6 +35,9 @@
     extern void yyrestart ( FILE *input_file  );
     extern int yylex_destroy ( void );
 
+    extern vector<ThreeAC*> global_tacs;
+
+
     extern ClassDefinition *current_class;
     extern LocalSymbolTable *current_table;
     extern GlobalSymbolTable *global_table;
@@ -53,6 +56,7 @@
     Type* global_type;
     int pass_no = 1;
     stringstream text;
+    vector<Address*> args;
 
     static int node_num=-1;
 
@@ -60,7 +64,7 @@
 
     int yyerror(const char *);
     
-
+    
 %}
 
 %define parse.error verbose
@@ -441,12 +445,12 @@ ArrayType:
 Dims:
     Lsquare Rsquare Dims    {   
                                 $$ = increase_dims($3); 
-                                // $$->threeac = "[]"+ $3->threeac ; 
+                                // $$->tac = "[]"+ $3->tac ; 
                             }
 |   Lsquare Rsquare { 
                         $$ = make_stackentry("", yylineno);
                         $$->type = get_array_type(); 
-                        // $$->threeac = "[]";
+                        // $$->tac = "[]";
                     }
 ;
 
@@ -578,19 +582,26 @@ VariableDeclaratorList:
 VariableDeclarator:
     VariableDeclaratorId Assign VariableInitializer {    
                                                         if((pass_no==1 && current_scope==scope_class) || (pass_no==2)) {
-                                                            if(pass_no == 2){
-                                                                string temp = get_temp();
-                                                                emit("=", $3->threeac, "", temp);
-                                                                emit("=", temp, "", $1->threeac);
-                                                            }
                                                             VariableDeclarator($1, $3, 1);
+                                                            if(pass_no == 2){
+                                                                $1->tac = create_new_mem($1->token, current_table->offset, $1->type);
+
+                                                                assign_operator_3ac($1->tac, $3->tac);   // JAYA
+
+                                                                $$ = $1; // JAYA
+                                                            }
                                                             if(pass_no == 2 && $1->type->is_pointer()) $1->type->arr_dim_val = $3->type->arr_dim_val;
                                                         }
                                                     }
 |   VariableDeclaratorId { 
                             if((pass_no==1 && current_scope==scope_class) || (pass_no==2)) {
-                                if(pass_no == 2) $$ = $1;
                                 VariableDeclarator($1, NULL, 2);
+                                if(pass_no == 2) {
+                                    $1->tac = create_new_mem($1->token, current_table->offset, $1->type);
+
+                                    $$ = $1;
+                                }
+
                             }
                          }
 ;
@@ -600,14 +611,12 @@ VariableDeclaratorId:
                                                 if((pass_no==1 && current_scope==scope_class) || (pass_no==2)) {
                                                     $$ = increase_dims($1);
                                                 }
-                                                // if(pass_no==2)  $$->threeac = $1->threeac+"["+"]";     
-                                                if(pass_no==2)  $$->threeac = $1->threeac;                                    
+                                                // if(pass_no==2)  $$->tac = $1->tac+"["+"]";     
+                                                if(pass_no==2)  $$->tac = $1->tac;                                    
                                           }
 |   Identifier  {    
                     if((pass_no==1 && current_scope==scope_class) || (pass_no==2)) {
                         $$ = make_stackentry((($1)->name).c_str(), global_type, yylineno);
-
-                        if(pass_no==2)  $$->threeac = $1->name;
 
                         free($1);
                     }
@@ -736,8 +745,22 @@ DeclaratorSubRoutine:
                         }
 
 Declarator:
-    DeclaratorSubRoutine Rparen { $$ = make_stackentry(($1->name).c_str(), yylineno); free($1); }
-|   DeclaratorSubRoutine FormalParameterList Rparen { $2->token =($1)->name; $$ = $2; free($1);}
+    DeclaratorSubRoutine Rparen { 
+                                    $$ = make_stackentry(($1->name).c_str(), yylineno); 
+                                    free($1); 
+                                    if(pass_no == 2){
+                                        current_table->offset = 0;
+                                        paramcount = 0;
+                                    }
+                                }
+|   DeclaratorSubRoutine FormalParameterList Rparen { 
+                                                        $2->token =($1)->name; $$ = $2; 
+                                                        free($1);
+                                                        if(pass_no == 2){
+                                                            current_table->offset = 0;
+                                                            paramcount = 0;
+                                                        }
+                                                    }
 ;
 
 FormalParameterList:
@@ -746,7 +769,9 @@ FormalParameterList:
                                                 $$ = $1;
                                                 free($3);
                                              }
-|   FormalParameter {  $$ = $1; }
+|   FormalParameter {  
+                        $$ = $1; 
+                    }
 ;
 
 FormalParameter:
@@ -755,16 +780,17 @@ FormalParameter:
                                                 $$->argument_type.push_back($2->type);
                                                 global_type = NULL;
                                                 if (pass_no == 2){
+                                                    if(paramcount == 0)
+                                                        current_table ->offset = 20;
                                                     add_variable($2->token, 0b0, $2->type, current_table->offset, true, true);
                                                     if($2->type->is_pointer())
                                                         current_table->offset += REF_TYPE_SIZE;
                                                     else
                                                         current_table->offset += $2->type->size;
+
+                                                    paramcount ++;
                                                 }
 
-                                                if(pass_no==2){
-                                                    emit("popparam", $2->token, "", "");
-                                                }
                                                 free($1);
                                             }
 |   Final UnannTypeSubRoutine VariableDeclaratorId {
@@ -773,16 +799,16 @@ FormalParameter:
                                                 $$->argument_type.push_back($3->type);
                                                 global_type = NULL;
                                                 if (pass_no == 2){
+                                                    if(paramcount == 0)
+                                                        current_table ->offset = 20;
                                                     add_variable($3->token, $$->modifier, $3->type, current_table->offset, true, true);
                                                     if($2->type->is_pointer())
                                                         current_table->offset += REF_TYPE_SIZE;
                                                     else
                                                         current_table->offset += $2->type->size;
+                                                    paramcount ++;
                                                 }
                                                 
-                                                if(pass_no==2){
-                                                    emit("popparam", $3->token, "", "");
-                                                }
                                                 free($2);
                                             } 
 ;
@@ -865,6 +891,8 @@ ExplicitConstructorInvocation:
                                                 cerr << "Line No: " <<  yylineno  << "No such constructor present in class\n";
                                                 exit(-1);
                                             }
+
+                                            args.clear();
                                         }
                                     }
 /* |   super_ Lparen Rparen { }
@@ -978,14 +1006,19 @@ PrimaryNoNewArray:  Literal { $$ = $1; }
 ClassInstanceCreationExpressionSubRoutine:
     New ClassOrInterfaceType Lparen {if(pass_no == 2) {
                                         $$ = make_stackentry("", ($2), yylineno);
-                                        $$->threeac = get_temp();
-                                        emit("pushparam",to_string($2->class_def->class_width),"","");
-                                        emit("add esp "," 4      // space for arguments","","");
-                                        emit("add esp "," 4      // space for object reference returned by allocmem","","");
-                                        emit("call", "allocmem", "1", "");
-                                        emit("mov ", "[esp + 0x0]", $$->threeac + "\t // get object reference", "");
-                                        emit("sub esp "," 4      // remove space for object reference returned by allocmem","","");
-                                        emit("sub esp ","4       // remove space for arguments","",""); 
+                                        $$->tac = create_new_temp();
+
+                                        Reg* reg = create_new_reg(SP, 4, false); // space for arguments  -> width
+                                        emit(reg);
+                                        Arg* arg = create_new_arg(create_new_const(to_string($2->class_def->class_width), 4), 4);
+                                        emit(arg); 
+                                        Call* call = create_new_call("allocmem", 1);
+                                        emit(call);
+                                        // Get return value
+                                        Return* ret = create_new_return($$->tac, false);  // get object reference
+                                        emit(ret);
+                                        reg = create_new_reg(SP, 4, true);    // remove space for arguments
+                                        emit(ret);  
                                     }}
 
 ClassInstanceCreationExpression: 
@@ -1003,11 +1036,11 @@ ClassInstanceCreationExpression:
                                                     for(int i=0; i<func_pair.second.size(); i++){
                                                         args_size += func_pair.second[i]->size;
                                                     }
-                                                    emit("pushparam",$$->threeac,"","");
-                                                    emit("add "," esp " + to_string(args_size),"","");
-                                                    emit("call", threeac_filename(($1)->type->name, ($1)->type->name, func_pair.second), "1", "");
-                                                    emit("sub "," esp " + to_string(args_size),"","");
-                                                    // emit("=","popparam", $$->threeac,"");
+                                                    emit(create_new_reg(SP, args_size,false));
+                                                    emit(create_new_arg($$->tac, 0));
+                                                    emit(create_new_call(threeac_filename(($1)->type->name, ($1)->type->name, func_pair.second), 1));
+                                                    emit(create_new_reg(SP, args_size, true));
+                                                    // emit("=","popparam", $$->tac,"");
                                                                 
                                                 } 
                                             }
@@ -1023,18 +1056,38 @@ ClassInstanceCreationExpression:
                                                                 
                                                                 $$ = $1;
 
-                                                                int args_size = 4;
+                                                                int args_size = 0;
                                                                 for(int i=0; i<func_pair.second.size(); i++){
                                                                     // cerr << (func_pair.second[i]->name) << "\n";
                                                                     args_size += func_pair.second[i]->size;
                                                                 }
 
-                                                                emit("pushparam",$$->threeac,"","");
-                                                                emit("add "," esp " + to_string(args_size),"","");
-                                                                emit("call", threeac_filename(($1)->type->name, ($1)->type->name, func_pair.second), to_string(paramcount+1), "");
-                                                                emit("sub ", " esp " + to_string(args_size), "","");
-                                                                // emit("=","popparam", $$->threeac,"");
+                                                                emit(create_new_reg(SP, args_size,false));  // space for args
+
+                                                                int local_args_sum = 0;
+
+                                                                for(int i = 0; i<args.size(); i++){
+                                                                    if((!check_if_temp(args[i]) && (!check_if_const(args[i])))){
+                                                                        Address* temp = create_new_temp();
+                                                                        
+                                                                        emit(create_new_quad("=", args[i], NULL, temp));
+                                                                        emit(create_new_arg(temp, local_args_sum));
+                                                                    }else {
+                                                                         emit(create_new_arg(args[i], local_args_sum));
+                                                                    }
+                                                                    local_args_sum += func_pair.second[i]->size;   
+                                                                }
+
+                                                                args.clear();
+
+                                                                emit(create_new_reg(SP, args_size,false));  // space for obejct reference
+                                                                emit(create_new_arg($$->tac, local_args_sum));
+                                                                emit(create_new_call(threeac_filename(($1)->type->name, ($1)->type->name, func_pair.second), paramcount+1));
+                                                                emit(create_new_reg(SP, args_size+4, true));
+                                                                // emit("=","popparam", $$->tac,"");
                                                                 paramcount=0;
+
+                                                                args.clear();
                                                             }
                                                         }
 ;
@@ -1044,12 +1097,13 @@ ClassInstanceCreationExpression:
 FieldAccess:    Primary Dot Identifier  {   
                                             if(pass_no == 2 ){
                                                 $$ = find_variable_in_type($3->name, $1->type);
-                                                $1->threeac = get_temp();
+                                                $1->tac = create_new_temp();
                                                 if($1->token == "this") {
                                                     // Special handling for this
-                                                    emit("mov", "[ebp-0x10]", $1->threeac, "");
+                                                    Address* mem = create_new_mem("", 16, 4);
+                                                    emit(create_new_quad("=", mem, NULL, $1->tac));
                                                 }
-                                                $$->threeac = field_access_3ac($1->threeac, $$->offset);
+                                                $$->tac = field_access_3ac($1->tac, $$->offset, $$->type, $3->name);
 
                                                 // free_type($1->type);
                                                 free($1);
@@ -1082,33 +1136,33 @@ ArrayAccess:    TypeName Lsquare Expression Rsquare {
                                                             }
                                                             
                                                             t->arr_dim--;
-                                                            // $$->threeac = $1->threeac + "[" + $3->threeac + "]";
+                                                            // $$->tac = $1->tac + "[" + $3->tac + "]";
                                                             
-                                                            type_name_3ac($1, false);
-                                                            string temp1 = get_array_size(t->arr_dim_val, t->arr_dim_val.size() - t->arr_dim - 1);  // 1*3 here
-                                                            string temp3 = get_temp();
-                                                            emit("*", temp1, $3->threeac, temp3);
-                                                            string temp2 = get_temp();
-                                                            emit("+", $1->threeac, temp3, temp2);
+                                                            $1->tac = type_name_3ac($1, false);
+                                                            Address* temp1 = get_array_size(t->arr_dim_val, t->arr_dim_val.size() - t->arr_dim - 1);  // 1*3 here
+                                                            Address* temp3 = create_new_temp();
+                                                            emit(create_new_quad("*", temp1, $3->tac, temp3));
+                                                            Address* temp2 = create_new_temp();
+                                                            emit(create_new_quad("+", $1->tac, temp3, temp2));
 
                                                             // if a.b is a 1-d int array of dim 10
                                                             // for a.b[1] , t->arr_dim is now 0
                                                             // $$->arr_dim_val = {10,4}
-                                                            // pointer to a.b array stored in $1->threeac
+                                                            // pointer to a.b array stored in $1->tac
                                                             // result should be:
-                                                            // temp1 = $3->threeac * $$->arr_dim_val[1]
-                                                            // temp2 =  $1->threeac + temp1
-                                                            // $$->threeac = * temp2
+                                                            // temp1 = $3->tac * $$->arr_dim_val[1]
+                                                            // temp2 =  $1->tac + temp1
+                                                            // $$->tac = * temp2
                                                             if(!t->is_pointer()){
-                                                                $$->threeac = "*" + temp2;
+                                                                $$->tac = create_new_mem("", temp2, t);
                                                             }
                                                             // a.b is 3d int array of dimention 2,3,4 
                                                             // for a.b[1] , t->arr_dim is now 2
                                                             // $$->arr_dim_val = {2,3,4,4}
-                                                            // pointer to a.b stored in $1->threeac.
+                                                            // pointer to a.b stored in $1->tac.
                                                             // result should be:
                                                             else{
-                                                                $$->threeac = temp2;
+                                                                $$->tac = temp2;
                                                             }
 
                                                             $$->type = t;
@@ -1132,17 +1186,17 @@ ArrayAccess:    TypeName Lsquare Expression Rsquare {
                                                             $$ = $1; 
                                                             $$->type = t;
 
-                                                            string temp1 = get_array_size(t->arr_dim_val, t->arr_dim_val.size() - t->arr_dim - 1);  // 1*3 here
-                                                            string temp3 = get_temp();
-                                                            emit("*", temp1, $3->threeac, temp3);
-                                                            string temp2 = get_temp();
-                                                            emit("+", $1->threeac, temp3, temp2);
+                                                            Address* temp1 = get_array_size(t->arr_dim_val, t->arr_dim_val.size() - t->arr_dim - 1);  // 1*3 here
+                                                            Address* temp3 = create_new_temp();
+                                                            emit(create_new_quad("*", temp1, $3->tac, temp3));
+                                                            Address* temp2 = create_new_temp();
+                                                            emit(create_new_quad("+", $1->tac, temp3, temp2));
                                                             
                                                             if(!t->is_pointer()){
-                                                                $$->threeac = "*" + temp2;
+                                                                $$->tac = create_new_mem("", temp2, t);
                                                             }
                                                             else{
-                                                                $$->threeac = temp2;
+                                                                $$->tac = temp2;
                                                             }
                                                             
                                                             free($3);
@@ -1163,22 +1217,12 @@ MethodInvocation:   TypeName Lparen Rparen  {
                                                     // Maybe if return type was array then code was wrong here
                                                     // whenever making new stackentry of given type, use only this function
                                                     // do not manually assign type
-                                                    string mname = type_name_3ac($1, true);
+                                                    $1->tac = type_name_3ac($1, true);
+                                                    string mname = ($1->names[(($1)->names).size() - 1])->name;  
                                                     $$ = make_stackentry("", method_def_pair.first, yylineno);
-                                                    $$->threeac = get_temp();
+                                                    $$->tac = create_new_temp();
                                                     int names_size = ($1)->names.size();
                                                     string method_name;
-
-                                                    if(names_size > 1){
-                                                        emit("pushparam", $1->threeac, "\t // Push object reference in stack", "");
-                                                        method_name = threeac_filename(($1)->names[names_size-2]->type->name, mname, method_def_pair.second);
-                                                    } else {
-                                                        string temp = get_temp();
-                                                        emit("mov", "[ebp-0x10]", temp, "");
-                                                        emit("pushparam", temp, "\t // Push object reference in stack", "");
-                                                        method_name = threeac_filename(current_class->name, mname, method_def_pair.second);
-                                                    }
-                                                    
 
                                                     int ret_type_size = 0;
 
@@ -1190,16 +1234,27 @@ MethodInvocation:   TypeName Lparen Rparen  {
                                                         ret_type_size += method_def_pair.first->size;
                                                     
                                                     
-                                                    if(ret_type_size) emit ("add ", " esp " + to_string(ret_type_size) + "\t // space for return value", "", "");
-                                                    emit("add "," esp ",  to_string(4)  + "\t  // allocate space for object reference to be passed","");
-                                                    
-                                                    emit("call", method_name, "1", "");
-                                                    emit("sub "," esp ",  to_string(4) + "\t  // remove space for object reference which was passed as argument","");
-                                                    if(method_def_pair.first->name !=__VOID){
-                                                        emit("mov","[esp + 0x0] ", $$->threeac + "\t // get value returned by the callee function","");
-                                                        emit ("sub ", " esp " + to_string(ret_type_size) + "\t // remove space for return value", "", "");
+                                                    emit (create_new_reg(SP, 4, false));  // Space for obj refernce
+        
+                                                    if(names_size > 1){
+                                                        emit(create_new_arg($1->tac, 0)); // Push object reference in stack
+                                                        method_name = threeac_filename(($1)->names[names_size-2]->type->name, mname, method_def_pair.second);
+                                                    } else {
+
+                                                        // This means same class function call within class, hence get reference from stack
+                                                        Address* temp = create_new_temp();
+                                                        Address* mem = create_new_mem("", 16, 4);
+                                                        emit(create_new_quad("=", mem, NULL, temp));
+                                                        emit(create_new_arg(temp, 0));
+                                                        method_name = threeac_filename(current_class->name, mname, method_def_pair.second);
                                                     }
 
+                                                    emit(create_new_call(method_name, paramcount+1));
+                                                    emit(create_new_reg(SP, 4, true));   // remove space for object reference which was passed as argument
+                                                    if(method_def_pair.first->name !=__VOID){
+                                                        emit(create_new_return($$->tac, false)); // get value returned by the callee function
+                                                    }
+                                                    paramcount=0;
                                                 }
                                             }
 |                   TypeName Lparen ArgumentList Rparen {   
@@ -1209,28 +1264,36 @@ MethodInvocation:   TypeName Lparen Rparen  {
                                                                     cerr << "Line No: " <<  yylineno  << "Undeclared function called\n";
                                                                     exit(-1);
                                                                 }
-                                                                string mname = type_name_3ac($1, true);
+                                                                $1->tac = type_name_3ac($1, true);
+                                                                string mname = ($1->names[(($1)->names).size() - 1])->name;  
                                                                 $$ = make_stackentry("", method_def_pair.first, yylineno); 
-                                                                $$->threeac = get_temp();
+                                                                $$->tac = create_new_temp();
 
                                                                 int local_args_sum = 0;
                                                                 for(int i =0; i<method_def_pair.second.size();i++){
                                                                     local_args_sum += method_def_pair.second[i]->size;
                                                                 }
 
+                                                                emit(create_new_reg(SP, local_args_sum, false));   // Space for args
+                                                                local_args_sum = 0;
+
+                                                                for(int i = 0; i<args.size(); i++){
+                                                                    if((!check_if_temp(args[i]) && (!check_if_const(args[i])))){
+                                                                        Address* temp = create_new_temp();
+                                                                        
+                                                                        emit(create_new_quad("=", args[i], NULL, temp));
+                                                                        emit(create_new_arg(temp, local_args_sum));
+                                                                    }else {
+                                                                         emit(create_new_arg(args[i], local_args_sum));
+                                                                    }
+                                                                    local_args_sum += method_def_pair.second[i]->size;   
+                                                                }
+
+                                                                args.clear();
+
                                                                 int names_size = ($1)->names.size();
                                                                 string method_name;
 
-                                                                if(names_size > 1){
-                                                                    emit("pushparam", $1->threeac, "\t // Push object reference in stack", "");
-                                                                    method_name = threeac_filename(($1)->names[names_size-2]->type->name, mname, method_def_pair.second);
-                                                                } else {
-                                                                    string temp = get_temp();
-                                                                    emit("mov", "[ebp-0x10]", temp, "");
-                                                                    emit("pushparam", temp, "\t // Push object reference in stack", "");
-                                                                    method_name = threeac_filename(current_class->name, mname, method_def_pair.second);
-                                                                }
-                                                                
                                                                 int ret_type_size = 0;
 
                                                                 if(method_def_pair.first->is_class)
@@ -1240,22 +1303,31 @@ MethodInvocation:   TypeName Lparen Rparen  {
                                                                 else
                                                                     ret_type_size += method_def_pair.first->size;
                                                                 
-                                                                emit("add "," esp  " + to_string(local_args_sum) + "\t // space for arguments","","");
-                                                                if(ret_type_size) emit ("add ", " esp " + to_string(ret_type_size) + "\t // space for return value", "", "");
-                                                                emit("add "," esp ",  to_string(4)  + "\t  // allocate space for object reference to be passed","");
-
-                                                                emit("call", method_name, to_string(paramcount+1), "");
-                                                                emit("sub "," esp ",  to_string(4)  + " \t  // remove space for object reference which was passed as argument","");
-                                                                if(method_def_pair.first->name !=__VOID){
-                                                                    emit("mov","[esp + 0x0] ", $$->threeac + "\t // get value returned by the callee function","");
-                                                                    emit ("sub ", " esp " + to_string(ret_type_size) + "\t // remove space for return value", "", "");
+                                                                
+                                                                emit (create_new_reg(SP, 4, false));  // Space for obj refernce
+                    
+                                                                if(names_size > 1){
+                                                                    emit(create_new_arg($1->tac, 0)); // Push object reference in stack
+                                                                    method_name = threeac_filename(($1)->names[names_size-2]->type->name, mname, method_def_pair.second);
+                                                                } else {
+                                                                    Address* temp = create_new_temp();
+                                                                    Address* mem = create_new_mem("", 16, 4);
+                                                                    emit(create_new_quad("=", mem, NULL, temp));
+                                                                    emit(create_new_arg(temp, 0));
+                                                                    method_name = threeac_filename(current_class->name, mname, method_def_pair.second);
                                                                 }
-                                                                emit("sub "," esp  " + to_string(local_args_sum) + "\t // remove space for arguments","","");
+
+                                                                emit(create_new_call(method_name, paramcount+1));
+                                                                emit(create_new_reg(SP, 4, true));   // remove space for object reference which was passed as argument
+                                                                if(method_def_pair.first->name !=__VOID){
+                                                                    emit(create_new_return($$->tac, false)); // get value returned by the callee function
+                                                                }
+                                                                emit(create_new_reg(SP, local_args_sum, true)); // remove space for arguments
                                                                 paramcount=0;
                                                             }
                                                         }
 |                   Primary Dot Identifier Lparen Rparen { }
-|                   Primary Dot Identifier Lparen ArgumentList Rparen { }
+|                   Primary Dot Identifier Lparen ArgumentList Rparen { if(pass_no == 2) args.clear(); }
 /* |                   super_ Dot Identifier Lparen Rparen { }
 |                   super_ Dot Identifier Lparen ArgumentList Rparen { } */
 ;
@@ -1269,7 +1341,9 @@ ArgumentList:       Expression  {
                                         struct stackentry* entry = make_stackentry("", yylineno); 
                                         entry->argument_type.push_back(($1)->type);
                                         $$ = entry;
-                                        emit("pushparam" ,($1)->threeac,"","");
+                                        cout << "Args size: " << args.size() << "\n";
+                                        args.push_back(($1)->tac);
+                                        // emit("pushparam" ,($1)->tac,"","");
                                         paramcount++;
                                         free($1);
                                     }
@@ -1278,7 +1352,8 @@ ArgumentList:       Expression  {
                                                     if(pass_no == 2 ){
                                                         $1->argument_type.push_back($3->type);
                                                         $$ = $1;
-                                                        emit("pushparam" ,($3)->threeac,"","");
+                                                        args.push_back(($3)->tac);
+                                                        // emit("pushparam" ,($3)->tac,"","");
                                                         paramcount++;
                                                         free($3);
                                                     }
@@ -1290,57 +1365,55 @@ ArrayCreationExpression:
 //                             New PrimitiveType DimExprs Dims         {  
 //                                                                         if(pass_no == 2 ){
 //                                                                                             $$ = assign_arr_dim($2, $3, $4); 
-//                                                                                             $$->threeac = $2->name + $3->threeac + $4->threeac;
+//                                                                                             $$->tac = $2->name + $3->tac + $4->tac;
 //                                                                                         } 
 //                                                                     } // 3ac not done
 // |                           New ClassOrInterfaceType DimExprs Dims  {  
 //                                                                         if(pass_no == 2 ){
 //                                                                                             $$ = assign_arr_dim($2, $3, $4); 
-//                                                                                             $$->threeac = $2->name + $3->threeac + $4->threeac;
+//                                                                                             $$->tac = $2->name + $3->tac + $4->tac;
 //                                                                                         } 
 //                                                                     } //3ac not done
 // |
                            New PrimitiveType DimExprs              {  
                                                                         if(pass_no == 2 ){
                                                                                             $$ = assign_arr_dim($2, $3); 
-                                                                                            $$->type->arr_dim_val.push_back(to_string($2->size));
-                                                                                            string size = get_array_size($3->type->arr_dim_val,0);
-                                                                                            $$->threeac = get_temp();
-                                                                                            emit("pushparam", size, "", "");
-                                                                                            emit("add esp "," 4      // space for arguments","","");
-                                                                                            emit("add esp "," 4      // space for object reference returned by allocmem","","");
-                                                                                            emit("call", "allocmem", "1", ""); 
-                                                                                            emit("mov ", "[esp + 0x0]", $$->threeac + " \t // get object reference", "");
-                                                                                            emit("sub esp "," 4      // remove space for object reference returned by allocmem","","");
-                                                                                            emit("sub esp "," 4      // remove space for arguments","","");
+                                                                                            $$->type->arr_dim_val.push_back(create_new_const(to_string($2->size), 4));
+                                                                                            Address* size = get_array_size($3->type->arr_dim_val,0);
+                                                                                            $$->tac = create_new_temp();
+                                                                                            
+                                                                                            
+                                                                                            emit(create_new_reg(SP, 4, false)); // space for arguments
+                                                                                            emit(create_new_arg(size,0));
+                                                                                            emit(create_new_call("allocmem", 1)); 
+                                                                                            emit(create_new_return($$->tac, false));  // get object reference
+                                                                                            emit(create_new_reg(SP, 4, true)); // remove space for arguments
                                                                                         } 
                                                                     }
 |                           New ClassOrInterfaceType DimExprs       {  
                                                                         if(pass_no == 2 ){
                                                                                             $$ = assign_arr_dim($2, $3); 
-                                                                                            $$->type->arr_dim_val.push_back(to_string($2->size));
-                                                                                            // $$->threeac = $2->name + $3->threeac;
-                                                                                            string size = get_array_size($3->type->arr_dim_val,0);
-                                                                                            $$->threeac = get_temp();
-                                                                                            emit("pushparam", size, "", "");
-                                                                                            emit("add esp "," 4      // space for arguments","","");
-                                                                                            emit("add esp "," 4      // space for object reference returned by allocmem","","");
-                                                                                            emit("call", "allocmem", "1", "");
-                                                                                            emit("mov", "[esp + 0x0]", $$->threeac + "\t // get object reference", "");
-                                                                                            emit("sub esp "," 4      // remove space for object reference returned by allocmem","","");
-                                                                                            emit("sub esp "," 4      // remove space for arguments","","");
+                                                                                            $$->type->arr_dim_val.push_back(create_new_const(to_string($2->size), 4));
+                                                                                            // $$->tac = $2->name + $3->tac;
+                                                                                            Address* size = get_array_size($3->type->arr_dim_val,0);
+                                                                                            $$->tac = create_new_temp();
+                                                                                            emit(create_new_reg(SP, 4, false)); // space for arguments
+                                                                                            emit(create_new_arg(size,0));
+                                                                                            emit(create_new_call("allocmem", 1)); 
+                                                                                            emit(create_new_return($$->tac, false));  // get object reference
+                                                                                            emit(create_new_reg(SP, 4, true)); // remove space for arguments
                                                                                         } 
                                                                     }
 // |                           New PrimitiveType Dims ArrayInitializer {  
 //                                                                         if(pass_no == 2 ){
 //                                                                                             $$ = assign_arr_dim($2, $3); 
-//                                                                                             $$->threeac = $2->name + $3->threeac;
+//                                                                                             $$->tac = $2->name + $3->tac;
 //                                                                                         } 
 //                                                                     } //3ac not done
 // |                           New ClassOrInterfaceType Dims ArrayInitializer {  
 //                                                                                 if(pass_no == 2 ){
 //                                                                                                     $$ = assign_arr_dim($2, $3); 
-//                                                                                                     $$->threeac = $2->name + $3->threeac;
+//                                                                                                     $$->tac = $2->name + $3->tac;
 //                                                                                                 } 
 //                                                                             } //3ac not done
 ;
@@ -1348,10 +1421,14 @@ ArrayCreationExpression:
 
 DimExprs:   DimExpr { if(pass_no == 2) {
                             $$ = $1; 
-                            $$->type->arr_dim_val.push_back($1->threeac);
+                            $$->type->arr_dim_val.push_back($1->tac);
                         }
                     }
-|           DimExprs DimExpr {  if(pass_no == 2 ){  $$ = assign_arr_dim($1, $2); $$->threeac = $1->threeac + $2->threeac;  } }
+|           DimExprs DimExpr{  if(pass_no == 2 ){  
+                                    $$ = assign_arr_dim($1, $2); 
+                                    // $$->tac = $1->tac + $2->tac;  
+                                } 
+                            }
 ;
 // A -> B C    $$.type = $1.type + $2.type 
 
@@ -1369,8 +1446,8 @@ DimExpr:    Lsquare Expression Rsquare {
 
                                                 $$ = make_stackentry("", yylineno);
                                                 $$->type = get_array_type();
-                                                // $$->threeac = "[" + ($2)->threeac + "]";
-                                                $$->threeac = ($2)->threeac;
+                                                // $$->tac = "[" + ($2)->tac + "]";
+                                                $$->tac = ($2)->tac;
                                             }
                                         }
                                         
@@ -1406,15 +1483,16 @@ Assignment:
 
                                                         $$ = $1;
                                                         if($1->type->name == $3->type->name) {
-                                                            // Harshit $1->token to $1->threeac
-                                                            $$->threeac = assignment_operator_3ac($1->threeac, $2, $3->threeac);
+                                                            // Harshit $1->token to $1->tac 
+                                                            $$->tac = assignment_operator_3ac($1->tac, $2, $3->tac);
                                                         }
                                                         else {
-                                                            string temp = get_temp();
-                                                            emit("cast_to_" + $1->type->name, $3->threeac, "", temp);
-                                                            // Harshit $1->token to $1->threeac
-                                                            $$->threeac = assignment_operator_3ac($1->threeac, $2, temp);
+                                                            Address* temp = create_new_temp();
+                                                            emit(create_new_quad("cast_to_" + $1->type->name, $3->tac, NULL, temp));
+                                                            // Harshit $1->token to $1->tac
+                                                            $$->tac = assignment_operator_3ac($1->tac, $2, temp);
                                                         }
+
                                                         if($3->type->arr_dim_val.size()>0){
                                                             $1->type->arr_dim_val = $3->type->arr_dim_val;
                                                         }
@@ -1437,13 +1515,13 @@ Assignment:
                                                         $$ = $1;
                                                         if($1->type->name == $3->type->name) {
                                                             // Harshit
-                                                            $$->threeac = assign_operator_3ac($1->threeac, $3->threeac);
+                                                            $$->tac = assign_operator_3ac($1->tac, $3->tac);
                                                         }
                                                         else {
-                                                            string temp = get_temp();
-                                                            emit("cast_to_" + $1->type->name, $3->threeac, "", temp);
+                                                            Address* temp = create_new_temp();
+                                                            emit(create_new_quad("cast_to_" + $1->type->name, $3->tac, NULL, temp));
                                                             // Harshit
-                                                            $$->threeac = assign_operator_3ac($1->threeac, temp);
+                                                            $$->tac = assign_operator_3ac($1->tac, temp);
                                                         }
                                                         if($3->type->arr_dim_val.size()>0){
                                                             $1->type->arr_dim_val = $3->type->arr_dim_val;
@@ -1452,6 +1530,7 @@ Assignment:
                                                 }
 ;
 
+// For typename is objects reference are present a.b.c, check the three ac, it will not be correct. Need to modify
 LeftHandSide:
     TypeName {  
                 if(pass_no == 2 ){ 
@@ -1460,8 +1539,8 @@ LeftHandSide:
                     // Careful manipulation required
                     struct stackentry* entry = find_variable_in_class($1, true);
                     $$ = entry;
-                    type_name_3ac($1, false);
-                    $$->threeac = $1->threeac;
+                    $$->tac = type_name_3ac($1, false);  // in a.b.c it returns c, in a it returns a
+                    // $$->tac  = create_new_mem(entry->token, entry->offset, entry->type);
                 }
             }
 |   FieldAccess { if(pass_no == 2 ) $$ = $1; }
@@ -1497,7 +1576,7 @@ ConditionalExpression:  ConditionalOrExpression { if(pass_no == 2 ) { $$ = $1;
                                                                                                     else
                                                                                                         $$ = $5;
                                                                                                 }
-                                                                                                $$->threeac = ternary_condition_3ac( $1->threeac, $3->threeac, $5->threeac);
+                                                                                                $$->tac = ternary_condition_3ac( $1->tac, $3->tac, $5->tac);
                                                                                             }
                                                                                       } //Check Again
 ;
@@ -1506,7 +1585,7 @@ ConditionalOrExpression:    ConditionalAndExpression { if(pass_no == 2 ) $$ = $1
 |                   ConditionalOrExpression Or ConditionalAndExpression {   
                                                                             if(pass_no == 2 ) {  
                                                                                 $$ = ConditionalExpression($1, $3);
-                                                                                $$->threeac = or_operator_3ac($1->threeac, $3->threeac);
+                                                                                $$->tac = or_operator_3ac($1->tac, $3->tac);
                                                                             }
                                                                         }
 ;
@@ -1515,7 +1594,7 @@ ConditionalAndExpression:   InclusiveOrExpression { if(pass_no == 2 ) $$ = $1; }
 |                   ConditionalAndExpression And InclusiveOrExpression  {   
                                                                             if(pass_no == 2 ) {
                                                                                 $$ = ConditionalExpression($1, $3);
-                                                                                $$->threeac = and_operator_3ac($1->threeac, $3->threeac);
+                                                                                $$->tac = and_operator_3ac($1->tac, $3->tac);
                                                                             }
                                                                         }
 ;
@@ -1524,7 +1603,7 @@ InclusiveOrExpression:  ExclusiveOrExpression { if(pass_no == 2 ) $$ = $1; }
 |                   InclusiveOrExpression Bitwise_or ExclusiveOrExpression  {   
                                                                                 if(pass_no == 2 ){  
                                                                                     $$ = BitwiseExpression($1, $3);
-                                                                                    $$->threeac = binary_bitwise_operator_3ac($1->threeac, "|", $3->threeac);
+                                                                                    $$->tac = binary_bitwise_operator_3ac($1->tac, "|", $3->tac);
                                                                                 }
                                                                             }
 ;
@@ -1533,7 +1612,7 @@ ExclusiveOrExpression:  AndExpression   { if(pass_no == 2 ) $$ = $1; }
 |                   ExclusiveOrExpression Bitwise_xor AndExpression     {   
                                                                             if(pass_no == 2 ){  
                                                                                 $$ = BitwiseExpression($1, $3);
-                                                                                $$->threeac = binary_bitwise_operator_3ac($1->threeac, "^", $3->threeac);
+                                                                                $$->tac = binary_bitwise_operator_3ac($1->tac, "^", $3->tac);
                                                                             }
                                                                         }
 ;
@@ -1542,7 +1621,7 @@ AndExpression:  EqualityExpression  { if(pass_no == 2 ) $$ = $1; }
 |                   AndExpression Bitwise_and EqualityExpression    {       
                                                                             if(pass_no == 2 ){  
                                                                                 $$ = BitwiseExpression($1, $3);
-                                                                                $$->threeac = binary_bitwise_operator_3ac($1->threeac, "&", $3->threeac);
+                                                                                $$->tac = binary_bitwise_operator_3ac($1->tac, "&", $3->tac);
                                                                             }
                                                                         }
 ;
@@ -1555,13 +1634,13 @@ EqualityExpression: RelationalExpression                            {
 |                   EqualityExpression Deq RelationalExpression     {   
                                                                         if(pass_no == 2 ){  
                                                                             $$ = EqualityExpression($1, $3);
-                                                                            $$->threeac = deq_check_3ac($1->threeac, $3->threeac);
+                                                                            $$->tac = deq_check_3ac($1->tac, $3->tac);
                                                                         }
                                                                     }
 |                   EqualityExpression Neq RelationalExpression     {   
                                                                         if(pass_no == 2 ){  
                                                                             $$ = EqualityExpression($1, $3);
-                                                                            $$->threeac = neq_check_3ac($1->threeac, $3->threeac);
+                                                                            $$->tac = neq_check_3ac($1->tac, $3->tac);
                                                                         }
                                                                     }
 ;
@@ -1574,25 +1653,25 @@ RelationalExpression:   ShiftExpression                             {
 |                   RelationalExpression Lt ShiftExpression         {       
                                                                             if(pass_no == 2 ){  
                                                                                 $$ = RelationalExpression($1, $3);
-                                                                                $$->threeac = relation_check_3ac($1->threeac, "<", $3->threeac);
+                                                                                $$->tac = relation_check_3ac($1->tac, "<", $3->tac);
                                                                             }
                                                                     }
 |                   RelationalExpression Gt ShiftExpression         {       
                                                                             if(pass_no == 2 ){  
                                                                                 $$ = RelationalExpression($1, $3);
-                                                                                $$->threeac = relation_check_3ac($1->threeac, ">", $3->threeac);
+                                                                                $$->tac = relation_check_3ac($1->tac, ">", $3->tac);
                                                                             }
                                                                     }
 |                   RelationalExpression Leq ShiftExpression        {        
                                                                             if(pass_no == 2 ){  
                                                                                 $$ = RelationalExpression($1, $3);
-                                                                                $$->threeac = relation_check_3ac($1->threeac,"<=", $3->threeac);
+                                                                                $$->tac = relation_check_3ac($1->tac,"<=", $3->tac);
                                                                             }
                                                                     }
 |                   RelationalExpression Geq ShiftExpression        {       
                                                                             if(pass_no == 2 ){  
                                                                                 $$ = RelationalExpression($1, $3);
-                                                                                $$->threeac = relation_check_3ac($1->threeac,">=", $3->threeac);
+                                                                                $$->tac = relation_check_3ac($1->tac,">=", $3->tac);
                                                                                            //Error Location $$ type mismatch
                                                                             }
                                                                     }
@@ -1607,22 +1686,22 @@ ShiftExpression:    AdditiveExpression                              {
 |                   ShiftExpression Left_shift AdditiveExpression   {   
                                                                         if(pass_no == 2 ){  
                                                                             $$ = ShiftExpression($1, $3);
-                                                                            $$->threeac = get_temp();
-                                                                            emit("<<", ($1)->threeac, ($3)->threeac, ($$)->threeac);
+                                                                            $$->tac = create_new_temp();
+                                                                            emit(create_new_quad("<<", ($1)->tac, ($3)->tac, ($$)->tac));
                                                                         }
                                                                     }
 |                   ShiftExpression Right_shift AdditiveExpression  {   
                                                                         if(pass_no == 2 ){  
                                                                             $$ = ShiftExpression($1, $3);
-                                                                            $$->threeac = get_temp();
-                                                                            emit(">>", ($1)->threeac, ($3)->threeac, ($$)->threeac);
+                                                                            $$->tac = create_new_temp();
+                                                                            emit(create_new_quad(">>", ($1)->tac, ($3)->tac, ($$)->tac));
                                                                         }
                                                                     }
 |                   ShiftExpression Unsigned_right_shift AdditiveExpression     {   
                                                                                     if(pass_no == 2 ){  
                                                                                        $$ = ShiftExpression($1, $3);
-                                                                                       $$->threeac = get_temp();
-                                                                                       emit(">>>", ($1)->threeac, ($3)->threeac, ($$)->threeac);
+                                                                                       $$->tac = create_new_temp();
+                                                                                       emit(create_new_quad(">>>", ($1)->tac, ($3)->tac, ($$)->tac));
                                                                                     }
                                                                                 }
 ;
@@ -1635,37 +1714,37 @@ AdditiveExpression: MultiplicativeExpression                        {
 |                   AdditiveExpression Plus MultiplicativeExpression    {   
                                                                             if(pass_no == 2 ){  
                                                                                 $$ = check_additive_types($1, $3);
-                                                                                $$->threeac = get_temp();
+                                                                                $$->tac = create_new_temp();
                                                                                 if($$->type->name != $1->type->name){
-                                                                                    string temp = get_temp();
-                                                                                    emit("cast_to_"+$$->type->name, $1->threeac, temp,"");
-                                                                                    emit("+"+$$->type->name, temp, ($3)->threeac, ($$)->threeac);
+                                                                                    Address* temp = create_new_temp();
+                                                                                    emit(create_new_quad("cast_to_"+$$->type->name, $1->tac, NULL, temp));
+                                                                                    emit(create_new_quad("+"+$$->type->name, temp, ($3)->tac, ($$)->tac));
                                                                                 }
                                                                                 else if($$->type->name != $3->type->name){
-                                                                                    string temp = get_temp();
-                                                                                    emit("cast_to_"+$$->type->name, $3->threeac, temp,"");
-                                                                                    emit("+"+$$->type->name, ($1)->threeac, temp, ($$)->threeac);
+                                                                                    Address* temp = create_new_temp();
+                                                                                    emit(create_new_quad("cast_to_"+$$->type->name, $3->tac,NULL, temp));
+                                                                                    emit(create_new_quad("+"+$$->type->name, ($1)->tac, temp, ($$)->tac));
                                                                                 }
                                                                                 else
-                                                                                    emit("+"+$$->type->name, ($1)->threeac, ($3)->threeac, ($$)->threeac);
+                                                                                    emit(create_new_quad("+"+$$->type->name, ($1)->tac, ($3)->tac, ($$)->tac));
                                                                             }
                                                                         }
 |                   AdditiveExpression Minus MultiplicativeExpression   {   
                                                                             if(pass_no == 2 ){  
                                                                                 $$ = check_additive_types($1, $3);
-                                                                                $$->threeac = get_temp();
+                                                                                $$->tac = create_new_temp();
                                                                                 if($$->type->name != $1->type->name){
-                                                                                    string temp = get_temp();
-                                                                                    emit("cast_to_"+$$->type->name, $1->threeac, temp,"");
-                                                                                    emit("-"+$$->type->name, temp, ($3)->threeac, ($$)->threeac);
+                                                                                    Address* temp = create_new_temp();
+                                                                                    emit(create_new_quad("cast_to_"+$$->type->name, $1->tac, NULL, temp));
+                                                                                    emit(create_new_quad("-"+$$->type->name, temp, ($3)->tac, ($$)->tac));
                                                                                 }
                                                                                 else if($$->type->name != $3->type->name){
-                                                                                    string temp = get_temp();
-                                                                                    emit("cast_to_"+$$->type->name, $3->threeac, temp,"");
-                                                                                    emit("-"+$$->type->name, ($1)->threeac, temp, ($$)->threeac);
+                                                                                    Address* temp = create_new_temp();
+                                                                                    emit(create_new_quad("cast_to_"+$$->type->name, $3->tac,NULL, temp));
+                                                                                    emit(create_new_quad("-"+$$->type->name, ($1)->tac, temp, ($$)->tac));
                                                                                 }
                                                                                 else
-                                                                                    emit("-"+$$->type->name, ($1)->threeac, ($3)->threeac, ($$)->threeac);
+                                                                                    emit(create_new_quad("-"+$$->type->name, ($1)->tac, ($3)->tac, ($$)->tac));
                                                                             }
                                                                         }
 ;
@@ -1678,55 +1757,55 @@ MultiplicativeExpression:   UnaryExpression                         {
 |                   MultiplicativeExpression Asterik UnaryExpression    {   
                                                                             if(pass_no == 2 ){  
                                                                                 $$ = check_additive_types($1, $3);
-                                                                                $$->threeac = get_temp();
+                                                                                $$->tac = create_new_temp();
                                                                                 if($$->type->name != $1->type->name){
-                                                                                    string temp = get_temp();
-                                                                                    emit("cast_to_"+$$->type->name, $1->threeac, temp,"");
-                                                                                    emit("*"+$$->type->name, temp, ($3)->threeac, ($$)->threeac);
+                                                                                    Address* temp = create_new_temp();
+                                                                                    emit(create_new_quad("cast_to_"+$$->type->name, $1->tac, NULL, temp));
+                                                                                    emit(create_new_quad("*"+$$->type->name, temp, ($3)->tac, ($$)->tac));
                                                                                 }
                                                                                 else if($$->type->name != $3->type->name){
-                                                                                    string temp = get_temp();
-                                                                                    emit("cast_to_"+$$->type->name, $3->threeac, temp,"");
-                                                                                    emit("*"+$$->type->name, ($1)->threeac, temp, ($$)->threeac);
+                                                                                    Address* temp = create_new_temp();
+                                                                                    emit(create_new_quad("cast_to_"+$$->type->name, $3->tac, NULL, temp));
+                                                                                    emit(create_new_quad("*"+$$->type->name, ($1)->tac, temp, ($$)->tac));
                                                                                 }
                                                                                 else
-                                                                                    emit("*"+$$->type->name, ($1)->threeac, ($3)->threeac, ($$)->threeac);
+                                                                                    emit(create_new_quad("*"+$$->type->name, ($1)->tac, ($3)->tac, ($$)->tac));
                                                                             }
                                                                         }
 |                   MultiplicativeExpression Div UnaryExpression        {   
                                                                             if(pass_no == 2 ){  
                                                                                 $$ = check_additive_types($1, $3);
-                                                                                $$->threeac = get_temp();
+                                                                                $$->tac = create_new_temp();
                                                                                 if($$->type->name != $1->type->name){
-                                                                                    string temp = get_temp();
-                                                                                    emit("cast_to_"+$$->type->name, $1->threeac, temp,"");
-                                                                                    emit("/"+$$->type->name, temp, ($3)->threeac, ($$)->threeac);
+                                                                                    Address* temp = create_new_temp();
+                                                                                    emit(create_new_quad("cast_to_"+$$->type->name, $1->tac, NULL,temp));
+                                                                                    emit(create_new_quad("/"+$$->type->name, temp, ($3)->tac, ($$)->tac));
                                                                                 }
                                                                                 else if($$->type->name != $3->type->name){
-                                                                                    string temp = get_temp();
-                                                                                    emit("cast_to_"+$$->type->name, $3->threeac, temp,"");
-                                                                                    emit("/"+$$->type->name, ($1)->threeac, temp, ($$)->threeac);
+                                                                                    Address* temp = create_new_temp();
+                                                                                    emit(create_new_quad("cast_to_"+$$->type->name, $3->tac, NULL,temp));
+                                                                                    emit(create_new_quad("/"+$$->type->name, ($1)->tac, temp, ($$)->tac));
                                                                                 }
                                                                                 else
-                                                                                    emit("/"+$$->type->name, ($1)->threeac, ($3)->threeac, ($$)->threeac);
+                                                                                    emit(create_new_quad("/"+$$->type->name, ($1)->tac, ($3)->tac, ($$)->tac));
                                                                             }
                                                                         }
 |                   MultiplicativeExpression Modulo UnaryExpression     {   
                                                                             if(pass_no == 2 ){  
                                                                                 $$ = check_additive_types($1, $3);
-                                                                                $$->threeac = get_temp();
+                                                                                $$->tac = create_new_temp();
                                                                                 if($$->type->name != $1->type->name){
-                                                                                    string temp = get_temp();
-                                                                                    emit("cast_to_"+$$->type->name, $1->threeac, temp,"");
-                                                                                    emit("%"+$$->type->name, temp, ($3)->threeac, ($$)->threeac);
+                                                                                    Address* temp = create_new_temp();
+                                                                                    emit(create_new_quad("cast_to_"+$$->type->name, $1->tac, NULL, temp));
+                                                                                    emit(create_new_quad("%"+$$->type->name, temp, ($3)->tac, ($$)->tac));
                                                                                 }
                                                                                 else if($$->type->name != $3->type->name){
-                                                                                    string temp = get_temp();
-                                                                                    emit("cast_to_"+$$->type->name, $3->threeac, temp,"");
-                                                                                    emit("%"+$$->type->name, ($1)->threeac, temp, ($$)->threeac);
+                                                                                    Address* temp = create_new_temp();
+                                                                                    emit(create_new_quad("cast_to_"+$$->type->name, $3->tac, NULL, temp));
+                                                                                    emit(create_new_quad("%"+$$->type->name, ($1)->tac, temp, ($$)->tac));
                                                                                 }
                                                                                 else
-                                                                                    emit("%"+$$->type->name, ($1)->threeac, ($3)->threeac, ($$)->threeac);
+                                                                                    emit(create_new_quad("%"+$$->type->name, ($1)->tac, ($3)->tac, ($$)->tac));
                                                                             }
                                                                         }
 ;
@@ -1759,8 +1838,8 @@ UnaryExpression:    PreIncrementExpression      { if(pass_no == 2 ) $$ = $1; }
                                                             exit(1);
                                                         }
                                                         $$ = $2;
-                                                        $$->threeac = get_temp();
-                                                        emit("uminus", ($2)->threeac, "", ($$)->threeac);
+                                                        $$->tac = create_new_temp();
+                                                        emit(create_new_quad("uminus", ($2)->tac, NULL, ($$)->tac));
                                                     }
                                                 }   //Nashe
 |                   UnaryExpressionNotPlusMinus                     { 
@@ -1782,7 +1861,7 @@ PreIncrementExpression: Increment Primary       {
                                                             exit(1);
                                                         }
                                                         $$ = $2;
-                                                        $$->threeac = pre_increament_3ac($$->token);
+                                                        $$->tac = pre_increament_3ac($2->tac);
                                                     }
                                                 }
 |                       Increment TypeName      {   
@@ -1798,8 +1877,9 @@ PreIncrementExpression: Increment Primary       {
                                                             cerr << "Line No: " <<  yylineno  << "unary Expression Type should be numeric\n";
                                                             exit(1);
                                                         }
-                                                        type_name_3ac($2, false);
-                                                        $$->threeac = pre_increament_3ac($2->threeac); 
+                                                        $2->tac = type_name_3ac($2, false);
+                                                        // $2->tac = create_new_mem($$->token, $$->offset, $$->type);
+                                                        $$->tac = pre_increament_3ac($2->tac); 
                                                     }
                                                 }
 ;
@@ -1816,7 +1896,7 @@ PreDecrementExpression: Decrement Primary   {
                                                             exit(1);
                                                         }
                                                         $$ = $2;
-                                                        $$->threeac = pre_decreament_3ac($$->token);
+                                                        $$->tac = pre_decreament_3ac($2->tac);
                                                     
                                                     }
                                             }
@@ -1832,8 +1912,11 @@ PreDecrementExpression: Decrement Primary   {
                                                             cerr << "Line No: " <<  yylineno  << "unary Expression Type should be numeric\n";
                                                             exit(1);
                                                         }
-                                                        type_name_3ac($2, false);
-                                                        $$->threeac = pre_decreament_3ac($2->threeac);
+                                                        $2->tac = type_name_3ac($2, false);
+
+                                                        // $2->tac = create_new_mem($$->token, $$->offset, $$->type);
+                                                        
+                                                        $$->tac = pre_decreament_3ac($2->tac);
                                                     }
                                             }
 ;
@@ -1855,8 +1938,8 @@ UnaryExpressionNotPlusMinus:    PostfixExpression                   {
                                                                                 exit(1);
                                                                             }
                                                                             $$ = $2;
-                                                                            $$->threeac = get_temp();
-                                                                            emit("~", ($2)->threeac, "", ($$)->threeac);
+                                                                            $$->tac = create_new_temp();
+                                                                            emit(create_new_quad("~", ($2)->tac, NULL, ($$)->tac));
                                                                         }
                                                                     }
 |                               Not UnaryExpression                 {   
@@ -1868,8 +1951,8 @@ UnaryExpressionNotPlusMinus:    PostfixExpression                   {
 
                                                                             check_boolean($2->type);
                                                                             $$ = $2;
-                                                                            $$->threeac = get_temp();
-                                                                            emit("!", ($2)->threeac, "", ($$)->threeac);
+                                                                            $$->tac = create_new_temp();
+                                                                            emit(create_new_quad("!", ($2)->tac, NULL, ($$)->tac));
                                                                         }
                                                                     }
 |                               CastExpression                      { if(pass_no == 2 ) $$ = $1; }
@@ -1881,8 +1964,8 @@ PostfixExpression:  Primary                 { if(pass_no == 2 ) {
                                             }
 |                   TypeName                {   if(pass_no == 2 ) {
                                                     $$ = find_variable_in_class($1, false);
-                                                    type_name_3ac($1, false);
-                                                    $$->threeac = ($1)->threeac; 
+                                                    $$->tac = type_name_3ac($1, false);
+                                                    // $$->tac = create_new_mem($$->token, $$->offset, $$->type);
                                                 }
                                             }
 |                   PostIncrementExpression { if(pass_no == 2 ) $$ = $1; }
@@ -1901,7 +1984,7 @@ PostIncrementExpression:    Primary Increment   {
                                                             exit(-1);
                                                         }
                                                         $$ = $1;
-                                                        $$->threeac = post_increament_3ac($$->token);
+                                                        $$->tac = post_increament_3ac($1->tac);
                                                     }
                                                 }
 |                           TypeName Increment  {   
@@ -1917,8 +2000,11 @@ PostIncrementExpression:    Primary Increment   {
                                                             cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '++' \n first type: "<< ($$)->type << "\n";
                                                             exit(-1);
                                                         }
-                                                        type_name_3ac($1, false);
-                                                        $$->threeac = post_increament_3ac($1->threeac);
+                                                        $1->tac = type_name_3ac($1, false);
+
+                                                        // $1->tac = create_new_mem($$->token, $$->offset, $$->type);
+                                                        
+                                                        $$->tac = post_increament_3ac($1->tac);
                                                     }
                                                 }
 ;
@@ -1937,7 +2023,7 @@ PostDecrementExpression:    Primary Decrement   {
                                                         }
                                                         
                                                         $$ = $1;
-                                                        $$->threeac = post_decreament_3ac($$->token);
+                                                        $$->tac = post_decreament_3ac($1->tac);
                                                     }
                                                 }
 |                           TypeName Decrement  {   
@@ -1954,8 +2040,10 @@ PostDecrementExpression:    Primary Decrement   {
                                                             cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '--' \n first type: "<< ($$)->type << "\n";
                                                             exit(-1);
                                                         }
-                                                        type_name_3ac($1, false);
-                                                        $$->threeac = post_decreament_3ac($1->threeac);
+                                                        $1->tac = type_name_3ac($1, false);
+                                                        // $1->tac = create_new_mem($$->token, $$->offset, $$->type);
+
+                                                        $$->tac = post_decreament_3ac($1->tac);
                                                     }
                                                 }
 ;
@@ -1964,20 +2052,20 @@ CastExpression:     Lparen PrimitiveType Rparen UnaryExpression                 
                                                                                     if(pass_no == 2 ){
                                                                                         check_cast_types($2, $4->type);
                                                                                         $$ = make_stackentry("", $2, yylineno);
-                                                                                        $$->threeac = get_temp();
+                                                                                        $$->tac = create_new_temp();
 
-                                                                                        emit("cast_to_" + $2->name, $4->threeac, "", $$->threeac);
-                                                                                        // emit($4->type->name + "to_" + $2->name, $4->threeac, "", $$->threeac);
+                                                                                        emit(create_new_quad("cast_to_" + $2->name, $4->tac, NULL, $$->tac));
+                                                                                        // emit($4->type->name + "to_" + $2->name, $4->tac, "", $$->tac);
                                                                                     }
                                                                                 }
 |                   Lparen ReferenceType Rparen UnaryExpressionNotPlusMinus     {   
                                                                                     if(pass_no == 2 ){
                                                                                         check_cast_types($2, $4->type);
                                                                                         $$ = make_stackentry("", $2, yylineno);
-                                                                                        $$->threeac = get_temp();
+                                                                                        $$->tac = create_new_temp();
 
-                                                                                        emit("cast_to_" + $2->name, $4->threeac, "", $$->threeac);
-                                                                                        // emit($4->type->name + "to_" + $2->name, $4->threeac, "", $$->threeac);
+                                                                                        emit(create_new_quad("cast_to_" + $2->name, $4->tac, NULL, $$->tac));
+                                                                                        // emit($4->type->name + "to_" + $2->name, $4->tac, "", $$->tac);
                                                                                     }
                                                                                 }
 ;
@@ -2072,8 +2160,9 @@ IfThenStatementSubRoutine:
                                 if(pass_no == 2){
                                     IfCondition($4); 
                                     $$ = $1;
-                                    emit("if " , $4->threeac , "false", "goto(Else" + to_string($1) + ")");
-                                    emit("\nIf"+to_string($1)+":\n", "", "", "");
+                                    Address* temp = create_new_temp();    /// WHYYYYYY??
+                                    emit(create_new_comp("==" , $4->tac , create_new_const("0", 4), "Else" + to_string($1)));
+                                    emit(create_new_label("\nIf"+to_string($1)+":\n"));
                                 }
                             }
 ;
@@ -2082,17 +2171,17 @@ IfThenStatement:    IfThenStatementSubRoutine Rparen ScopeIncrement Statement   
                                                                                     if(pass_no == 2){
                                                                                         
                                                                                         clear_current_scope(); 
-                                                                                        emit("goto(EndIf" + to_string($1) + ")", "", "", "");
-                                                                                        emit("\nElse"+to_string($1)+":\n", "", "", "");
-                                                                                        emit("\nEndIf" + to_string($1) + ":\n", "", "", "");
+                                                                                        emit(create_new_goto("EndIf" + to_string($1)));
+                                                                                        emit(create_new_label("\nElse"+to_string($1)+":\n"));
+                                                                                        emit(create_new_label("\nEndIf" + to_string($1) + ":\n"));
                                                                                     }
                                                                                 }
 ;
 
 IfThenThreeACSubRoutine: IfThenStatementSubRoutine Rparen ScopeIncrement StatementNoShortIf Else    {   
                                                                                                         if(pass_no == 2)  {
-                                                                                                            emit("goto(EndIf" + to_string($1) + ")", "", "", "");
-                                                                                                            emit("\nElse"+to_string($1)+":\n", "", "", "");
+                                                                                                            emit(create_new_goto("EndIf" + to_string($1)));
+                                                                                                            emit(create_new_label("\nElse"+to_string($1)+":\n"));
                                                                                                             $$ = $1;
                                                                                                         }
                                                                                                     }
@@ -2100,7 +2189,7 @@ IfThenThreeACSubRoutine: IfThenStatementSubRoutine Rparen ScopeIncrement Stateme
 
 IfThenElseStatement:    IfThenThreeACSubRoutine Statement   {   
                                                                 if(pass_no == 2){
-                                                                    emit("\nEndIf" + to_string($1) + ":\n", "", "", "");
+                                                                    emit(create_new_label("\nEndIf" + to_string($1) + ":\n"));
                                                                     clear_current_scope(); 
                                                                 }
                                                             }
@@ -2108,7 +2197,7 @@ IfThenElseStatement:    IfThenThreeACSubRoutine Statement   {
 
 IfThenElseStatementNoShortIf:   IfThenThreeACSubRoutine StatementNoShortIf  {   
                                                                                 if(pass_no == 2){
-                                                                                    emit("\nEndIf" + to_string($1) + ":\n", "", "", "");
+                                                                                    emit(create_new_label("\nEndIf" + to_string($1) + ":\n"));
                                                                                     clear_current_scope(); 
                                                                                 }
                                                                             }
@@ -2117,27 +2206,28 @@ IfThenElseStatementNoShortIf:   IfThenThreeACSubRoutine StatementNoShortIf  {
 AssertStatement:    Assert Expression Semicolon {   
                                                     if(pass_no == 2){
                                                         AssertCondition($2); 
-                                                        emit("If", $2->threeac, "false" , "goto(exit)");
+                                                        emit(create_new_comp("==", $2->tac, create_new_const("0", 4) , "exit"));
                                                     }
                                                 }
 /* |                   Assert Expression Colon Expression Semicolon    { AssertCondition($2); } */
 ;
 
 WhileStatementSubRoutine:
-    While Lparen Expression {
+    While {if(pass_no ==2) emit(create_new_label("Loop" + to_string($1) + ":"));}
+        Lparen Expression {
                                 if(pass_no == 2){
-                                    WhileCondition($3); 
+                                    WhileCondition($4); 
                                     $$ = $1;
-                                    emit("\nLoop" + to_string($1) + ":\n","","","");
-                                    emit("If ", $3->threeac, "false", "goto(Endloop"+to_string($1)+")");
+                                    
+                                    emit(create_new_comp("== ", $4->tac, create_new_const("0", 4), "Endloop"+to_string($1)));
                                 }
                             }
 ;
 
 WhileStatement:    WhileStatementSubRoutine Rparen Statement {   
                                                                     if(pass_no == 2){
-                                                                        emit("goto(Loop"+to_string($1)+")", "", "", "");
-                                                                        emit("\nEndloop"+to_string($1)+":\n","","","");
+                                                                        emit(create_new_goto("Loop"+to_string($1)));
+                                                                        emit(create_new_label("\nEndloop"+to_string($1)+":\n"));
                                                                         clear_current_scope(); 
                                                                     }
                                                             }
@@ -2145,8 +2235,8 @@ WhileStatement:    WhileStatementSubRoutine Rparen Statement {
 
 WhileStatementNoShortIf:    WhileStatementSubRoutine Rparen StatementNoShortIf  {   
                                                                                     if(pass_no == 2){         
-                                                                                        emit("goto(Loop"+to_string($1)+")", "", "", "");
-                                                                                        emit("\nEndloop"+to_string($1)+":\n","","","");                                                                           
+                                                                                        emit(create_new_goto("Loop"+to_string($1)));
+                                                                                        emit(create_new_label("\nEndloop"+to_string($1)+":\n"));                                                                           
                                                                                         clear_current_scope(); 
                                                                                     }
                                                                                 }
@@ -2154,12 +2244,12 @@ WhileStatementNoShortIf:    WhileStatementSubRoutine Rparen StatementNoShortIf  
 
 DoStatement:
     do_ {
-            if(pass_no == 2) emit("\nLoop" + to_string($1) + ":\n","","","");  
+            if(pass_no == 2) emit(create_new_label("\nLoop" + to_string($1) + ":\n"));  
         } Statement While {if(pass_no == 2) loopnum--;} Lparen Expression {     
                                                     if(pass_no == 2){ 
                                                         check_boolean($7->type); 
-                                                        emit("If ", $7->threeac,"true" , "goto(Loop"+ to_string($1)+")");
-                                                        emit("\nEndloop"+to_string($1)+":\n","","","");
+                                                        emit(create_new_comp("== ", $7->tac,create_new_const("1", 4) , "Loop"+ to_string($1)));
+                                                        emit(create_new_label("\nEndloop"+to_string($1)+":\n"));
                                                     }
                                             } Rparen Semicolon  { if(pass_no == 2) clear_current_scope(); }
 ;
@@ -2175,8 +2265,8 @@ ForStatementNoShortIf:    BasicForStatementNoShortIf
 For1SubRoutine: For5SubRoutine Expression   { 
                                     if(pass_no == 2){
                                         ForCondition($2); 
-                                        emit("If", $2->threeac, "false", "goto(EndFor"+ to_string($1)+")");
-                                        emit("If", $2->threeac, "true", "goto(ForBody"+ to_string($1)+")");
+                                        emit(create_new_comp("==", $2->tac, create_new_const("0", 4), "EndFor"+ to_string($1)));
+                                        emit(create_new_comp("==", $2->tac, create_new_const("1", 4), "ForBody"+ to_string($1)));
                                         $$ = $1;
                                     }
                                 }
@@ -2184,9 +2274,9 @@ For1SubRoutine: For5SubRoutine Expression   {
 For2SubRoutine: For7SubRoutine Expression Semicolon   { 
                                     if(pass_no == 2){
                                         ForCondition($2); 
-                                        emit("If", $2->threeac, "false", "goto(EndFor"+ to_string($1)+")");
-                                        emit("If", $2->threeac, "true", "goto(ForBody"+ to_string($1)+")");
-                                        /*3ac Update*/ emit("\nForUpdate" + to_string($1) + ":\n","","","");
+                                        emit(create_new_comp("==", $2->tac, create_new_const("0", 4), "EndFor"+ to_string($1)));
+                                        emit(create_new_comp("==", $2->tac, create_new_const("1", 4), "ForBody"+ to_string($1)));
+                                        /*3ac Update*/ emit(create_new_label("\nForUpdate" + to_string($1) + ":\n"));
                                         $$ = $1;
                                     }
                                 }
@@ -2194,8 +2284,8 @@ For2SubRoutine: For7SubRoutine Expression Semicolon   {
 For3SubRoutine: For5SubRoutine Semicolon {  
                                             if(pass_no == 2){
                                                 
-                                                emit("goto(ForBody"+ to_string($1)+")","","","");
-                                                /*3ac Update*/ emit("\nForUpdate" + to_string($1) + ":\n","","","");
+                                                emit(create_new_goto("ForBody"+ to_string($1)));
+                                                /*3ac Update*/ emit(create_new_label("\nForUpdate" + to_string($1) + ":\n"));
                                                 $$ = $1;
                                             }
                                         }
@@ -2203,90 +2293,90 @@ For3SubRoutine: For5SubRoutine Semicolon {
 For4SubRoutine:    For7SubRoutine Semicolon {   
                                                 if(pass_no == 2){
                                                     
-                                                    emit("goto(ForBody"+ to_string($1)+")","","","");
-                                                    /*3ac Update*/ emit("\nForUpdate" + to_string($1) + ":\n","","","");
+                                                    emit(create_new_goto("ForBody"+ to_string($1)));
+                                                    /*3ac Update*/ emit(create_new_label("\nForUpdate" + to_string($1) + ":\n"));
                                                     $$ = $1;
                                                 }
                                             }
 ;
 For5SubRoutine: For Lparen Semicolon    {   
                                             if(pass_no == 2){
-                                                emit("ForCondition" + to_string($1) + ":\n","","","");
+                                                emit(create_new_label("ForCond" + to_string($1) + ":\n"));
                                                 $$ = $1;
                                             }
                                         } 
 ;
 For6SubRoutine:    For1SubRoutine Semicolon Rparen {
                                         if(pass_no == 2){
-                                            emit("\nForUpdate" + to_string($1) + ":\n","","","");  // Not Required // Just for notation and clarity
-                                            emit("goto(ForCond"+ to_string($1)+")","","","");
-                                            emit("\nForBody" + to_string($1)+ ":\n","","","");
+                                            emit(create_new_label("\nForUpdate" + to_string($1) + ":\n"));  // Not Required // Just for notation and clarity
+                                            emit(create_new_goto("ForCond"+ to_string($1)));
+                                            emit(create_new_label("\nForBody" + to_string($1)+ ":\n"));
                                             $$ = $1;
                                         }
                                     }
 ;
 For7SubRoutine: For Lparen ForInit Semicolon    { 
                                             if(pass_no == 2){
-                                                emit("\nForCondition" + to_string($1) + ":\n","","","");
+                                                emit(create_new_label("\nForCond" + to_string($1) + ":\n"));
                                                 $$ = $1;
                                             }
                                     }
 ;
 For8SubRoutine: For3SubRoutine Rparen { 
                                         if(pass_no == 2){
-                                            emit("\nForUpdate" + to_string($1) + ":\n","","","");  // Not Required // Just for notation and clarity
-                                            emit("goto(ForCond"+ to_string($1)+")","","","");
-                                            emit("\nForBody" + to_string($1)+ ":\n","","","");
+                                            emit(create_new_label("\nForUpdate" + to_string($1) + ":\n"));  // Not Required // Just for notation and clarity
+                                            emit(create_new_goto("ForCond"+ to_string($1)));
+                                            emit(create_new_label("\nForBody" + to_string($1)+ ":\n"));
                                             $$ = $1;
                                         }
                                     }
 
 For9SubRoutine: For4SubRoutine Rparen  {    
                                             if(pass_no == 2){
-                                                emit("\nForUpdate" + to_string($1) + ":\n","","","");  // Not Required // Just for notation and clarity
-                                                emit("goto(ForCond"+ to_string($1)+")","","","");
-                                                emit("\nForBody" + to_string($1)+ ":\n","","","");
+                                                emit(create_new_label("\nForUpdate" + to_string($1) + ":\n"));  // Not Required // Just for notation and clarity
+                                                emit(create_new_goto("ForCond"+ to_string($1)));
+                                                emit(create_new_label("\nForBody" + to_string($1)+ ":\n"));
                                                 $$ = $1;
                                             }
                                         } 
 
 For10SubRoutine: For3SubRoutine ForUpdate Rparen {  
                                                     if(pass_no == 2){
-                                                        emit("goto(ForCond"+ to_string($1)+")","","","");
-                                                        emit("\nForBody" + to_string($1)+ ":\n","","","");
+                                                        emit(create_new_goto("ForCond"+ to_string($1)));
+                                                        emit(create_new_label("\nForBody" + to_string($1)+ ":\n"));
                                                         $$ = $1;
                                                     }
                                                 }
 
 For11SubRoutine: For2SubRoutine Rparen {  
                                                     if(pass_no == 2){
-                                                        emit("\nForUpdate" + to_string($1) + ":\n","","","");  // Not Required // Just for notation and clarity
-                                                        emit("goto(ForCond"+ to_string($1)+")","","","");
-                                                        emit("\nForBody" + to_string($1)+ ":\n","","","");
+                                                        emit(create_new_label("\nForUpdate" + to_string($1) + ":\n"));  // Not Required // Just for notation and clarity
+                                                        emit(create_new_goto("ForCond"+ to_string($1)));
+                                                        emit(create_new_label("\nForBody" + to_string($1)+ ":\n"));
                                                         $$ = $1;
                                                     }
                                                 }
 
 For12SubRoutine: For4SubRoutine ForUpdate Rparen {  
                                                     if(pass_no == 2){
-                                                        emit("goto(ForCond"+ to_string($1)+")","","","");
-                                                        emit("\nForBody" + to_string($1)+ ":\n","","","");
+                                                        emit(create_new_goto("ForCond"+ to_string($1)));
+                                                        emit(create_new_label("\nForBody" + to_string($1)+ ":\n"));
                                                         $$ = $1;
                                                     }
                                                 }
 
 For13SubRoutine: For1SubRoutine Semicolon ForUpdate  Rparen  {  
                                                                 if(pass_no == 2){
-                                                                    emit("goto(ForCond"+ to_string($1)+")","","","");
-                                                                    emit("\nForBody" + to_string($1)+ ":\n","","","");
+                                                                    emit(create_new_goto("ForCond"+ to_string($1)));
+                                                                    emit(create_new_label("\nForBody" + to_string($1)+ ":\n"));
                                                                     $$ = $1;
                                                                 }
                                                             }
 
 For14SubRoutine: For2SubRoutine ForUpdate Rparen {    
                                                                 if(pass_no == 2){
-                                                                    emit("goto(ForCond"+ to_string($1)+")","","","");
-                                                                    emit("\nForBody" + to_string($1)+ ":\n","","","");
+                                                                    emit(create_new_goto("ForCond"+ to_string($1)));
+                                                                    emit(create_new_label("\nForBody" + to_string($1)+ ":\n"));
                                                                     $$ = $1;
                                                                 }
                                                             }
@@ -2295,8 +2385,8 @@ For14SubRoutine: For2SubRoutine ForUpdate Rparen {
 BasicForStatement:      For8SubRoutine Statement {              
                                                                 if(pass_no == 2){
                                                                      
-                                                                    emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                    emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                    emit(create_new_goto("ForUpdate" + to_string($1)));
+                                                                    emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
@@ -2305,8 +2395,8 @@ BasicForStatement:      For8SubRoutine Statement {
 |                       For9SubRoutine  Statement { 
                                                     if(pass_no == 2){
                                                          
-                                                        emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                        emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                        emit(create_new_goto("ForUpdate" + to_string($1)));
+                                                        emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
                                                         // $$ = $1;
                                                         clear_current_scope();
                                                     }
@@ -2314,8 +2404,8 @@ BasicForStatement:      For8SubRoutine Statement {
 |                       For6SubRoutine Statement      {      
                                                             if(pass_no == 2){
                                                                  
-                                                                emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                emit(create_new_goto("ForUpdate" + to_string($1)));
+                                                                emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
                                                                 // $$ = $1;
                                                                 clear_current_scope();
                                                             }
@@ -2323,8 +2413,8 @@ BasicForStatement:      For8SubRoutine Statement {
 |                       For10SubRoutine  Statement {    
                                                         if(pass_no == 2){
                                                              
-                                                            emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                            emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                            emit(create_new_goto("ForUpdate" + to_string($1)));
+                                                            emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
                                                             // $$ = $1;
                                                             clear_current_scope();
                                                         }
@@ -2333,8 +2423,8 @@ BasicForStatement:      For8SubRoutine Statement {
 |                       For11SubRoutine Statement {     
                                                         if(pass_no == 2){
                                                              
-                                                            emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                            emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                            emit(create_new_goto("ForUpdate" + to_string($1)));
+                                                            emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
                                                             // $$ = $1;
                                                             clear_current_scope();
                                                         }
@@ -2343,8 +2433,8 @@ BasicForStatement:      For8SubRoutine Statement {
 |                       For12SubRoutine Statement {     
                                                         if(pass_no == 2){
                                                              
-                                                            emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                            emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                            emit(create_new_goto("ForUpdate" + to_string($1)));
+                                                            emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
                                                             // $$ = $1;
                                                             clear_current_scope();
                                                         }
@@ -2353,8 +2443,8 @@ BasicForStatement:      For8SubRoutine Statement {
 |                       For13SubRoutine Statement { 
                                                     if(pass_no == 2){
                                                          
-                                                        emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                        emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                        emit(create_new_goto("ForUpdate" + to_string($1)));
+                                                        emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
                                                         // $$ = $1;
                                                         clear_current_scope();
                                                     }
@@ -2363,8 +2453,8 @@ BasicForStatement:      For8SubRoutine Statement {
 |                       For14SubRoutine Statement      {    
                                                             if(pass_no == 2){
                                                                  
-                                                                emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                emit(create_new_goto("ForUpdate" + to_string($1)));
+                                                                emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
                                                                 // $$ = $1;
                                                                 clear_current_scope();
                                                             }
@@ -2375,8 +2465,8 @@ BasicForStatement:      For8SubRoutine Statement {
 BasicForStatementNoShortIf:    
                         For8SubRoutine StatementNoShortIf {     
                                                                 if(pass_no == 2){  
-                                                                    emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                    emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                    emit(create_new_goto("ForUpdate" + to_string($1)));
+                                                                    emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
@@ -2384,15 +2474,15 @@ BasicForStatementNoShortIf:
 
 |                       For9SubRoutine StatementNoShortIf {     
                                                                 if(pass_no == 2){
-                                                                    emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                    emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                    emit(create_new_goto("ForUpdate" + to_string($1)));
+                                                                    emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
                                                             }
 |                       For6SubRoutine StatementNoShortIf      {    if(pass_no == 2){
-                                                                        emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                        emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                        emit(create_new_goto("ForUpdate" + to_string($1)));
+                                                                        emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
                                                                         // $$ = $1;
                                                                         clear_current_scope();
                                                                     }
@@ -2400,8 +2490,8 @@ BasicForStatementNoShortIf:
 |                       For10SubRoutine StatementNoShortIf {    
                                                                 if(pass_no == 2){        
                                                                      
-                                                                    emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                    emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                    emit(create_new_goto("ForUpdate" + to_string($1)));
+                                                                    emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
@@ -2410,8 +2500,8 @@ BasicForStatementNoShortIf:
 |                       For11SubRoutine StatementNoShortIf {    
                                                                 if(pass_no == 2){
                                                                      
-                                                                    emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                    emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                    emit(create_new_goto("ForUpdate" + to_string($1)));
+                                                                    emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
@@ -2420,8 +2510,8 @@ BasicForStatementNoShortIf:
 |                       For12SubRoutine StatementNoShortIf {    
                                                                 if(pass_no == 2){
                                                                      
-                                                                    emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                    emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                    emit(create_new_goto("ForUpdate" + to_string($1)));
+                                                                    emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
@@ -2430,8 +2520,8 @@ BasicForStatementNoShortIf:
 |                       For13SubRoutine StatementNoShortIf {    
                                                                 if(pass_no == 2){
                                                                      
-                                                                    emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                    emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                    emit(create_new_goto("ForUpdate" + to_string($1)));
+                                                                    emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
@@ -2440,8 +2530,8 @@ BasicForStatementNoShortIf:
 |                       For14SubRoutine StatementNoShortIf      {   
                                                                     if(pass_no == 2){
                                                                          
-                                                                        emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                        emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                        emit(create_new_goto("ForUpdate" + to_string($1)));
+                                                                        emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
                                                                         // $$ = $1;
                                                                         clear_current_scope();
                                                                     }
@@ -2468,13 +2558,13 @@ EnhancedForStatementSubRoutine:
     For Lparen LocalVariableDeclaration Colon Expression { if(pass_no == 2) EnhancedForCondition($5); }
 ;
 
-EnhancedForStatement:    EnhancedForStatementSubRoutine Rparen Statement  { if(pass_no == 2) emit("goto(ForUpdate"+to_string(loopnum-1)+")","","",""); }
+EnhancedForStatement:    EnhancedForStatementSubRoutine Rparen Statement  { if(pass_no == 2) emit(create_new_goto("ForUpdate"+to_string(loopnum-1))); }
 ;
 
-EnhancedForStatementNoShortIf:    EnhancedForStatementSubRoutine Rparen StatementNoShortIf    { if(pass_no == 2) emit("goto(ForUpdate"+to_string(loopnum-1)+")","","",""); }
+EnhancedForStatementNoShortIf:    EnhancedForStatementSubRoutine Rparen StatementNoShortIf    { if(pass_no == 2) emit(create_new_goto("ForUpdate"+to_string(loopnum-1))); }
 ;
 
-BreakStatement:    Break Semicolon { if(pass_no == 2) emit("goto(EndLoop"+to_string(loopnum-1)+")","","",""); }
+BreakStatement:    Break Semicolon { if(pass_no == 2) emit(create_new_goto("EndLoop"+to_string(loopnum-1))); }
                 //    Break Identifier Semicolon   { }
                  
 ;
@@ -2482,7 +2572,7 @@ BreakStatement:    Break Semicolon { if(pass_no == 2) emit("goto(EndLoop"+to_str
 /* YieldStatement:     yield_ Expression Semicolon     { }
 ; */
 
-ContinueStatement:   Continue Semicolon { if(pass_no == 2) emit("goto(Loop"+to_string(loopnum-1)+")","","","");}
+ContinueStatement:   Continue Semicolon { if(pass_no == 2) emit(create_new_goto("Loop"+to_string(loopnum-1)));}
                     //   Continue Identifier Semicolon  { }                   
 ;
 
@@ -2493,9 +2583,11 @@ ReturnStatement:
                                             cerr << "Cannot return " << cerr_type(($2)->type) << " from function whose return type is " << cerr_type(current_table->return_type) << "\n";
                                             exit(-1);
                                         }
-                                        // emit("return" , $2->threeac,"","");
-                                        emit("mov ", " [ebp-0x14] ", $2->threeac, "");
-                                        emit("goto ret", "", "", "");
+                                        // emit("return" , $2->tac,"","");
+
+                                        // Move return value to eax
+                                        emit(create_new_return($2->tac, true));
+                                        emit(create_new_goto("ret"));
                                     }
                                 }
 |   Return  Semicolon {     
@@ -2505,7 +2597,7 @@ ReturnStatement:
                                             exit(-1);
                                 }
                                 // emit("return","","","");
-                                emit("goto ret", "", "", "");
+                                emit(create_new_goto("ret"));
                             }
                      }
 ;
@@ -2750,7 +2842,9 @@ Or : OR { }
 Not : NOT { }
 ;
 
-AssignmentOperator:  ASSIGNMENT { $$ = $1; }
+AssignmentOperator:  ASSIGNMENT {   
+                                    strcpy($$, $1);
+                                }
 ;
 
 Assign: ASSIGN { }
@@ -2793,15 +2887,20 @@ Dot : DOT { }
 Char_literal : CHAR_LITERAL     { 
                                     $$ = make_stackentry($1, get_type(__CHAR), yylineno); 
                                     if(pass_no == 2){
-                                        $$->threeac = $1;
+                                        $$->tac = create_new_const($1, 1);
                                     }
                                 }
 ;
 
 Boolean_literal : BOOLEAN_LITERAL { 
                                     $$ = make_stackentry($1, get_type(__BOOLEAN), yylineno); 
+                                    cout << $1;
                                     if(pass_no == 2){
-                                        $$->threeac = $1;
+                                        if($1 == "true")
+                                            $$->tac = create_new_const(to_string(1), 1);
+                                        else 
+                                            $$->tac = create_new_const(to_string(0), 1);
+
                                     }
                                 }
 ;
@@ -2809,7 +2908,7 @@ Boolean_literal : BOOLEAN_LITERAL {
 Null_literal : NULL_LITERAL     { 
                                     $$ = make_stackentry($1, yylineno); 
                                     if(pass_no == 2){
-                                        $$->threeac = $1;
+                                        $$->tac = create_new_const($1, 0);
                                     }
                                 }
 ;
@@ -2817,7 +2916,7 @@ Null_literal : NULL_LITERAL     {
 Integer_literal : INTEGER_LITERAL { 
                                     $$ = make_stackentry($1, get_type(__INT), yylineno);
                                     if(pass_no == 2){
-                                        $$->threeac = $1;
+                                        $$->tac = create_new_const($1, 4);
                                     } 
                                 }
 ;
@@ -2825,7 +2924,7 @@ Integer_literal : INTEGER_LITERAL {
 Fp_literal : FP_LITERAL     { 
                                     $$ = make_stackentry($1, get_type(__FLOAT), yylineno); 
                                     if(pass_no == 2){
-                                        $$->threeac = $1;
+                                        $$->tac = create_new_const($1, 4);
                                     }
                                 }
 ;
@@ -2833,7 +2932,7 @@ Fp_literal : FP_LITERAL     {
 String : STRING             { 
                                     $$ = make_stackentry($1, yylineno); 
                                     if(pass_no == 2){
-                                        $$->threeac = $1;
+                                        $$->tac = create_new_const($1, 4);
                                     }
                                 }
 ;
@@ -2841,7 +2940,7 @@ String : STRING             {
 Text_block : TEXT_BLOCK         { 
                                     $$ = make_stackentry($1, yylineno); 
                                     if(pass_no == 2){
-                                        $$->threeac = $1;
+                                        $$->tac = create_new_const($1, 4);
                                     }
                                 }
 ;
@@ -2870,6 +2969,12 @@ void reset_global_params() {
     global_modifier = 0b0;
     global_type = NULL;
     current_class = NULL;
+}
+
+string print_(Address* addr){
+    if(addr!= NULL)
+        return addr->name;
+    return "";
 }
 
 int main(int argc, char *argv[]) 
@@ -2948,7 +3053,66 @@ int main(int argc, char *argv[])
         yyparse();
     } while(!feof(yyin));
 
-    
+    /* for (auto i:global_tacs){
+        cout << i.operation << "\t" << i.arg1 << "\t" << i.arg2 << "\t" << i.result << "\n";
+    } */
+
+    Quad *quad_p;
+    Arg  *arg_p;
+    Label *label_p;
+    Return *return_p;
+    Call *call_p;
+    Goto* goto_p;
+    Reg* reg_p;
+    Comp* comp_p;
+
+    for (auto instr: global_tacs) {
+        quad_p = dynamic_cast<Quad *> (instr);
+        if (quad_p != nullptr) {
+            cout << "Quad: " <<  quad_p->operation << " " << print_(quad_p->arg1) << " " << print_(quad_p->arg2) << " " << print_(quad_p->result) << "\n";
+            continue;
+        }
+        arg_p = dynamic_cast<Arg *> (instr);
+        if (arg_p != nullptr) {
+            cout << "Arg: " << print_(arg_p->arg) << " " << arg_p->offset << "\n";
+            continue;
+        }
+
+        label_p = dynamic_cast<Label *> (instr);
+        if (label_p != nullptr) {
+            cout << "Label: " << label_p->name << "\n";
+            continue;
+        }
+        return_p = dynamic_cast<Return *> (instr);
+        if (return_p != nullptr) {
+            cout << "Return: " << print_(return_p->ret_value) << " " << return_p->push << "\n";
+            continue;
+        }
+        call_p = dynamic_cast<Call *> (instr);
+        if (call_p != nullptr) {
+            cout << "Call: " << call_p->function_name << " " << call_p->arg_count << "\n";
+            continue;
+        }
+
+        goto_p = dynamic_cast<Goto *> (instr);
+        if (goto_p != nullptr) {
+            cout << "Goto: " << goto_p->label->name << "\n";
+            continue;
+        }
+
+        reg_p = dynamic_cast<Reg *> (instr);
+        if (reg_p != nullptr) {
+            cout << "Reg: " << reg_p->reg_name << " " <<  reg_p->size << " " << reg_p->add << "\n";
+            continue;
+        }
+
+        comp_p = dynamic_cast<Comp *> (instr);
+        if (comp_p != nullptr) {
+            cout << "Comp: " << comp_p->comp_operator << " " << print_(comp_p->arg1) << " " << print_(comp_p->arg2) << " " << comp_p->label << "\n";
+            continue;
+        }
+
+    }
 
     return 0;
  }

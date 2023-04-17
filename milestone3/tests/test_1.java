@@ -1,83 +1,37 @@
 public class GFG {
-    static int x;
-    double z;
-    Dummy dummy;
-    int[][] arr;
-    
-
-
-    GFG(int x, double z){
-        this.x = x;
-        this.z = z;
-
-        if(x < z)
-            return;
-        else 
-            this.z = x+z;
+    GFG(int x){
+        x = (5+10)+((2+3)+((4+5)+(3+4)));
+        // t0 = 5+10
+        // t1 = 2+3
+        // t2 = 4+5
+        // t3 = 3+4
     }
-
-    static void sub(int a, int b, float c, char d, int e, boolean f, int h,  int i){
-        return;
+    GFG(){
+        int x = 5+10;
     }
-
-    static int add(int a, int b){
-        int sum = a + b;
-        int arr[][] =  new int[3][4];
-
-        x = 5;
-
-        // Missing object reference here in 3ac
-        sub(1,1,1,'c', 1, true, 2, 2);
-
-        return 5;
-
-        int dead_var = 2;
-        int dead_var2 = 2;
-
-    }
-
+    public 
     static void main(){
-        GFG obj1;
-
-        GFG obj = new GFG(1, 1.5);
-        // Object reference coming wrong in 3ac
-        obj.x = 2;
-        // obj.x = obj1.x;
-       
-
-        int a = 20;
-        obj.x = a;
-        // Error here
-        a = obj.x;
-        float b = 40;
-        char c = 'a';
-        boolean bool = true;
-        // Object reference coming wrong in 3ac
-        obj.arr =  new int[10][20];
-
-        b = b+a;
-        b = a+c;
-        b = a+b+c;
-        bool = (b  < a) ? true: false;
-
-        obj.add(1, 12);
-        // Object reference  passing wrong in 3ac
-        sub(1, 2, obj.x, '4', 5, true, 7, 8);
-
-        int i = 0;
-        int j = 0;
-        int k =  0;
-
-        // Array reference wrong in 3ac
-        i = obj.arr[i][j];
-
-        int new_arr[][] = new int[200][300];
-        i = new_arr[i][j];
+        GFG gfg = new GFG(2);
+        int a = 1, b = 2, c = 3, d = 4;
+        a = b * c / d;
+        a %= b;
+        
+        if (a == 1) {
+            if (b == 2) {
+                if (c == 3) {
+                    if (d >= 4) {
+                        d=5;
+                    }
+                }
+            }
+        }
+        while(a<10){
+            a++;
+            for(int i=0;i<10;i++){
+                if(i==5){
+                    break;
+                }
+            }
+        }
     }
-}
-
-class Dummy {
-        float a;
-        int b;
-        char c;
 }

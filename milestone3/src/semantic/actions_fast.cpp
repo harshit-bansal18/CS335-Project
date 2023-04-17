@@ -604,7 +604,7 @@ void add_variable(string token, int8_t modifier, Type *type, int offset, bool is
     sym->is_initialized = initialized;
     sym->is_final_initialized  = initialized;
     // sym->threeac = "[rbp-" + to_string(offset+type->size) + "]";
-    sym->threeac = token;
+    // sym->threeac = token;   // JAYA
     switch (current_scope) {
         case scope_class:
             if(is_fun_arg) {
@@ -738,7 +738,7 @@ stackentry::stackentry(const char *name, unsigned long line) {
 stackentry *make_dup_stackentry(SymTabEntry *sym, bool dup_type) {
     stackentry *s =  make_stackentry(sym->name.c_str(), sym->line_no);
     s->offset = sym->offset;
-    s->threeac = sym->threeac;
+    s->tac = sym->tac;
     if (dup_type) {
         Type *t = new Type();
         *t = *(sym->type);
@@ -847,13 +847,14 @@ stackentry *increase_dims(stackentry *e) {
 }
 
 stackentry *assign_arr_dim(stackentry *e1, stackentry *e2) {
-    e1->type->arr_dim_val.push_back(e2->threeac);
+    e1->type->arr_dim_val.push_back(e2->tac);
     free(e2->type);
     free(e2);
     
     e1->type->arr_dim++;
     return e1;
 }
+
 stackentry *assign_arr_dim(Type *t, stackentry *e1, stackentry *e2) {
     unsigned int dims = e1->type->arr_dim + e2->type->arr_dim;
     *(e1->type) = *t;
@@ -865,7 +866,7 @@ stackentry *assign_arr_dim(Type *t, stackentry *e1, stackentry *e2) {
 
 stackentry *assign_arr_dim(Type *t, stackentry *e1) {
     unsigned int dims = e1->type->arr_dim;
-    vector<string> arr_dim_val = e1->type->arr_dim_val;
+    vector<Address*> arr_dim_val = e1->type->arr_dim_val;
     *(e1->type) = *t;
     e1->type->arr_dim = dims;
     e1->type->arr_dim_val = arr_dim_val;
@@ -907,10 +908,10 @@ stackentry* check_additive_types(stackentry* e1, stackentry* e2) {
         stackentry* e = make_stackentry("",yylineno);
         if(check_return_type((e1)->type, (e2)->type)) {
             e->type = e1->type;
-            e->threeac = e1->threeac;
+            // e->threeac = e1->threeac;  // JAYA
         } else {
             e->type = e2->type;
-            e->threeac = e2->threeac;
+            // e->threeac = e2->threeac;  // JAYA
         }
         return e;
     } else {
@@ -1083,11 +1084,11 @@ void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no) {
                     current_class->class_width += e1->type->size;
             }
             else {
-                add_variable(e1->token, global_modifier, e1->type, current_table->offset, false, true);
                 if (e1->type->is_pointer())
-                    current_table->offset += REF_TYPE_SIZE;
+                    current_table->offset -= REF_TYPE_SIZE;
                 else
-                    current_table->offset += e1->type->size;
+                    current_table->offset -= e1->type->size;
+                add_variable(e1->token, global_modifier, e1->type, current_table->offset, false, true);
             }
 
             if(e2->type == NULL) {
@@ -1129,11 +1130,11 @@ void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no) {
                     current_class->class_width += e1->type->size;
             }
             else {
-                add_variable(e1->token, global_modifier, e1->type, current_table->offset, false, false);
                 if(e1->type->is_pointer())
-                    current_table->offset += REF_TYPE_SIZE;
+                    current_table->offset -= REF_TYPE_SIZE;
                 else
-                    current_table->offset += e1->type->size;
+                    current_table->offset -= e1->type->size;
+                add_variable(e1->token, global_modifier, e1->type, current_table->offset, false, false);
             }
         }
     }

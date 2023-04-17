@@ -32,7 +32,6 @@ public class Demo
 	// a = ex.x;
     public double c = 20.0;
 	public static Me m = new Me();
-    public double[] array = {};
 	double [][]array1 = new double[3][5];
 	Me m2 = new Me();
 	int a__ = m.func1(1);

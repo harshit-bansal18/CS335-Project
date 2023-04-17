@@ -19,212 +19,454 @@ int ifnum=0;
 int tcount=0;
 int paramcount=0;
 string threeac_file_name = "";
-// stringstream 3ac_stream(string());
 stringstream tacss;
 
-void emit(string op, string arg1, string arg2, string result){
-    if(current_scope != scope_class)
-        tacss << op << " "<<arg1<<" "<<arg2<<" "<<result<<"\n";
+
+vector<ThreeAC*> tacs;
+vector<ThreeAC*> global_tacs;
+
+ThreeAC::~ThreeAC() {}
+
+Address::Address( string _name, addr_type _type){
+    name = _name;
+    type = _type;
 }
 
-string get_temp(){
-    string label = "t"+to_string(tcount);
-    tcount ++;
+Address::Address( long _value, addr_type _type){
+    name = to_string(_value);
+    type = _type;
+}
+
+Address::Address( SymTabEntry* _symbol ){
+    name = _symbol->name;
+    type = MEM;
+    offset = _symbol->offset;
+    size = _symbol->type->size;
+}
+
+Quad::Quad( Address* _result, string _operation, Address* _arg1, Address* _arg2){
+    result = _result;
+    operation = _operation;
+    arg1 = _arg1;
+    arg2 = _arg2;
+}
+
+Return::Return( Address * _retval, bool _push ){
+    ret_value = _retval;
+    push = _push;
+}
+
+Call::Call( string f_name, int arg_count ){
+    function_name = f_name;
+    arg_count = arg_count;
+}
+
+Label::Label(string _name){
+    name = _name;
+}
+
+Goto::Goto(Label* _label){
+    label = _label;
+}
+
+Arg::Arg(Address *_addr, int _offset ){
+    arg = _addr;
+    offset = _offset;
+}
+
+Comp::Comp(string _comp_operator, Address* _arg1, Address* _arg2, string _label){
+    comp_operator = _comp_operator;
+    arg1 = _arg1;
+    arg2 = _arg2;
+    label = _label;
+}
+
+Reg::Reg(string reg, int _size, bool _add){
+    reg_name = reg;
+    size = _size;
+    add = _add;
+}
+
+Address* create_new_temp(){
+    string name = "t" + to_string(tcount++);
+    Address* addr = new Address(name, TEMP);
+    addr->size = 4; // size of register for int operation 
+
+    return addr;
+}
+
+Address* create_new_const(string val, int size){
+    Address* addr = new Address(val, CONST);
+    addr->size = size;
+
+    return addr;
+}
+
+// if false
+Address* create_new_mem(string name, int offset, int type_size){
+    Address* addr = new Address(name, MEM);
+    addr->size = type_size;
+    addr->offset = offset;
+    addr->absolute = false;
+
+    return addr;
+}
+
+// if false
+Address* create_new_mem(string name, int offset, Type* type){
+    Address* addr = new Address(name, MEM);
+    addr->size = type->size;
+    addr->offset = offset;
+    addr->absolute = false;
+
+    return addr;
+}
+
+// if true
+Address* create_new_mem(string name, Address* offset, Type* type){
+    Address* addr = new Address(name, MEM);
+    addr->size = type->size;
+    addr->absolute = true;
+    addr->abs_offset = offset;
+
+    return addr;
+}
+
+Quad* create_new_quad(string operation, Address *arg1, Address *arg2,Address *result){
+    Quad* quad = new Quad(result, operation, arg1, arg2);
+
+    return quad;
+}
+
+Label* create_new_label(string name){
+    Label* label = new Label(name);
+
     return label;
 }
 
-string assignment_operator_3ac(string result , string op , string operand ){
-    string temp = get_temp();
-    emit(op.substr(0,op.length() - 1),result,operand, temp);
-    emit("=", temp, "", result);
+Goto* create_new_goto(string name){
+    Label* label = create_new_label(name);
+    Goto* _goto = new Goto(label);
+
+    return _goto;
+}
+
+Arg* create_new_arg(Address* arg, int offset){
+    Arg* _arg = new Arg(arg, offset);
+    return _arg;
+}
+
+Comp* create_new_comp(string comparator, Address* addr1, Address* addr2, string label){
+    Comp* comp = new Comp(comparator, addr1, addr2, label);
+
+    return comp;
+}
+
+Reg* create_new_reg(string reg, int _size, bool _add){
+    Reg* _reg = new Reg(reg, _size, _add);
+
+    return _reg;
+}
+
+Return * create_new_return( Address * retval, bool _push ){
+    Return* ret = new Return(retval, _push);
+
+    return ret;
+}
+
+Call* create_new_call( string f_name, int arg_count ){
+    Call* call = new Call(f_name, arg_count);
+
+    return call;
+}
+
+///old /////////////////////////////////////
+
+bool check_if_temp(Address* s){
+    if(s->type == TEMP)
+        return true;
+    
+    return false;
+}
+
+bool check_if_const(Address* s){
+    if(s->type == CONST)
+        return true;
+        
+    return false;
+}
+
+bool check_if_mem(Address* s){
+    if(s->type == MEM)
+        return true;
+        
+    return false;
+}
+
+void emit(ThreeAC* tac){
+    if(current_scope != scope_class){
+        // tacss << op << " "<<arg1<<" "<<arg2<<" "<<result<<"\n";
+        tacs.push_back(tac);
+    }    
+}
+
+Address* assignment_operator_3ac(Address* result , string op , Address* operand ){
+    Address* temp = create_new_temp();
+    string op_ = "";
+    for(int i=0; i<op.length(); i++){
+        if(op[i] == '=')
+            break;
+        op_ += op[i];
+    }
+
+    emit(create_new_quad(op_,result,operand, temp));
+    emit(create_new_quad("=", temp, NULL, result));
     return result;
 }
 
-string assign_operator_3ac(string result , string operand ){
-    string temp = get_temp();
-    emit("=", operand , "", temp);
-    emit("=", temp, "", result);
+Address* assign_operator_3ac(Address* result , Address* operand ){
+
+    if(check_if_const(operand) || check_if_temp(operand)){
+        emit(create_new_quad("=", operand, NULL, result));   // in = always move will be called, result will be temp or mem location
+        return result;
+    }
+
+    Address* temp = create_new_temp();
+    emit(create_new_quad("=", operand , NULL, temp));
+    emit(create_new_quad("=", temp, NULL, result));
+    
     tcount++;
     return result;
 }
 
-string ternary_condition_3ac(string cond, string e1, string e2){
-    string temp = get_temp();
-    emit("if", cond, "false", "goto(T" + temp+")" );
-    emit("=", e1, "", temp);
-    emit("goto(TEnd"+temp+")","","","");
-    emit("\nT"+temp+":\n","","","");
-    emit("=", e2, "", temp);
-    emit("\nTEnd"+temp+":\n","","","");
+Address* ternary_condition_3ac(Address* cond, Address* e1, Address* e2){
+    Address* temp = create_new_temp();
+    emit(create_new_comp("==", cond, create_new_const("0", 4), "T" + temp->name));
+    emit(create_new_quad("=", e1, NULL, temp));
+    emit(create_new_goto("TEnd"+temp->name));
+    emit(create_new_label("\nT"+temp->name+":\n"));
+    emit(create_new_quad("=", e2, NULL, temp));
+    emit(create_new_label("\nTEnd"+temp->name+":\n"));
     return temp;
 }
 
-string binary_operator_3ac(string e1, string op, string e2){
-    string temp = get_temp();
-    emit(op, e1, e2, temp);
+Address* binary_operator_3ac(Address* e1, string op, Address* e2){
+    Address* temp = create_new_temp();
+    emit(create_new_quad(op, e1, e2, temp));
     return temp;
 }
 
-string binary_bitwise_operator_3ac(string e1, string op, string e2){
-    string temp = get_temp();
-    emit(op, e1, e2, temp);
+Address* binary_bitwise_operator_3ac(Address* e1, string op, Address* e2){
+    Address* temp = create_new_temp();
+    emit(create_new_quad(op, e1, e2, temp));
     return temp;
 }
 
-string or_operator_3ac(string e1, string e2){
-    string temp = get_temp();
-    emit("if", e1, "false", "goto(T" + temp+")" );
+Address* or_operator_3ac(Address* e1, Address* e2){
+    Address* temp = create_new_temp();
+    emit(create_new_comp("==", e1, create_new_const("0", 4), "T" + temp->name));
 
-    emit("=", e1, "", temp);
-    emit("goto(TEnd"+temp+")","","","");
+    emit(create_new_quad("=", e1, NULL, temp));
+    emit(create_new_goto("TEnd"+temp->name));
 
-    emit("\nT"+temp+":\n","","",""); 
+    emit(create_new_label("\nT"+temp->name+":\n")); 
 
-    emit("=", e2, "", temp);
+    emit(create_new_quad("=", e2, NULL, temp));
 
-    emit("\nTEnd"+temp+":\n","","","");
+    emit(create_new_label("\nTEnd"+temp->name+":\n"));
     return temp;
 }
 
-string and_operator_3ac(string e1, string e2){
-    string temp = get_temp();
-    emit("if", e1, "true", "goto(T" + temp+")" );
+Address* and_operator_3ac(Address* e1, Address* e2){
+    Address* temp = create_new_temp();
+    emit(create_new_comp("==", e1, create_new_const("1", 4), "T" + temp->name));
 
-    emit("=", e1, "", temp);
-    emit("goto(TEnd"+temp+")","","","");
+    emit(create_new_quad("=", e1, NULL, temp));
+    emit(create_new_goto("TEnd"+temp->name));
 
-    emit("\nT"+temp+":\n","","","");
+    emit(create_new_label("\nT"+temp->name+":\n"));
     
-    emit("=", e2, "", temp);
+    emit(create_new_quad("=", e2, NULL, temp));
 
-    emit("\nTEnd"+temp+":\n","","","");
+    emit(create_new_label("\nTEnd"+temp->name+":\n"));
     return temp;
 }
 
-string deq_check_3ac(string e1, string e2){
-    string temp = get_temp();
-    emit("if", e1, e2, "goto(T" + temp+")" );
-    emit("=", "false", "", temp);
-    emit("goto(TEnd"+temp+")","","","");
-    emit("\nT"+temp+":\n","","","");
-    emit("=", "true", "", temp);
-    emit("\nTEnd"+temp+":\n","","","");
+Address* deq_check_3ac(Address* e1, Address* e2){
+    Address* temp = create_new_temp();
+    emit(create_new_comp("==", e1, e2, "T" + temp->name));
+    emit(create_new_quad("=", create_new_const("0", 4), NULL, temp));
+    emit(create_new_goto("TEnd"+temp->name));
+    emit(create_new_label("\nT"+temp->name+":\n"));
+    emit(create_new_quad("=", create_new_const("1", 4), NULL, temp));
+    emit(create_new_label("\nTEnd"+temp->name+":\n"));
     return temp;
 }
 
-string neq_check_3ac(string e1, string e2){
-    string temp = get_temp();
-    emit("if", e1, e2, "goto(T" + temp+")" );
-    emit("=", "true", "", temp);
-    emit("goto(TEnd"+temp+")","","","");
-    emit("\nT"+temp+":\n","","","");
-    emit("=", "false", "", temp);
-    emit("\nTEnd"+temp+":\n","","","");
+Address* neq_check_3ac(Address* e1, Address* e2){
+    Address* temp = create_new_temp();
+    emit(create_new_comp("==", e1, e2, "T" + temp->name));
+    emit(create_new_quad("=", create_new_const("1", 4), NULL, temp));
+    emit(create_new_goto("TEnd"+temp->name));
+    emit(create_new_label("\nT"+temp->name+":\n"));
+    emit(create_new_quad("=", create_new_const("0", 4), NULL, temp));
+    emit(create_new_label("\nTEnd"+temp->name+":\n"));
     return temp;
 } // == , !=
 
-string relation_check_3ac(string e1, string op, string e2){
-    string temp = get_temp();
-    emit(op, e1, e2, "goto(T" + temp+")" );
-    emit("=", "false", "", temp);
-    emit("goto(TEnd"+temp+")","","","");
-    emit("\nT"+temp+":\n","","","");
-    emit("=", "true", "", temp);
-    emit("\nTEnd"+temp+":\n","","","");
+Address* relation_check_3ac(Address* e1, string op, Address* e2){
+    Address* temp = create_new_temp();
+    emit(create_new_comp(op, e1, e2, "T" + temp->name));
+    emit(create_new_quad("=", create_new_const("0", 4), NULL, temp));
+    emit(create_new_goto("TEnd"+temp->name));
+    emit(create_new_label("\nT"+temp->name+":\n"));
+    emit(create_new_quad("=", create_new_const("1", 4),NULL, temp));
+    emit(create_new_label("\nTEnd"+temp->name+":\n"));
     return temp;
 } // < , > , <= , >=
 
-string pre_increament_3ac(string e1){
-    string temp = get_temp();
-    emit("=", e1, "", temp);
-    emit("+", temp, "1", e1);
+Address* pre_increament_3ac(Address* e1){
+    Address* temp = create_new_temp();
+    emit(create_new_quad("=", e1, NULL, temp));
+    emit(create_new_quad("+", temp, create_new_const("1", 4), e1));
     return temp;
 }
 
-string post_increament_3ac(string e1){
-    string temp = get_temp();
-    emit("+", e1, "1", temp);
-    emit("=", temp, "", e1);
+Address* post_increament_3ac(Address* e1){
+    Address* temp = create_new_temp();
+    emit(create_new_quad("+", e1, create_new_const("1", 4), temp));
+    emit(create_new_quad("=", temp, NULL, e1));
     return temp;
 }
 
-string pre_decreament_3ac(string e1){
-    string temp = get_temp();
-    emit("=", e1, "", temp);
-    emit("-", temp, "1", e1);
+Address* pre_decreament_3ac(Address* e1){
+    Address* temp = create_new_temp();
+    emit(create_new_quad("=", e1, NULL, temp));
+    emit(create_new_quad("-", temp, create_new_const("1", 4), e1));
     return temp;
 }
 
-string post_decreament_3ac(string e1){
-    string temp = get_temp();
-    emit("-", e1, "1", temp);
-    emit("=", temp, "", e1);
+Address* post_decreament_3ac(Address* e1){
+    Address* temp = create_new_temp();
+    emit(create_new_quad("-", e1, create_new_const("1", 4), temp));
+    emit(create_new_quad("=", temp, NULL, e1));
     return temp;
 }
 
-string field_access_3ac(string tac_name, int offset) {
+Address* field_access_3ac(Address* tac_name, int offset, Type* type, string id) {
     if (current_scope != scope_method)
-        return "";
+        return NULL;
 
-    string temp2 = get_temp();
+    Address* temp2 = create_new_temp();
     // emit("+", tac_name, to_string(offset), temp2);
     // tacss << "+" << "" << tac_name << "+" << offset << ") " << temp2 << "\n";
-    emit("+", tac_name, to_string(offset), temp2);
-    return ("*"+ temp2);
+    emit(create_new_quad("+", tac_name, create_new_const(to_string(offset), 4), temp2));
+    Address* mem = create_new_mem(id, temp2, type);
+    return mem;
 }
 
 // returns the last name in type_name vector
-string type_name_3ac(TypeName *type_name, bool is_func) {
+Address* type_name_3ac(TypeName *type_name, bool is_func) {
     auto ids =  type_name->names;
-    string tmp = ids[0]->name;
-    string arg1, arg2;
+    Address* arg1 = create_new_mem(ids[0]->name, ids[0]->offset, ids[0]->type);
+    Address* arg2;
     int num = ids.size();
     int n = num;
     if (is_func)
         n -= 1;
     
     for(int i = 1; i < n; i++) {
-        string t = get_temp();
-        arg1 = tmp; arg2 = to_string(ids[i]->offset);
-        emit("+", arg1, arg2, t);
-        tmp = t;
+        Address* tmp = create_new_temp();
+        emit(create_new_quad("=", arg1, NULL, tmp));
+        Address* tmp1 = create_new_temp();
+        emit(create_new_quad("+", tmp, create_new_const(to_string(ids[i]->offset), 4), tmp1));
+        arg1 = create_new_mem(ids[i]->name, tmp1, ids[i]->type);
     }
+
+    // In case of function it returns object reference of the variable which called it
+    // in a.fun1(), a
+
+    // in case of a.b.fun1() or a.b.c, it returns memory location of c or b
+    if(n >= 1)
+        return arg1;
+
+    return NULL;
     
-    if (num == 1 || is_func)
-        type_name->threeac = tmp;
-    else 
-        type_name->threeac = "*" + tmp;
+    // for(int i = 1; i < n; i++) {
+    //     Address* t = create_new_temp();
+    //     arg1 = tmp; 
+    //     arg2 = create_new_const(to_string(ids[i]->offset));
+
+    //     emit(create_new_quad("+", arg1, arg2, t));
+    //     tmp = t;
+    // }
+
+    // if(num == 1 || )
     
-    return ids[num-1]->name;
+    // if (num == 1 || is_func)
+    //     type_name->tac = tmp;
+    // else 
+    //     type_name->threeac = "*" + tmp;
+    
+    // return ids[num-1]->name;
+}
+
+Address* get_array_size(vector<Address*> array_dims, int start_i){
+    Address* temp = create_new_temp();
+    emit(create_new_quad("=", create_new_const("1", 4), NULL, temp));
+    Address* temp1;
+    for(int i=start_i; i<array_dims.size(); i++){
+        temp1 = create_new_temp();
+        emit(create_new_quad("*", temp, array_dims[i], temp1));
+        temp = temp1;
+        // emit("=", temp1, "", temp);
+    }
+    return temp;
+}
+
+// string get_array_size(vector<string> array_dims, int start_i){
+//     Address* temp = create_new_temp();
+//     emit("=", "1", "", temp);
+//     Address* temp1;
+//     for(int i=start_i; i<array_dims.size(); i++){
+//         temp1 = create_new_temp();
+//         emit("*", temp, array_dims[i], temp1);
+//         temp = temp1;
+//         // emit("=", temp1, "", temp);
+//     }
+//     return temp;
+// }
+
+void insert_in_global_quads(ThreeAC* tac){
+    global_tacs.push_back(tac);
 }
 
 void dump_3ac(string fname, unsigned long func_local_space_size){
-    string filename = DUMP_DIR + fname + ".3ac";
-    ofstream outss(filename.c_str());
-    outss << fname << " : \n" << endl;
-    outss << "beginfunc" << "\n";
-    outss << "push ebp" << endl;
-    outss << "= esp ebp\n"<<endl;
-    outss << "add  esp  " << func_local_space_size << "\t  // space for local variables\n\n"; 
-    outss << tacss.str() << endl;
-    outss << "ret: \n";
-    outss << "\t sub  esp  " << func_local_space_size << "\t // manipulate stack pointer to the top of stack removing local variables \n"; 
-    outss << "\t pop ebp" << endl;
-    outss << "\t return" << endl;
-    outss << "\t endfunc" << endl;
-    tacss.clear();
-    tacss.str(string());
-    outss.close();
-}    
+    // string filename = DUMP_DIR + fname + ".3ac";
+    // ofstream outss(filename.c_str());
+    // outss << fname << " : \n" << endl;
 
-string get_array_size(vector<string> array_dims, int start_i){
-    string size = get_temp();
-    emit("=", "1", "", size);
-    string temp = get_temp();
-    
-    for(int i=start_i; i<array_dims.size(); i++){
-        emit("*", size, array_dims[i], temp);
-        emit("=", temp, "", size);
+    insert_in_global_quads(create_new_label(fname));
+    // Need function Header here
+    // outss << "push ebp" << endl;
+    // outss << "= esp ebp\n"<<endl;
+
+    if(func_local_space_size) {
+        insert_in_global_quads(create_new_reg(SP, func_local_space_size, false)); // space for local variables
     }
-    return size;
+    
+    for(auto tac: tacs)
+        insert_in_global_quads(tac);
+    
+    tacs.clear();
+
+    insert_in_global_quads(create_new_label("return:"));
+    
+    if(func_local_space_size) {
+        insert_in_global_quads(create_new_reg(SP, func_local_space_size, true)); // manipulate stack pointer to the top of stack removing local variables
+    }
+
+    // Add function footer
+    // outss << "pop ebp" << endl;
+    // outss << "ret" << endl;
 }

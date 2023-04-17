@@ -2553,7 +2553,9 @@ ReturnStatement:
                                             exit(-1);
                                         }
                                         // emit("return" , $2->threeac,"","");
-                                        emit("mov ", " [ebp-0x14] ", $2->threeac, "");
+                                        
+                                        Goto* goto = create_new_goto(new Label("ret"));
+                                        emit("mov ", "%rax", $2->threeac, "");
                                         emit("goto ret", "", "", "");
                                     }
                                 }
@@ -2564,6 +2566,8 @@ ReturnStatement:
                                             exit(-1);
                                 }
                                 // emit("return","","","");
+                                Goto* goto = create_new_goto(new Label("ret"));
+
                                 emit("goto ret", "", "", "");
                             }
                      }
@@ -2852,6 +2856,7 @@ Dot : DOT { }
 Char_literal : CHAR_LITERAL     { 
                                     $$ = make_stackentry($1, get_type(__CHAR), yylineno); 
                                     if(pass_no == 2){
+                                        $$->tac_addr = new_const($1, CHAR3);
                                         $$->threeac = $1;
                                     }
                                 }
@@ -2860,6 +2865,10 @@ Char_literal : CHAR_LITERAL     {
 Boolean_literal : BOOLEAN_LITERAL { 
                                     $$ = make_stackentry($1, get_type(__BOOLEAN), yylineno); 
                                     if(pass_no == 2){
+                                        if($1 == "true")
+                                            $$->tac_addr = new_const(1, INT3);
+                                        else
+                                            $$->tac_addr = new_const(0, INT3);
                                         $$->threeac = $1;
                                     }
                                 }
@@ -2876,6 +2885,7 @@ Null_literal : NULL_LITERAL     {
 Integer_literal : INTEGER_LITERAL { 
                                     $$ = make_stackentry($1, get_type(__INT), yylineno);
                                     if(pass_no == 2){
+                                        $$->tac_addr = new_const($1, INT3)
                                         $$->threeac = $1;
                                     } 
                                 }
@@ -2884,6 +2894,7 @@ Integer_literal : INTEGER_LITERAL {
 Fp_literal : FP_LITERAL     { 
                                     $$ = make_stackentry($1, get_type(__FLOAT), yylineno); 
                                     if(pass_no == 2){
+                                        $$->tac_addr = new_const($1, FLOAT3);
                                         $$->threeac = $1;
                                     }
                                 }

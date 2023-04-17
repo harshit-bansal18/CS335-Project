@@ -20,12 +20,13 @@ sum:
 main:
     push %rbp
     mov %rsp, %rbp
-    sub $16, %rsp
+    subl -4(%rbp), %esp
     mov $5, -4(%rbp)
-    mov $10, -8(%rbp)
+    mov $1, -8(%rbp)
     mov -8(%rbp), %rax
     push %rax
     mov -4(%rbp), %rax
+    add -4(%rbp), %rax
     push %rax
     call sum
     add $8, %rsp

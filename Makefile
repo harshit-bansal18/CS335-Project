@@ -2,7 +2,7 @@ all: milestone3
 
 G++ := g++ -O3 -Wno-write-strings
 MILESTONE1 := milestone1/src
-Parser_Src := parser/lalr1.y
+Parser_Src := parser/lalr1_modular.y
 Lexer_Src := scanner/lexer.l
 Parser_Out := parser.tab.c
 Parser_Header := parser.tab.h
