@@ -1,4 +1,4 @@
-all: milestone3
+all: milestone4
 
 G++ := g++ -O3 -Wno-write-strings
 MILESTONE1 := milestone1/src
@@ -21,7 +21,7 @@ Runtime := runtime
 Binary3 := javair
 
 MILESTONE4 := milestone4/src
-INCLUDE4 := -I ./milestone3/src/semantic/include/ -I ./milestone3/include/ -I ./milestone4/src/runtime/include
+INCLUDE4 := -I ./milestone4/src/semantic/include/ -I ./milestone4/include/ -I ./milestone4/src/runtime/include
 Binary4 := java2x86
 
 # build/milestone1:
@@ -54,7 +54,7 @@ milestone3: build/milestone3
 
 build/milestone4:
 	mkdir -p build/milestone4/dump
-	bison -t --header=$@/${Parser_Header} -o $@/${Parser_Out} ${MILESTONE3}/${Parser_Src}
+	bison -t --header=$@/${Parser_Header} -o $@/${Parser_Out} ${MILESTONE4}/${Parser_Src}
 	flex -o $@/${Lexer_Out} ${MILESTONE4}/${Lexer_Src}
 	${G++} ${INCLUDE4} -o $@/${Binary4} $@/*.c ${MILESTONE4}/${Semantic}/*.cpp ${MILESTONE4}/${Runtime}/*.cpp
 

@@ -1721,15 +1721,18 @@ AdditiveExpression: MultiplicativeExpression                        {
                                                                                 if($$->type->name != $1->type->name){
                                                                                     Address* temp = create_new_temp();
                                                                                     emit(create_new_quad("cast_to_"+$$->type->name, $1->tac, NULL, temp));
-                                                                                    emit(create_new_quad("+"+$$->type->name, temp, ($3)->tac, ($$)->tac));
+                                                                                    // emit(create_new_quad("+"+$$->type->name, temp, ($3)->tac, ($$)->tac));
+                                                                                    emit(create_new_quad("+", temp, ($3)->tac, ($$)->tac));
                                                                                 }
                                                                                 else if($$->type->name != $3->type->name){
                                                                                     Address* temp = create_new_temp();
                                                                                     emit(create_new_quad("cast_to_"+$$->type->name, $3->tac,NULL, temp));
-                                                                                    emit(create_new_quad("+"+$$->type->name, ($1)->tac, temp, ($$)->tac));
+                                                                                    // emit(create_new_quad("+"+$$->type->name, ($1)->tac, temp, ($$)->tac));
+                                                                                     emit(create_new_quad("+", ($1)->tac, temp, ($$)->tac));
                                                                                 }
                                                                                 else
-                                                                                    emit(create_new_quad("+"+$$->type->name, ($1)->tac, ($3)->tac, ($$)->tac));
+                                                                                    // emit(create_new_quad("+"+$$->type->name, ($1)->tac, ($3)->tac, ($$)->tac));
+                                                                                    emit(create_new_quad("+", ($1)->tac, ($3)->tac, ($$)->tac));
                                                                             }
                                                                         }
 |                   AdditiveExpression Minus MultiplicativeExpression   {   
@@ -1739,15 +1742,18 @@ AdditiveExpression: MultiplicativeExpression                        {
                                                                                 if($$->type->name != $1->type->name){
                                                                                     Address* temp = create_new_temp();
                                                                                     emit(create_new_quad("cast_to_"+$$->type->name, $1->tac, NULL, temp));
-                                                                                    emit(create_new_quad("-"+$$->type->name, temp, ($3)->tac, ($$)->tac));
+                                                                                    // emit(create_new_quad("-"+$$->type->name, temp, ($3)->tac, ($$)->tac));
+                                                                                    emit(create_new_quad("-", temp, ($3)->tac, ($$)->tac));
                                                                                 }
                                                                                 else if($$->type->name != $3->type->name){
                                                                                     Address* temp = create_new_temp();
                                                                                     emit(create_new_quad("cast_to_"+$$->type->name, $3->tac,NULL, temp));
-                                                                                    emit(create_new_quad("-"+$$->type->name, ($1)->tac, temp, ($$)->tac));
+                                                                                    // emit(create_new_quad("-"+$$->type->name, ($1)->tac, temp, ($$)->tac));
+                                                                                    emit(create_new_quad("-", ($1)->tac, temp, ($$)->tac));
                                                                                 }
                                                                                 else
-                                                                                    emit(create_new_quad("-"+$$->type->name, ($1)->tac, ($3)->tac, ($$)->tac));
+                                                                                    // emit(create_new_quad("-"+$$->type->name, ($1)->tac, ($3)->tac, ($$)->tac));
+                                                                                    emit(create_new_quad("-", ($1)->tac, ($3)->tac, ($$)->tac));
                                                                             }
                                                                         }
 ;
@@ -1764,15 +1770,18 @@ MultiplicativeExpression:   UnaryExpression                         {
                                                                                 if($$->type->name != $1->type->name){
                                                                                     Address* temp = create_new_temp();
                                                                                     emit(create_new_quad("cast_to_"+$$->type->name, $1->tac, NULL, temp));
-                                                                                    emit(create_new_quad("*"+$$->type->name, temp, ($3)->tac, ($$)->tac));
+                                                                                    // emit(create_new_quad("*"+$$->type->name, temp, ($3)->tac, ($$)->tac));
+                                                                                    emit(create_new_quad("*", temp, ($3)->tac, ($$)->tac));
                                                                                 }
                                                                                 else if($$->type->name != $3->type->name){
                                                                                     Address* temp = create_new_temp();
                                                                                     emit(create_new_quad("cast_to_"+$$->type->name, $3->tac, NULL, temp));
-                                                                                    emit(create_new_quad("*"+$$->type->name, ($1)->tac, temp, ($$)->tac));
+                                                                                    // emit(create_new_quad("*"+$$->type->name, ($1)->tac, temp, ($$)->tac));
+                                                                                    emit(create_new_quad("*", ($1)->tac, temp, ($$)->tac));
                                                                                 }
                                                                                 else
-                                                                                    emit(create_new_quad("*"+$$->type->name, ($1)->tac, ($3)->tac, ($$)->tac));
+                                                                                    // emit(create_new_quad("*"+$$->type->name, ($1)->tac, ($3)->tac, ($$)->tac));
+                                                                                    emit(create_new_quad("*", ($1)->tac, ($3)->tac, ($$)->tac));
                                                                             }
                                                                         }
 |                   MultiplicativeExpression Div UnaryExpression        {   
@@ -1782,15 +1791,18 @@ MultiplicativeExpression:   UnaryExpression                         {
                                                                                 if($$->type->name != $1->type->name){
                                                                                     Address* temp = create_new_temp();
                                                                                     emit(create_new_quad("cast_to_"+$$->type->name, $1->tac, NULL,temp));
-                                                                                    emit(create_new_quad("/"+$$->type->name, temp, ($3)->tac, ($$)->tac));
+                                                                                    // emit(create_new_quad("/"+$$->type->name, temp, ($3)->tac, ($$)->tac));
+                                                                                    emit(create_new_quad("/", temp, ($3)->tac, ($$)->tac));
                                                                                 }
                                                                                 else if($$->type->name != $3->type->name){
                                                                                     Address* temp = create_new_temp();
                                                                                     emit(create_new_quad("cast_to_"+$$->type->name, $3->tac, NULL,temp));
-                                                                                    emit(create_new_quad("/"+$$->type->name, ($1)->tac, temp, ($$)->tac));
+                                                                                    // emit(create_new_quad("/"+$$->type->name, ($1)->tac, temp, ($$)->tac));
+                                                                                    emit(create_new_quad("/", ($1)->tac, temp, ($$)->tac));
                                                                                 }
                                                                                 else
-                                                                                    emit(create_new_quad("/"+$$->type->name, ($1)->tac, ($3)->tac, ($$)->tac));
+                                                                                    // emit(create_new_quad("/"+$$->type->name, ($1)->tac, ($3)->tac, ($$)->tac));
+                                                                                    emit(create_new_quad("/", ($1)->tac, ($3)->tac, ($$)->tac));
                                                                             }
                                                                         }
 |                   MultiplicativeExpression Modulo UnaryExpression     {   
@@ -1800,15 +1812,18 @@ MultiplicativeExpression:   UnaryExpression                         {
                                                                                 if($$->type->name != $1->type->name){
                                                                                     Address* temp = create_new_temp();
                                                                                     emit(create_new_quad("cast_to_"+$$->type->name, $1->tac, NULL, temp));
-                                                                                    emit(create_new_quad("%"+$$->type->name, temp, ($3)->tac, ($$)->tac));
+                                                                                    // emit(create_new_quad("%"+$$->type->name, temp, ($3)->tac, ($$)->tac));
+                                                                                    emit(create_new_quad("%", temp, ($3)->tac, ($$)->tac));
                                                                                 }
                                                                                 else if($$->type->name != $3->type->name){
                                                                                     Address* temp = create_new_temp();
                                                                                     emit(create_new_quad("cast_to_"+$$->type->name, $3->tac, NULL, temp));
-                                                                                    emit(create_new_quad("%"+$$->type->name, ($1)->tac, temp, ($$)->tac));
+                                                                                    // emit(create_new_quad("%"+$$->type->name, ($1)->tac, temp, ($$)->tac));
+                                                                                    emit(create_new_quad("%", ($1)->tac, temp, ($$)->tac));
                                                                                 }
                                                                                 else
-                                                                                    emit(create_new_quad("%"+$$->type->name, ($1)->tac, ($3)->tac, ($$)->tac));
+                                                                                    // emit(create_new_quad("%"+$$->type->name, ($1)->tac, ($3)->tac, ($$)->tac));
+                                                                                    emit(create_new_quad("%", ($1)->tac, ($3)->tac, ($$)->tac));
                                                                             }
                                                                         }
 ;
@@ -1840,9 +1855,10 @@ UnaryExpression:    PreIncrementExpression      { if(pass_no == 2 ) $$ = $1; }
                                                             cerr << "Line No: " <<  yylineno  << "unary Expression Type should be numeric\n";
                                                             exit(1);
                                                         }
+                                                        Address *tmp = create_new_temp();
+                                                        emit(create_new_quad("-", ($2)->tac, NULL, tmp));
                                                         $$ = $2;
-                                                        $$->tac = create_new_temp();
-                                                        emit(create_new_quad("uminus", ($2)->tac, NULL, ($$)->tac));
+                                                        $$->tac = tmp;
                                                     }
                                                 }   //Nashe
 |                   UnaryExpressionNotPlusMinus                     { 
@@ -1943,6 +1959,7 @@ UnaryExpressionNotPlusMinus:    PostfixExpression                   {
                                                                             $$ = $2;
                                                                             $$->tac = create_new_temp();
                                                                             emit(create_new_quad("~", ($2)->tac, NULL, ($$)->tac));
+                                                                            
                                                                         }
                                                                     }
 |                               Not UnaryExpression                 {   
@@ -1953,9 +1970,11 @@ UnaryExpressionNotPlusMinus:    PostfixExpression                   {
                                                                             } 
 
                                                                             check_boolean($2->type);
+                                                                            
                                                                             $$ = $2;
                                                                             $$->tac = create_new_temp();
                                                                             emit(create_new_quad("!", ($2)->tac, NULL, ($$)->tac));
+                                                                            
                                                                         }
                                                                     }
 |                               CastExpression                      { if(pass_no == 2 ) $$ = $1; }
@@ -2980,6 +2999,64 @@ string print_(Address* addr){
     return "";
 }
 
+void print_3ac(){
+    Quad *quad_p;
+    Arg  *arg_p;
+    Label *label_p;
+    Return *return_p;
+    Call *call_p;
+    Goto* goto_p;
+    Reg* reg_p;
+    Comp* comp_p;
+
+    for (auto instr: global_tacs) {
+        quad_p = dynamic_cast<Quad *> (instr);
+        if (quad_p != nullptr) {
+            cout << "Quad: " <<  quad_p->operation << " " << print_(quad_p->arg1) << " " << print_(quad_p->arg2) << " " << print_(quad_p->result) << "\n";
+            continue;
+        }
+        arg_p = dynamic_cast<Arg *> (instr);
+        if (arg_p != nullptr) {
+            cout << "Arg: " << print_(arg_p->arg) << " " << arg_p->offset << "\n";
+            continue;
+        }
+
+        label_p = dynamic_cast<Label *> (instr);
+        if (label_p != nullptr) {
+            cout << "Label: " << label_p->name << "\n";
+            continue;
+        }
+        return_p = dynamic_cast<Return *> (instr);
+        if (return_p != nullptr) {
+            cout << "Return: " << print_(return_p->ret_value) << " " << return_p->push << "\n";
+            continue;
+        }
+        call_p = dynamic_cast<Call *> (instr);
+        if (call_p != nullptr) {
+            cout << "Call: " << call_p->function_name << " " << call_p->arg_count << "\n";
+            continue;
+        }
+
+        goto_p = dynamic_cast<Goto *> (instr);
+        if (goto_p != nullptr) {
+            cout << "Goto: " << goto_p->label->name << "\n";
+            continue;
+        }
+
+        reg_p = dynamic_cast<Reg *> (instr);
+        if (reg_p != nullptr) {
+            cout << "Reg: " << reg_p->reg_name << " " <<  reg_p->size << " " << reg_p->add << "\n";
+            continue;
+        }
+
+        comp_p = dynamic_cast<Comp *> (instr);
+        if (comp_p != nullptr) {
+            cout << "Comp: " << comp_p->comp_operator << " " << print_(comp_p->arg1) << " " << print_(comp_p->arg2) << " " << comp_p->label << "\n";
+            continue;
+        }
+
+    }
+}
 int main(int argc, char *argv[]) 
 {
     
@@ -3056,66 +3133,9 @@ int main(int argc, char *argv[])
         yyparse();
     } while(!feof(yyin));
 
-    /* for (auto i:global_tacs){
-        cout << i.operation << "\t" << i.arg1 << "\t" << i.arg2 << "\t" << i.result << "\n";
-    } */
+    print_3ac();
 
-    Quad *quad_p;
-    Arg  *arg_p;
-    Label *label_p;
-    Return *return_p;
-    Call *call_p;
-    Goto* goto_p;
-    Reg* reg_p;
-    Comp* comp_p;
 
-    for (auto instr: global_tacs) {
-        quad_p = dynamic_cast<Quad *> (instr);
-        if (quad_p != nullptr) {
-            cout << "Quad: " <<  quad_p->operation << " " << print_(quad_p->arg1) << " " << print_(quad_p->arg2) << " " << print_(quad_p->result) << "\n";
-            continue;
-        }
-        arg_p = dynamic_cast<Arg *> (instr);
-        if (arg_p != nullptr) {
-            cout << "Arg: " << print_(arg_p->arg) << " " << arg_p->offset << "\n";
-            continue;
-        }
-
-        label_p = dynamic_cast<Label *> (instr);
-        if (label_p != nullptr) {
-            cout << "Label: " << label_p->name << "\n";
-            continue;
-        }
-        return_p = dynamic_cast<Return *> (instr);
-        if (return_p != nullptr) {
-            cout << "Return: " << print_(return_p->ret_value) << " " << return_p->push << "\n";
-            continue;
-        }
-        call_p = dynamic_cast<Call *> (instr);
-        if (call_p != nullptr) {
-            cout << "Call: " << call_p->function_name << " " << call_p->arg_count << "\n";
-            continue;
-        }
-
-        goto_p = dynamic_cast<Goto *> (instr);
-        if (goto_p != nullptr) {
-            cout << "Goto: " << goto_p->label->name << "\n";
-            continue;
-        }
-
-        reg_p = dynamic_cast<Reg *> (instr);
-        if (reg_p != nullptr) {
-            cout << "Reg: " << reg_p->reg_name << " " <<  reg_p->size << " " << reg_p->add << "\n";
-            continue;
-        }
-
-        comp_p = dynamic_cast<Comp *> (instr);
-        if (comp_p != nullptr) {
-            cout << "Comp: " << comp_p->comp_operator << " " << print_(comp_p->arg1) << " " << print_(comp_p->arg2) << " " << comp_p->label << "\n";
-            continue;
-        }
-
-    }
 
     return 0;
  }

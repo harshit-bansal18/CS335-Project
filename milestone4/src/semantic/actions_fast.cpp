@@ -323,6 +323,10 @@ stackentry *find_variable_in_class(TypeName *name, bool initialize) {
             exit (1);
         }
 
+        if(!sym->is_initialized) {
+            cerr << "Error Line No: " << yylineno << ": variable " << sym->name << " might not have been initialized" << endl;
+            exit(1);
+        }
         if (check_static && sym->is_instance_var && !sym->is_static) {
             cerr << "Error Line No: " << yylineno << ": error: non-static variable " << sym->name << " accessed in static method " << current_table->method_name << endl;
             exit(1);
@@ -350,7 +354,7 @@ stackentry *find_variable_in_class(TypeName *name, bool initialize) {
                 cerr << "Error Line No: " <<  yylineno << " : " << tmp_str << " is not a member of class " << cls->name << "\n";
                 exit(-1);
             }
-            
+           
             if(sym->is_private){
                 cerr << "Error Line No: " <<  yylineno << " : " << "Cannot access Private Variable " << tmp_str << " of class " << cls->name << " from its object\n";
                 exit(-1);
@@ -401,8 +405,7 @@ end:
     if (sym->is_initialized) {
         ids[num_names-1]->type = sym->type;
         ids[num_names-1]->offset = sym->offset;
-        stackentry *s = make_stackentry(tmp_str.c_str(), sym->type, sym->line_no);
-        return s;
+        return make_dup_stackentry(sym, !initialize);
     }
     else {
         cerr << "Error Line No: " <<  name << ": variable not intialized. used on line " << yylineno << endl;
@@ -458,6 +461,11 @@ stackentry *find_variable_in_class(string token, bool intialize) {
             exit (1);
         }
 
+        if(!sym->is_initialized) {
+            cerr << "Error Line No: " << yylineno << ": variable " << sym->name << " might not have been initialized" << endl;
+            exit(1);
+        }
+        
         if (check_static && sym->is_instance_var && !sym->is_static) {
             cerr << "Error Line No: " << yylineno << ": error: non-static variable " << sym->name << " accessed in static method " << current_table->method_name << endl;
             exit(1);
@@ -539,8 +547,7 @@ end:
     sym->is_final_initialized = sym->is_initialized;
 
     if (sym->is_initialized) {
-        stackentry *s = make_stackentry(name.c_str(), sym->type, sym->line_no);
-        return s;
+        return make_dup_stackentry(sym, !intialize);
     }
     else {
         cerr << "Error Line No: " <<  name << ": variable not intialized. used on line " << yylineno << endl;
@@ -596,6 +603,8 @@ void add_variable(string token, int8_t modifier, Type *type, int offset, bool is
     sym->offset = offset;
     sym->is_initialized = initialized;
     sym->is_final_initialized  = initialized;
+    // sym->threeac = "[rbp-" + to_string(offset+type->size) + "]";
+    // sym->threeac = token;   // JAYA
     switch (current_scope) {
         case scope_class:
             if(is_fun_arg) {
@@ -726,9 +735,18 @@ stackentry::stackentry(const char *name, unsigned long line) {
     this->offset = 0;
 }
 
-stackentry *make_dup_stackentry(SymTabEntry *sym) {
-    stackentry *s =  make_stackentry(sym->name.c_str(), sym->type, sym->line_no);
+stackentry *make_dup_stackentry(SymTabEntry *sym, bool dup_type) {
+    stackentry *s =  make_stackentry(sym->name.c_str(), sym->line_no);
     s->offset = sym->offset;
+    s->tac = sym->tac;
+    if (dup_type) {
+        Type *t = new Type();
+        *t = *(sym->type);
+        s->type = t;
+    }
+    else {
+        s->type = sym->type;
+    }
     return s; 
 }
 
@@ -829,13 +847,14 @@ stackentry *increase_dims(stackentry *e) {
 }
 
 stackentry *assign_arr_dim(stackentry *e1, stackentry *e2) {
-    e1->type->arr_dim_val.push_back(e2->threeac);
+    e1->type->arr_dim_val.push_back(e2->tac);
     free(e2->type);
     free(e2);
     
     e1->type->arr_dim++;
     return e1;
 }
+
 stackentry *assign_arr_dim(Type *t, stackentry *e1, stackentry *e2) {
     unsigned int dims = e1->type->arr_dim + e2->type->arr_dim;
     *(e1->type) = *t;
@@ -847,7 +866,7 @@ stackentry *assign_arr_dim(Type *t, stackentry *e1, stackentry *e2) {
 
 stackentry *assign_arr_dim(Type *t, stackentry *e1) {
     unsigned int dims = e1->type->arr_dim;
-    vector<string> arr_dim_val = e1->type->arr_dim_val;
+    vector<Address*> arr_dim_val = e1->type->arr_dim_val;
     *(e1->type) = *t;
     e1->type->arr_dim = dims;
     e1->type->arr_dim_val = arr_dim_val;
@@ -889,10 +908,10 @@ stackentry* check_additive_types(stackentry* e1, stackentry* e2) {
         stackentry* e = make_stackentry("",yylineno);
         if(check_return_type((e1)->type, (e2)->type)) {
             e->type = e1->type;
-            e->threeac = e1->threeac;
+            // e->threeac = e1->threeac;  // JAYA
         } else {
             e->type = e2->type;
-            e->threeac = e2->threeac;
+            // e->threeac = e2->threeac;  // JAYA
         }
         return e;
     } else {
@@ -1065,11 +1084,11 @@ void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no) {
                     current_class->class_width += e1->type->size;
             }
             else {
-                add_variable(e1->token, global_modifier, e1->type, current_table->offset, false, true);
-                if(e1->type->is_pointer())
-                    current_table->offset += REF_TYPE_SIZE;
+                if (e1->type->is_pointer())
+                    current_table->offset -= REF_TYPE_SIZE;
                 else
-                    current_table->offset += e1->type->size;
+                    current_table->offset -= e1->type->size;
+                add_variable(e1->token, global_modifier, e1->type, current_table->offset, false, true);
             }
 
             if(e2->type == NULL) {
@@ -1077,14 +1096,19 @@ void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no) {
                 // Make its type same as (1)->type
                 e2->type = e1->type;
             }
+            
         }
 
         if(pass_no == 2){
     
+            if (current_scope == scope_class && e1->type->is_pointer()) {
+                Type * t = current_class->get_var_type(e1->token);
+                t->arr_dim_val = e2->type->arr_dim_val;
+            }
             if(e2->type->name == "") {
                 e2->type = e1->type;
             }
-    
+            
 
             // cerr << e1->type->name << " " << e1->type->arr_dim << " " << e2->type->name << " " << e2->type->arr_dim << "\n";
     
@@ -1106,14 +1130,15 @@ void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no) {
                     current_class->class_width += e1->type->size;
             }
             else {
-                add_variable(e1->token, global_modifier, e1->type, current_table->offset, false, false);
                 if(e1->type->is_pointer())
-                    current_table->offset += REF_TYPE_SIZE;
+                    current_table->offset -= REF_TYPE_SIZE;
                 else
-                    current_table->offset += e1->type->size;
+                    current_table->offset -= e1->type->size;
+                add_variable(e1->token, global_modifier, e1->type, current_table->offset, false, false);
             }
         }
     }
+
 }
 
 // void MethodDeclaration() {
@@ -1199,7 +1224,7 @@ stackentry *find_variable_in_type(string name, Type *type) {
         cerr << "Error on line " << yylineno << ". " << name << " not present in class " << cls->name << endl;
         exit(1);
     }
-    return make_dup_stackentry(sym);
+    return make_dup_stackentry(sym, true);
 }
 
 

@@ -91,7 +91,7 @@ void LocalSymbolTable::clear_current_level() {
 
 void LocalSymbolTable::empty_table() {
 
-    // this->method->method_width = this->offset;
+    this->method->method_width = this->offset;
     
     sym_table.clear();
     current_level = 0;

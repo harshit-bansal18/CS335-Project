@@ -1,23 +1,34 @@
-class A {
-    int a = 90;
-}
+class TestEmployee1 {
+    public static int main() {        
+            // int a = 1, b = 2, c = 3, d= 4, e= 5,f=6;
+            // a = 10;
+            // a = -6;
+            // a = -b;
+            // a = b+c;
 
-class TestEmployee {  
+            int a = -5;
+            // b = a+d/(b*c) % 2 +()
+            // if(a!=b){
+            //     a = b;
+            // }
+            // a = obj.c.x;
+            // a = c;
+            // a = 1;
+            // a = b;
 
-    int a;
-    int b;
-    static int func1(int a, char b, double c, boolean bool) {
-        
-    } 
+            // a = d /c;
+            // b = 10+20;
 
-    public static void main(int args[]) {  
-        double a[][][] = new double[10][10][10];
+            // boolean bool = true;
+            // if(b<20 && a==10){
+            //     int x = 20;
+            //     a = x+20;
+            //     return 10;
+            // } else {
+            //     int y = b+c;
+            //     return y;
+            // }
 
-        int b[] = new int[10];
-        a[1][2][3] = 2;
-        int c = 10;
-        func1(10, '2', 3, true);
-        // A obj[] = new A[2];
-        // obj[0].a = 23;
-    }  
+            // f(a, b, c, d, e , f);
+    }
 }

@@ -2,6 +2,9 @@
 #define __CODEGEN_H__
 
 #include <bits/stdc++.h>
+#include <3ac.hpp>
+#include <vector>
+
 using namespace std;
 
 
@@ -15,14 +18,13 @@ typedef enum {
     mov,
     call,
     ret,
-    add,
+    addq,
     addl,
     addi,
     subl,
-    sub,
-    mul,
+    subq,
+    mulq,
     mull,
-    div,
     pop,
     push,
     je, //<label> (jump when equal)
@@ -31,7 +33,14 @@ typedef enum {
     jg, // <label> (jump when greater than)
     jge,// <label> (jump when greater than or equal to)
     jl, // <label> (jump when less than)
-    jle //<label> (jump when less than or equal to)
+    jle, //<label> (jump when less than or equal to)
+    negl, // <register/Mem> example int a = -b/ negl %eax; movl %a %eax
+    modq,
+    movq,
+    idivl,
+    idivq,
+    modl,
+    negq
 }instr_names;
 
 
@@ -78,6 +87,5 @@ struct x86_reg {
 };
 
 string get_free_register();
-void spill_register(string reg);
-
+void generate_method_asm(vector<ThreeAC *> &tac_instr);
 #endif

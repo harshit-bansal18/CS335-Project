@@ -1,335 +1,481 @@
 #include <bits/stdc++.h>
+#include <3ac.hpp>
 #include <sstream>
 
 #ifndef ACTIONS_FAST_H
     #include <actions_fast.hpp>
 #endif
 
-#include <3ac.hpp>
+#ifndef __CODEGEN_H__
+    #include <codegen.hpp>
+#endif
 
 using namespace std;
 
 extern scope current_scope;
 
-vector< ThreeAC * > ta_code;
-unsigned long long temporaries = 1;
-#define WORD_SIZE 8
-
-Label::Label(string _name){
-	name = _name;
-}
-
-Label* create_new_label(string _name){
-	Label* l = new Label(_name);
-	ta_code.push_back(l);
-	return l;
-}
-
-Quad::Quad ( Address * _result, string _operation, Address * _arg1, Address * _arg2 ) { 
-	operation = _operation;
-	result = _result;
-    arg1 = _arg1;
-    arg2 = _arg2;
-};
-
-/*
-It will be called when using variable or temporary
-*/
-Address::Address(string _name, addr_type _type ) : name (_name) , size(0), type(_type), ta_instr(nullptr)  {};
-
-/*
-It will called when using constant values
-*/
-Address::Address(long _value, addr_type _type ) : name (to_string(_value)) , size(0), type(_type), ta_instr(nullptr) {};
-
-Address * new_temp() {
-	Address * addr = new Address("t" + to_string(temporaries), TEMP );
-	addr->size = WORD_SIZE;
-	addr->table_id = TEMP_ID_MASK | temporaries;
-	temporaries++;
-	// tac_info_table.insert({addr->table_id,TacInfo(false)});
-	return addr;
-}
-
-Address * new_mem( SymTabEntry * symbol ) {
-	Address * addr = new Address(symbol->name, MEM);
-    addr->size = symbol->type->size;
-    addr->offset = symbol->offset;
-    // MEM location or identifiers have no table_id
-
-	// tac_info_table.insert({addr->table_id,TacInfo(symbol)});
-	// main_mem_unit.memory_locations.insert({addr->table_id,create_memory_location( symbol->name, symbol->id, symbol->offset, addr->size )});
-	// if ( symbol->type.is_ea() ) {
-	// 	set_is_ea( symbol->id );
-	// }
-
-	return addr;
-}
-
-
-static inline Address *create_new_addr_str(string name, addr_type _type) {
-    Address *new_addr;
-    new_addr = new Address(name, _type);
-    return new_addr;
-}
-
-static inline Address *create_new_addr_const(long val, addr_type _type) {
-    Address *new_addr;
-    new_addr = new Address(val, _type);
-    return new_addr;
-}
-
-static inline Quad *create_new_quad(Address *result, string op, Address *arg1, Address *arg2) {
-    Quad *new_quad;
-    // Perform any checks on arguments if required
-    new_quad = new Quad(result, op, arg1, arg2);
-    return new_quad;
-}
-
-Goto::Goto () : label(nullptr) { dead = false; };
-
-Goto * create_new_goto() {
-    Goto *new_goto;
-    new_goto = new Goto();
-    return new_goto;
-}
-
-Goto * create_new_goto(Label * label) {
-    Goto *new_goto;
-    new_goto = new Goto();
-    new_goto->label = label;
-    return new_goto;
-}
-
-Goto * create_new_goto_cond(bool condition) {
-    Goto *new_goto;
-    new_goto = new Goto();
-    new_goto->condition = condition;
-    return new_goto;
-}
-
-static inline Call * create_new_call( Address * addr , string f_name ){
-    Call *new_call;
-    new_call = new Call(addr, f_name);
-    return new_call;
-}
-
-Return::Return( Address* _retval ) : ThreeAC() {
-	ret_value = _retval;
-}
-
-static inline Return * create_new_return(Address * retval){
-    Return * _return = new Return(retval);
-	ta_code.push_back(_return);
-	return _return;
-}
-// ##############################################################################################################
-
 typedef struct entry3ac{
     string threeac="";
 } entry3ac;
-
-// typedef struct loopentry{
-//     int loopnum;
-// } loopentry;
-
-// typedef struct ifentry{
-//     int ifnum;
-// } ifentry;
 
 int loopnum=0;
 int ifnum=0;
 int tcount=0;
 int paramcount=0;
 string threeac_file_name = "";
-// stringstream 3ac_stream(string());
 stringstream tacss;
 
-void emit(string op, string arg1, string arg2, string result){
-    if(current_scope != scope_class)
-        tacss << op << " "<<arg1<<" "<<arg2<<" "<<result<<"\n";
+
+vector<ThreeAC*> tacs;
+vector<ThreeAC*> func_tacs;
+vector<ThreeAC*> global_tacs;
+
+ThreeAC::~ThreeAC() {}
+
+Address::Address( string _name, addr_type _type){
+    name = _name;
+    type = _type;
 }
 
-string get_temp(){
-    string label = "t"+to_string(tcount);
-    tcount ++;
+Address::Address( long _value, addr_type _type){
+    name = to_string(_value);
+    type = _type;
+}
+
+Address::Address( SymTabEntry* _symbol ){
+    name = _symbol->name;
+    type = MEM;
+    offset = _symbol->offset;
+    size = _symbol->type->size;
+}
+
+Quad::Quad( Address* _result, string _operation, Address* _arg1, Address* _arg2){
+    result = _result;
+    operation = _operation;
+    arg1 = _arg1;
+    arg2 = _arg2;
+}
+
+Return::Return( Address * _retval, bool _push ){
+    ret_value = _retval;
+    push = _push;
+}
+
+Call::Call( string f_name, int arg_count ){
+    function_name = f_name;
+    arg_count = arg_count;
+}
+
+Label::Label(string _name){
+    name = _name;
+}
+
+Goto::Goto(Label* _label){
+    label = _label;
+}
+
+Arg::Arg(Address *_addr, int _offset ){
+    arg = _addr;
+    offset = _offset;
+}
+
+Comp::Comp(string _comp_operator, Address* _arg1, Address* _arg2, string _label){
+    comp_operator = _comp_operator;
+    arg1 = _arg1;
+    arg2 = _arg2;
+    label = _label;
+}
+
+Reg::Reg(string reg, int _size, bool _add){
+    reg_name = reg;
+    size = _size;
+    add = _add;
+}
+
+Address* create_new_temp(){
+    string name = "t" + to_string(tcount++);
+    Address* addr = new Address(name, TEMP);
+    addr->size = 4; // size of register for int operation 
+
+    return addr;
+}
+
+Address* create_new_const(string val, int size){
+    Address* addr = new Address(val, CONST);
+    addr->size = size;
+
+    return addr;
+}
+
+// if false
+Address* create_new_mem(string name, int offset, int type_size){
+    Address* addr = new Address(name, MEM);
+    addr->size = type_size;
+    addr->offset = offset;
+    addr->absolute = false;
+
+    return addr;
+}
+
+// if false
+Address* create_new_mem(string name, int offset, Type* type){
+    Address* addr = new Address(name, MEM);
+    addr->size = type->size;
+    addr->offset = offset;
+    addr->absolute = false;
+
+    return addr;
+}
+
+// if true
+Address* create_new_mem(string name, Address* offset, Type* type){
+    Address* addr = new Address(name, MEM);
+    addr->size = type->size;
+    addr->absolute = true;
+    addr->abs_offset = offset;
+
+    return addr;
+}
+
+Quad* create_new_quad(string operation, Address *arg1, Address *arg2,Address *result){
+    Quad* quad = new Quad(result, operation, arg1, arg2);
+
+    return quad;
+}
+
+Label* create_new_label(string name){
+    Label* label = new Label(name);
+
     return label;
 }
 
-string assignment_operator_3ac(string result , string op , string operand ){
-    string temp = get_temp();
-    emit(op.substr(0,op.length() - 1),result,operand, temp);
-    emit("=", temp, "", result);
+Goto* create_new_goto(string name){
+    Label* label = create_new_label(name);
+    Goto* _goto = new Goto(label);
+
+    return _goto;
+}
+
+Arg* create_new_arg(Address* arg, int offset){
+    Arg* _arg = new Arg(arg, offset);
+    return _arg;
+}
+
+Comp* create_new_comp(string comparator, Address* addr1, Address* addr2, string label){
+    Comp* comp = new Comp(comparator, addr1, addr2, label);
+
+    return comp;
+}
+
+Reg* create_new_reg(string reg, int _size, bool _add){
+    Reg* _reg = new Reg(reg, _size, _add);
+
+    return _reg;
+}
+
+Return * create_new_return( Address * retval, bool _push ){
+    Return* ret = new Return(retval, _push);
+
+    return ret;
+}
+
+Call* create_new_call( string f_name, int arg_count ){
+    Call* call = new Call(f_name, arg_count);
+
+    return call;
+}
+
+///old /////////////////////////////////////
+
+bool check_if_temp(Address* s){
+    if(s->type == TEMP)
+        return true;
+    
+    return false;
+}
+
+bool check_if_const(Address* s){
+    if(s->type == CONST)
+        return true;
+        
+    return false;
+}
+
+bool check_if_mem(Address* s){
+    if(s->type == MEM)
+        return true;
+        
+    return false;
+}
+
+void emit(ThreeAC* tac){
+    if(current_scope != scope_class){
+        // tacss << op << " "<<arg1<<" "<<arg2<<" "<<result<<"\n";
+        tacs.push_back(tac);
+    }    
+}
+
+Address* assignment_operator_3ac(Address* result , string op , Address* operand ){
+    Address* temp = create_new_temp();
+    string op_ = "";
+    for(int i=0; i<op.length(); i++){
+        if(op[i] == '=')
+            break;
+        op_ += op[i];
+    }
+
+    emit(create_new_quad(op_,result,operand, temp));
+    emit(create_new_quad("=", temp, NULL, result));
     return result;
 }
 
-string assign_operator_3ac(string result , string operand ){
-    string temp = get_temp();
-    emit("=", operand , "", temp);
-    emit("=", temp, "", result);
+Address* assign_operator_3ac(Address* result , Address* operand ){
+
+    if(check_if_const(operand) || check_if_temp(operand)){
+        emit(create_new_quad("=", operand, NULL, result));   // in = always move will be called, result will be temp or mem location
+        return result;
+    }
+
+    Address* temp = create_new_temp();
+    emit(create_new_quad("=", operand , NULL, temp));
+    emit(create_new_quad("=", temp, NULL, result));
+    
     tcount++;
     return result;
 }
 
-string ternary_condition_3ac(string cond, string e1, string e2){
-    string temp = get_temp();
-    emit("if", cond, "false", "goto(T" + temp+")" );
-    emit("=", e1, "", temp);
-    emit("goto(TEnd"+temp+")","","","");
-    emit("\nT"+temp+":\n","","","");
-    emit("=", e2, "", temp);
-    emit("\nTEnd"+temp+":\n","","","");
+Address* ternary_condition_3ac(Address* cond, Address* e1, Address* e2){
+    Address* temp = create_new_temp();
+    emit(create_new_comp("==", cond, create_new_const("0", 4), "T" + temp->name));
+    emit(create_new_quad("=", e1, NULL, temp));
+    emit(create_new_goto("TEnd"+temp->name));
+    emit(create_new_label("\nT"+temp->name+":\n"));
+    emit(create_new_quad("=", e2, NULL, temp));
+    emit(create_new_label("\nTEnd"+temp->name+":\n"));
     return temp;
 }
 
-string binary_operator_3ac(string e1, string op, string e2){
-    string temp = get_temp();
-    emit(op, e1, e2, temp);
+Address* binary_operator_3ac(Address* e1, string op, Address* e2){
+    Address* temp = create_new_temp();
+    emit(create_new_quad(op, e1, e2, temp));
     return temp;
 }
 
-// string and_operator_3ac(string e1, string e2){
-//     string temp = get_temp();
-//     emit("if", e1, "false", "goto(T" + temp+")" );
-//     emit("=", e1, "", temp);
-//     emit("goto(TEnd"+temp+")","","","");
-//     emit("\nT"+temp+":\n","","","");
-//     emit("if", e2, "true", "goto(T" + temp+")" );
-//     emit("=", e2, "", temp);
-//     emit("=", "false", "", temp);
-//     return temp;
-// }
-
-string deq_check_3ac(string e1, string e2){
-    string temp = get_temp();
-    emit("if", e1, e2, "goto(T" + temp+")" );
-    emit("=", "false", "", temp);
-    emit("goto(TEnd"+temp+")","","","");
-    emit("\nT"+temp+":\n","","","");
-    emit("=", "true", "", temp);
-    emit("\nTEnd"+temp+":\n","","","");
+Address* binary_bitwise_operator_3ac(Address* e1, string op, Address* e2){
+    Address* temp = create_new_temp();
+    emit(create_new_quad(op, e1, e2, temp));
     return temp;
 }
 
-string neq_check_3ac(string e1, string e2){
-    string temp = get_temp();
-    emit("if", e1, e2, "goto(T" + temp+")" );
-    emit("=", "true", "", temp);
-    emit("goto(TEnd"+temp+")","","","");
-    emit("\nT"+temp+":\n","","","");
-    emit("=", "false", "", temp);
-    emit("\nTEnd"+temp+":\n","","","");
+Address* or_operator_3ac(Address* e1, Address* e2){
+    Address* temp = create_new_temp();
+    emit(create_new_comp("==", e1, create_new_const("0", 4), "T" + temp->name));
+
+    emit(create_new_quad("=", e1, NULL, temp));
+    emit(create_new_goto("TEnd"+temp->name));
+
+    emit(create_new_label("\nT"+temp->name+":\n")); 
+
+    emit(create_new_quad("=", e2, NULL, temp));
+
+    emit(create_new_label("\nTEnd"+temp->name+":\n"));
+    return temp;
+}
+
+Address* and_operator_3ac(Address* e1, Address* e2){
+    Address* temp = create_new_temp();
+    emit(create_new_comp("==", e1, create_new_const("1", 4), "T" + temp->name));
+
+    emit(create_new_quad("=", e1, NULL, temp));
+    emit(create_new_goto("TEnd"+temp->name));
+
+    emit(create_new_label("\nT"+temp->name+":\n"));
+    
+    emit(create_new_quad("=", e2, NULL, temp));
+
+    emit(create_new_label("\nTEnd"+temp->name+":\n"));
+    return temp;
+}
+
+Address* deq_check_3ac(Address* e1, Address* e2){
+    Address* temp = create_new_temp();
+    emit(create_new_comp("==", e1, e2, "T" + temp->name));
+    emit(create_new_quad("=", create_new_const("0", 4), NULL, temp));
+    emit(create_new_goto("TEnd"+temp->name));
+    emit(create_new_label("\nT"+temp->name+":\n"));
+    emit(create_new_quad("=", create_new_const("1", 4), NULL, temp));
+    emit(create_new_label("\nTEnd"+temp->name+":\n"));
+    return temp;
+}
+
+Address* neq_check_3ac(Address* e1, Address* e2){
+    Address* temp = create_new_temp();
+    emit(create_new_comp("==", e1, e2, "T" + temp->name));
+    emit(create_new_quad("=", create_new_const("1", 4), NULL, temp));
+    emit(create_new_goto("TEnd"+temp->name));
+    emit(create_new_label("\nT"+temp->name+":\n"));
+    emit(create_new_quad("=", create_new_const("0", 4), NULL, temp));
+    emit(create_new_label("\nTEnd"+temp->name+":\n"));
     return temp;
 } // == , !=
 
-string relation_check_3ac(string e1, string op, string e2){
-    string temp = get_temp();
-    emit(op, e1, e2, "goto(T" + temp+")" );
-    emit("=", "false", "", temp);
-    emit("goto(TEnd"+temp+")","","","");
-    emit("\nT"+temp+":\n","","","");
-    emit("=", "true", "", temp);
-    emit("\nTEnd"+temp+":\n","","","");
+Address* relation_check_3ac(Address* e1, string op, Address* e2){
+    Address* temp = create_new_temp();
+    emit(create_new_comp(op, e1, e2, "T" + temp->name));
+    emit(create_new_quad("=", create_new_const("0", 4), NULL, temp));
+    emit(create_new_goto("TEnd"+temp->name));
+    emit(create_new_label("\nT"+temp->name+":\n"));
+    emit(create_new_quad("=", create_new_const("1", 4),NULL, temp));
+    emit(create_new_label("\nTEnd"+temp->name+":\n"));
     return temp;
 } // < , > , <= , >=
 
-string pre_increament_3ac(string e1){
-    string temp = get_temp();
-    emit("=", e1, "", temp);
-    emit("+", temp, "1", e1);
+Address* pre_increament_3ac(Address* e1){
+    Address* temp = create_new_temp();
+    emit(create_new_quad("=", e1, NULL, temp));
+    emit(create_new_quad("+", temp, create_new_const("1", 4), e1));
     return temp;
 }
 
-string post_increament_3ac(string e1){
-    string temp = get_temp();
-    emit("+", e1, "1", temp);
-    emit("=", temp, "", e1);
+Address* post_increament_3ac(Address* e1){
+    Address* temp = create_new_temp();
+    emit(create_new_quad("+", e1, create_new_const("1", 4), temp));
+    emit(create_new_quad("=", temp, NULL, e1));
     return temp;
 }
 
-string pre_decreament_3ac(string e1){
-    string temp = get_temp();
-    emit("=", e1, "", temp);
-    emit("-", temp, "1", e1);
+Address* pre_decreament_3ac(Address* e1){
+    Address* temp = create_new_temp();
+    emit(create_new_quad("=", e1, NULL, temp));
+    emit(create_new_quad("-", temp, create_new_const("1", 4), e1));
     return temp;
 }
 
-string post_decreament_3ac(string e1){
-    string temp = get_temp();
-    emit("-", e1, "1", temp);
-    emit("=", temp, "", e1);
+Address* post_decreament_3ac(Address* e1){
+    Address* temp = create_new_temp();
+    emit(create_new_quad("-", e1, create_new_const("1", 4), temp));
+    emit(create_new_quad("=", temp, NULL, e1));
     return temp;
 }
 
-Address *field_access_3ac(Address *tac_f, int offset) {
-    Address *_addr1;
+Address* field_access_3ac(Address* tac_name, int offset, Type* type, string id) {
     if (current_scope != scope_method)
         return NULL;
 
-    _addr1 = new_temp();
+    Address* temp2 = create_new_temp();
     // emit("+", tac_name, to_string(offset), temp2);
-    // Harshit: Need to insert corresponding quad to method body.
-    tacss << "= " << "*(" << tac_name << "+" << offset << ") " << temp2 << "\n";
-    return _addr1;
+    // tacss << "+" << "" << tac_name << "+" << offset << ") " << temp2 << "\n";
+    emit(create_new_quad("+", tac_name, create_new_const(to_string(offset), 4), temp2));
+    Address* mem = create_new_mem(id, temp2, type);
+    return mem;
 }
 
-/*
-Harshit:
-May also need to create Call pointer here is is_func is true
-*/
 // returns the last name in type_name vector
-string type_name_3ac(TypeName *type_name, bool is_func) {
+Address* type_name_3ac(TypeName *type_name, bool is_func) {
     auto ids =  type_name->names;
-    string tmp = ids[0]->name;
-    Address *arg1, *arg2;
-    Quad *q;
+    Address* arg1 = create_new_mem(ids[0]->name, ids[0]->offset, ids[0]->type);
+    Address* arg2;
     int num = ids.size();
     int n = num;
     if (is_func)
         n -= 1;
     
     for(int i = 1; i < n; i++) {
-        Address *t = new_temp();
-        arg1 = create_new_addr_str(tmp, TEMP);
-        arg2 = create_new_addr_const(ids[i]->offset, TEMP);
-        q = create_new_quad(t, "+", arg1, arg2);
-        current_table->method->insert_threeac(q);
-        // arg1 = tmp; arg2 = to_string(ids[i]->offset);
-        emit("+", arg1->name, to_string(arg2->size), t->name);
-        tmp = t;
+        Address* tmp = create_new_temp();
+        emit(create_new_quad("=", arg1, NULL, tmp));
+        Address* tmp1 = create_new_temp();
+        emit(create_new_quad("+", tmp, create_new_const(to_string(ids[i]->offset), 4), tmp1));
+        arg1 = create_new_mem(ids[i]->name, tmp1, ids[i]->type);
     }
+
+    // In case of function it returns object reference of the variable which called it
+    // in a.fun1(), a
+
+    // in case of a.b.fun1() or a.b.c, it returns memory location of c or b
+    if(n >= 1)
+        return arg1;
+
+    return NULL;
     
-    if (num == 1)
-        type_name->threeac = tmp;
-    else 
-        type_name->threeac = "*" + tmp;
+    // for(int i = 1; i < n; i++) {
+    //     Address* t = create_new_temp();
+    //     arg1 = tmp; 
+    //     arg2 = create_new_const(to_string(ids[i]->offset));
+
+    //     emit(create_new_quad("+", arg1, arg2, t));
+    //     tmp = t;
+    // }
+
+    // if(num == 1 || )
     
-    // Harshit-> Addr * needed?
-    type_name->tac_addr = create_new_addr_str(type_name->threeac, TEMP);
-    return ids[num-1]->name;
+    // if (num == 1 || is_func)
+    //     type_name->tac = tmp;
+    // else 
+    //     type_name->threeac = "*" + tmp;
+    
+    // return ids[num-1]->name;
 }
 
-void dump_3ac(string fname){
-    string filename = DUMP_DIR + fname + ".3ac";
-    ofstream outss(filename.c_str());
-    outss << fname << " : \n" << endl;
-    outss << "push ebp" << endl;
-    outss << "= esp ebp\n"<<endl;
-    outss << tacss.str() << endl;
-    tacss.clear();
-    tacss.str(string());
-    outss.close();
-}   
-
-string get_array_size(vector<string> array_dims){
-    string size = get_temp();
-    emit("=", "1", "", size);
-    string temp = get_temp();
-    
-    for(int i=0; i<array_dims.size(); i++){
-        emit("*", size, array_dims[i], temp);
-        emit("=", temp, "", size);
+Address* get_array_size(vector<Address*> array_dims, int start_i){
+    Address* temp = create_new_temp();
+    emit(create_new_quad("=", create_new_const("1", 4), NULL, temp));
+    Address* temp1;
+    for(int i=start_i; i<array_dims.size(); i++){
+        temp1 = create_new_temp();
+        emit(create_new_quad("*", temp, array_dims[i], temp1));
+        temp = temp1;
+        // emit("=", temp1, "", temp);
     }
-    return size;
+    return temp;
 }
 
+// string get_array_size(vector<string> array_dims, int start_i){
+//     Address* temp = create_new_temp();
+//     emit("=", "1", "", temp);
+//     Address* temp1;
+//     for(int i=start_i; i<array_dims.size(); i++){
+//         temp1 = create_new_temp();
+//         emit("*", temp, array_dims[i], temp1);
+//         temp = temp1;
+//         // emit("=", temp1, "", temp);
+//     }
+//     return temp;
+// }
+
+void insert_in_global_quads(ThreeAC* tac){
+    global_tacs.push_back(tac);
+    func_tacs.push_back(tac);
+}
+
+void dump_3ac(string fname, unsigned long func_local_space_size){
+    // string filename = DUMP_DIR + fname + ".3ac";
+    // ofstream outss(filename.c_str());
+    // outss << fname << " : \n" << endl;
+
+    insert_in_global_quads(create_new_label(fname));
+    // Need function Header here
+    // outss << "push ebp" << endl;
+    // outss << "= esp ebp\n"<<endl;
+
+    if(func_local_space_size) {
+        insert_in_global_quads(create_new_reg(SP, func_local_space_size, false)); // space for local variables
+    }
+    
+    for(auto tac: tacs)
+        insert_in_global_quads(tac);
+    
+    tacs.clear();
+
+    insert_in_global_quads(create_new_label("return:"));
+    
+    if(func_local_space_size) {
+        insert_in_global_quads(create_new_reg(SP, func_local_space_size, true)); // manipulate stack pointer to the top of stack removing local variables
+    }
+
+    // Add function footer
+    // outss << "pop ebp" << endl;
+    // outss << "ret" << endl;
+
+    generate_method_asm(func_tacs);
+    func_tacs.clear();
+}

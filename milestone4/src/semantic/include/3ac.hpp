@@ -7,11 +7,13 @@
     #include <symbol_table_fast.hpp>
 #endif
 
+#define SP "esp"
+
 using namespace std;
 
 struct TypeName;
-
-#define TEMP_ID_MASK 0x80000000
+struct Type;
+class SymTabEntry;
 
 typedef enum {
     TEMP,
@@ -19,23 +21,26 @@ typedef enum {
     CONST,  
 } addr_type;
 
-class ThreeAC {
-    public:
+typedef struct Address {
+    string name;
+    int size;
+    // ThreeAC *ta_instr;
+    addr_type type;
+    // unsigned int table_id;
     
-    virtual ~ThreeAC();
-};
+    bool absolute;
+    int offset;   // only in case of memory regions if not absolute
+    Address* abs_offset; // only in case of memory regions if absolute, use directly no ebp required
 
-class Address {
-    public:
-        string name;
-        int size;
-        ThreeAC *ta_instr;
-        addr_type type;
-        unsigned int table_id;
-        int offset;
+    Address( string _name, addr_type _type);
+    Address( long _value, addr_type _type);
+    Address( SymTabEntry* _symbol );
+} Address;
 
-        Address( string name, addr_type type);
-        Address( long value, addr_type type);
+class ThreeAC {
+    public:    
+
+        virtual ~ThreeAC();
 };
 
 class Quad: public ThreeAC{
@@ -45,38 +50,26 @@ class Quad: public ThreeAC{
         Address *arg2;
         string operation;
 
-        Quad( Address *result, string operation, Address *arg1, Address *arg2);
-
+        Quad( Address* _result, string _operation, Address* _arg1, Address* _arg2);
 };
 
 class Return: public ThreeAC {
     public:
-        Address *ret_value;
-
-        Return( Address * _retval );
-
-    friend Return * create_new_return( Address * retval );
+        Address *ret_value;  // can be null if func doesnt return anything 
+                            // in case of pop, it is the address where to store the return registeer(rax) value
+        // In case of pop, mov instruction will be used
+        // In case of push, mov inst along with (goto ret) will be used
+        bool push; // true if calling return 5, false when popping the value at caller function from return reg
+        Return( Address * _retval, bool _push );
 };
 
 class Call: public ThreeAC {
     public:
-        Address *retval;
         string function_name;
+        int arg_count;
 
-        Call( Address * _addr, string f_name );
+        Call( string f_name, int arg_count );
 
-};
-
-class Label;
-
-class Goto: public ThreeAC {
-    Label *label;
-public:
-    bool condition;
-
-    friend Goto * create_new_goto_cond( bool condition );
-    friend Goto * create_new_goto( Label * label);
-    friend void process_goto( Goto * g );
 };
 
 class Label: public ThreeAC {
@@ -86,70 +79,94 @@ public:
     Label(string _name);
 };
 
+class Goto: public ThreeAC {
+public:
+    Label *label;
+
+    Goto(Label* _label);
+};
+
+// used when to push argument in the stack
+// Used by the caller function
 class Arg: public ThreeAC {
 public:
     Address *arg;
-    int num;
+    int offset; 
 
-    Arg(Address *_addr, int count );
+    Arg(Address *_addr, int _offset );
 };
 
-typedef enum _const_type {
-    INT3 = 1,
-    FLOAT3,
-    CHAR3
-} CONST_TYPE;
+class Comp: public ThreeAC{
+    public:
+        string comp_operator;
+        Address* arg1;
+        Address* arg2;
+        string label;   // Label to jump if condition satisfies as by comp_operator(je, jge, jg...)
 
-#define SAVE_REGS( E, t1, t2 ) { \
-    if ( (t1)->type == TEMP || (t1)->type == MEM ) { \
-        (E)->res = (t1); \
-        (E)->res->type = TEMP; \
-    } else if ( (t2)->type == TEMP || (t2)->type == MEM ){ \
-        (E)->res = (t2); \
-        (E)->res->type = TEMP; \
-    } else { \
-        (E)->res = new_temp(); \
-    } \
-}
+        Comp(string _comp_operator, Address* _arg1, Address* _arg2, string _label);
+};
 
-/* Add functions here*/
-static inline Address *create_new_addr();
+class Reg: public ThreeAC {
+    public:
+        string reg_name;
+        int size;
+        bool add; // true if add or shrink the stack else false
 
-static inline Quad *create_new_quad(Address *result, string op, Address *arg1, Address *arg2);
+    Reg(string reg, int _size, bool _add);
+};
 
-static inline Goto * create_new_goto();
-Goto * create_new_goto(Label * label);
-Goto * create_new_goto_cond(bool condition);
+Address* create_new_temp();
+Address* create_new_const(string val, int size);
+Address* create_new_mem(string name, int offset, int type_size);  // if absolute = false
+Address* create_new_mem(string name, int offset, Type* type);  // if absolute = false
+Address* create_new_mem(string name, Address* offset, Type* type);   // if absolute = true
+Quad* create_new_quad(string operation, Address *arg1, Address *arg2, Address *result);
+Label* create_new_label(string name);
+Goto* create_new_goto(string name);
+Arg* create_new_arg(Address* arg, int offset);
+Comp* create_new_comp(string comparator, Address* addr1, Address* addr2, string label);
+Reg* create_new_reg(string reg, int _size, bool _add);  // increment-decrement the stack pointer
+Return * create_new_return( Address * retval, bool _push );
+Call* create_new_call( string f_name, int arg_count );
 
-static inline Label * create_new_label(string _name);
+// typedef struct entry3ac{
+//     string threeac="";
+// } entry3ac;
 
-static inline Address * new_temp();
-static inline Address * new_mem(SymTabEntry * symbol);
+// typedef struct loopentry{
+//     int loopnum;
+// } loopentry;
 
-template <typename T>
-static inline Address * new_const(T val, CONST_TYPE con ) {
-    return new Address(to_string(val), CON);
-}
-
-static inline Call * create_new_call( Address * addr , string f_name );
-
-static inline Return * create_new_return(Address * retval);
-static inline create_new_arg(Address *_addr, int count);
-/**/
+// typedef struct ifentry{
+//     int ifnum;
+// } ifentry;
 
 
-// #################################################################################################//
-void emit(string op, string arg1, string arg2, string result);
+// class Address {
+//     string name;
+// };
 
-string get_temp();
+// class Quad {
+//     Address result, arg1, arg2;
+//     string operation;
 
-string assignment_operator_3ac(string result , string op , string operand );
+// };
 
-string assign_operator_3ac(string result , string operand );
+void emit(ThreeAC* tac);
 
-string ternary_condition_3ac(string cond, string e1, string e2);
+Address* assignment_operator_3ac(Address* result , string op , Address* operand );
 
-string binary_operator_3ac(string e1, string op, string e2);
+Address* assign_operator_3ac(Address* result , Address* operand );
+
+Address* ternary_condition_3ac(Address* cond, Address* e1, Address* e2);
+
+Address* binary_operator_3ac(Address* e1, string op, Address* e2);
+
+Address* binary_bitwise_operator_3ac(Address* e1, string op, Address* e2);
+
+Address* and_operator_3ac(Address* e1, Address* e2);
+
+Address* or_operator_3ac(Address* e1, Address* e2);
 
 // string and_operator_3ac(string e1, string e2){
 //     string temp = get_temp();
@@ -163,26 +180,29 @@ string binary_operator_3ac(string e1, string op, string e2);
 //     return temp;
 // }
 
-string deq_check_3ac(string e1, string e2);
+Address* deq_check_3ac(Address* e1, Address* e2);
 
-string neq_check_3ac(string e1, string e2);
+Address* neq_check_3ac(Address* e1, Address* e2);
 
-string relation_check_3ac(string e1, string op, string e2);
+Address* relation_check_3ac(Address* e1, string op, Address* e2);
 
-string pre_increament_3ac(string e1);
+Address* pre_increament_3ac(Address* e1);
 
-string post_increament_3ac(string e1);
-string pre_decreament_3ac(string e1);
+Address* post_increament_3ac(Address* e1);
+Address* pre_decreament_3ac(Address* e1);
 
-string post_decreament_3ac(string e1);
+Address* post_decreament_3ac(Address* e1);
 
-void dump_3ac(string filename);
+Address* get_array_size(vector<Address*> array_dims, int start_i);
 
-string get_array_size(vector<string> array_dims);
+Address* field_access_3ac(Address* cls_name, int offset, Type* type, string id);
 
-string field_access_3ac(string cls_name, int offset);
+Address* type_name_3ac(TypeName* type_name, bool is_func);
 
-string type_name_3ac(TypeName* type_name, bool is_func);
-
+void insert_in_global_quads(ThreeAC* tac);
+void dump_3ac(string filename, unsigned long func_local_space_size);
+bool check_if_temp(Address *s);
+bool check_if_const(Address *s);
+bool check_if_mem(Address* s);
 
 #endif
