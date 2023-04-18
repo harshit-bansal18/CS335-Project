@@ -34,6 +34,7 @@ typedef enum {
     jge,// <label> (jump when greater than or equal to)
     jl, // <label> (jump when less than)
     jle, //<label> (jump when less than or equal to)
+    jmp, // unconditional jump
     negl, // <register/Mem> example int a = -b/ negl %eax; movl %a %eax
     modq,
     movq,

@@ -7,7 +7,7 @@
     #include <symbol_table_fast.hpp>
 #endif
 
-#define SP "esp"
+#define SP "rsp"
 
 using namespace std;
 

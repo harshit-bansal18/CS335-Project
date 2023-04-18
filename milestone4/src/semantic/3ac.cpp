@@ -451,7 +451,7 @@ void dump_3ac(string fname, unsigned long func_local_space_size){
     // string filename = DUMP_DIR + fname + ".3ac";
     // ofstream outss(filename.c_str());
     // outss << fname << " : \n" << endl;
-
+    func_local_space_size += tcount;
     insert_in_global_quads(create_new_label(fname));
     // Need function Header here
     // outss << "push ebp" << endl;
@@ -466,7 +466,7 @@ void dump_3ac(string fname, unsigned long func_local_space_size){
     
     tacs.clear();
 
-    insert_in_global_quads(create_new_label("return:"));
+    insert_in_global_quads(create_new_label("return"));
     
     if(func_local_space_size) {
         insert_in_global_quads(create_new_reg(SP, func_local_space_size, true)); // manipulate stack pointer to the top of stack removing local variables
@@ -477,5 +477,6 @@ void dump_3ac(string fname, unsigned long func_local_space_size){
     // outss << "ret" << endl;
 
     generate_method_asm(func_tacs);
+    tcount = 0;
     func_tacs.clear();
 }

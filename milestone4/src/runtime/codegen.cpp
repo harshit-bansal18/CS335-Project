@@ -8,6 +8,8 @@
 
 using namespace std;
 
+int regcounter=0;
+
 stringstream asm_ss;
 
 map <instr_names, string> x86_instr = {
@@ -27,15 +29,22 @@ map <instr_names, string> x86_instr = {
                                         {jg, "jg"},
                                         {jl, "jl"},
                                         {je, "je"},
-                                        {jne, "jne"}};
+                                        {jne, "jne"},
+                                        {jmp, "jmp"},
+                                        {call, "call"}};
+                                        
 
 string get_free_register() {
+    return "\%r" + to_string((regcounter++)%3+8);
+}
+
+string get_eax() {
     return "\%eax";
 }
 
 void push_instr(string name, string dst, string src) {
 
-    asm_ss << name << "\t" << dst;
+    asm_ss << "\t" << name << "\t" << dst;
     if (src != "")
         asm_ss << ", " << src;
 
@@ -71,13 +80,19 @@ string generate_asm_string(Address* addr) {
     return asm_code;
 }
 
+string get_instr_name_mov(int size){
+    if(size == 4)
+        return x86_instr[movl];
+    else if (size == 8)
+        return x86_instr[movq];
+    
+    return "";
+}
+
 static inline string insert_load_mem(Address *mem_addr) {
     string dst, name, src;
     dst = get_free_register();
-    if(mem_addr->size == 4)
-        name = x86_instr[movl];
-    else if (mem_addr->size == 8)
-        name = x86_instr[movq];
+    name = get_instr_name_mov(mem_addr->size);
     src = generate_asm_string(mem_addr);
     push_instr(name, dst, src);
     return dst;
@@ -85,10 +100,7 @@ static inline string insert_load_mem(Address *mem_addr) {
 
 static inline void insert_store_mem(Address *mem_addr, string reg) {
     string dst, name;
-    if(mem_addr->size == 4)
-        name = x86_instr[movl];
-    else if (mem_addr->size == 8)
-        name = x86_instr[movq];
+    name = get_instr_name_mov(mem_addr->size);
     dst = generate_asm_string(mem_addr);
     push_instr(name, dst, reg);
 }
@@ -177,12 +189,17 @@ string get_instr_name_binary(string op, int size) {
     return "";
 }
 
-void process_arg(Arg *arg) {
-    
+void process_arg(Arg *_arg) {
+//     string inst_name;
+//     inst_name = get_instr_name_mov(_arg->arg->size);
+//     dst = insert_load_mem(arg1);
+//     src = generate_asm_string(arg2);
+//     push_instr(name, dst, src);
+//     insert_store_mem(quad->result, dst);
 }
 
-void process_call(Call *call) {
-
+void process_call(Call *call_p) {
+    push_instr(x86_instr[call], call_p->function_name, "");
 }
 
 void process_comp(Comp *comp) {
@@ -210,15 +227,13 @@ void process_quad(Quad *quad) {
             name = get_instr_name_binary(quad->operation, arg1->size);
             // dst = insert_load_mem(arg1);
             push_instr(x86_instr[movl], "\%eax", generate_asm_string(arg1)); // dividend pushed in eax
-            src = generate_asm_string(arg1);
-            push_instr(name, src, "");
+            push_instr("cltd", "", ""); // sign extend eax to edx:eax
+            push_instr(name, generate_asm_string(arg2), "");
             if(quad->operation[0] == '/')
                 insert_store_mem(quad->result, "\%eax");
-            else if (quad->operation[0] == '\%')
+            else
                 insert_store_mem(quad->result, "\%edx");
-            else if (quad->operation[0] == '*')
-                insert_store_mem(quad->result, dst);
-        } 
+        }
         else if (is_binary(quad->operation)) {
             // If both arguments are memory types, load one of them to register and then issue add operation
             // finally store the value of register
@@ -262,21 +277,64 @@ void process_quad(Quad *quad) {
 }
 
 void process_label(Label *label) {
-    
+    push_instr(label->name+":", "", "");
+}
+
+void process_goto(Goto* _goto){
+    push_instr(x86_instr[jmp], _goto->label->name, "");
+}
+
+static inline void generate_return(Address* ret_val, bool  push){
+    string dst, name, src;
+    if(ret_val->size == 4)
+        name = x86_instr[movl];
+    else if (ret_val->size == 8)
+        name = x86_instr[movq];
+    dst = generate_asm_string(ret_val);
+    src = get_eax();
+    push_instr(name, src, dst);
 }
 
 void process_return(Return* ret){
-    
+    Address* ret_val = ret->ret_value;
+
+    if(push){
+        if(ret_val != NULL){
+            generate_return(ret_val, ret->push);
+        }
+    }
+    else{
+        generate_return(ret_val, ret->push);
+    }
+}
+
+static inline void generate_reg_manip(string reg_name, int size, bool add){
+    if(add)
+        push_instr(x86_instr[addq], reg_name, "$"+to_string(size));
+    else 
+        push_instr(x86_instr[subq], reg_name, "$"+to_string(size));
+}
+
+void process_reg(Reg* reg){
+    if(reg->reg_name == SP){
+        generate_reg_manip("\%rsp", reg->size, reg->add);
+    }
+    // Add more registers if needed
 }
 
 void method_footer() {
-    asm_ss << "movl\t$0, \%eax\n";
-    asm_ss << "ret\n";
+    asm_ss << "\tmovl\t$0, \%eax\n";
+    asm_ss << "\tleave\n";
+    asm_ss << "\tret\n";
+    asm_ss << "\n\n";
 }
 
-void method_header() {
-    asm_ss << "pushq\t%rbp\n";
-    asm_ss << "movq\t%rsp, %rbp\n";
+void method_header(string func_name) {
+    asm_ss << "\t .globl   " + func_name << "\n";
+    asm_ss << "\t .type    " + func_name << ", @function\n";
+    asm_ss << func_name << ":\n";
+    asm_ss << "\tpushq\t%rbp\n";
+    asm_ss << "\tmovq\t%rsp, %rbp\n";
 }
 
 void generate_method_asm(vector<ThreeAC *> &tac_instr) {
@@ -285,10 +343,13 @@ void generate_method_asm(vector<ThreeAC *> &tac_instr) {
     Label *label_p;
     Return *return_p;
     Call *call_p;
+    Reg* reg_p;
+    Goto* goto_p;
+    Comp* comp_p;
     asm_ss.clear();
     asm_ss.str(string());
 
-    method_header();
+    int flag = 0;
     for (auto instr: tac_instr) {
         quad_p = dynamic_cast<Quad *> (instr);
         if (quad_p != nullptr) {
@@ -303,6 +364,12 @@ void generate_method_asm(vector<ThreeAC *> &tac_instr) {
 
         label_p = dynamic_cast<Label *> (instr);
         if (label_p != nullptr) {
+            if(!flag){
+                // This is based on the assumption that first tac is always func_name
+                method_header(label_p->name);
+                flag = 1;
+                continue;
+            }
             process_label(label_p);
             continue;
         }
@@ -317,6 +384,23 @@ void generate_method_asm(vector<ThreeAC *> &tac_instr) {
             continue;
         }
 
+        reg_p = dynamic_cast<Reg *> (instr);
+        if (reg_p != nullptr) {
+            process_reg(reg_p);
+            continue;
+        }
+
+        goto_p = dynamic_cast<Goto *> (instr);
+        if (goto_p != nullptr) {
+            process_goto(goto_p);
+            continue;
+        }
+
+        comp_p = dynamic_cast<Comp *> (instr);
+        if (comp_p != nullptr) {
+            process_comp(comp_p);
+            continue;
+        }
     }
     method_footer();
 

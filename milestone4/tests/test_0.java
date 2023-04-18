@@ -6,7 +6,10 @@ class TestEmployee1 {
             // a = -b;
             // a = b+c;
 
-            int a = -5;
+            int a=0;
+            if(a==3){
+                a=5/((2+3*8)%5);
+            }
             // b = a+d/(b*c) % 2 +()
             // if(a!=b){
             //     a = b;
