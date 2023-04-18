@@ -10,9 +10,10 @@ using namespace std;
 
 int regcounter=0;
 
+ofstream asm_file;
 stringstream asm_ss;
 
-map <instr_names, string> x86_instr = {
+map <instr_names, string> x86_instr = { {addl, "addl"},
                                         {addq, "addq"},
                                         {mulq, "imulq"},
                                         {mull, "imull"},
@@ -44,10 +45,15 @@ string get_eax() {
 
 void push_instr(string name, string dst, string src) {
 
-    asm_ss << "\t" << name << "\t" << dst;
-    if (src != "")
-        asm_ss << ", " << src;
+    // asm_ss << "\t" << name << "\t" << dst;
+    // if (src != "")
+    //     asm_ss << ", " << src;
 
+
+    asm_ss << "\t" << name << "\t";
+    if (src != "")
+        asm_ss<< src<<",";
+    asm_ss << dst;
     asm_ss << "\n"; 
 }
 
@@ -64,8 +70,9 @@ string generate_asm_string(Address* addr) {
         cout << "name: " << name << endl;
         char buf[10] = {'\0'};
         memcpy(buf, name + 1, strlen(name)-1);
-        int offset = atoi(buf) - 4;
+        int offset = (atoi(buf)) * 4;
         asm_code = get_stack_addr("\%rsp", offset);
+        // asm_code = get_stack_addr("\%rsp", addr->offset);
     }
     else if (addr->type == MEM) {
         asm_code = get_stack_addr("\%rbp",addr->offset);
@@ -330,6 +337,9 @@ void method_footer() {
 }
 
 void method_header(string func_name) {
+    asm_ss<< ".section    .rodata\n";
+    asm_ss<< ".LC0:\n";
+	asm_ss << "\t.string    \"%d\\n\" \n";
     asm_ss << "\t .globl   " + func_name << "\n";
     asm_ss << "\t .type    " + func_name << ", @function\n";
     asm_ss << func_name << ":\n";
@@ -348,7 +358,7 @@ void generate_method_asm(vector<ThreeAC *> &tac_instr) {
     Comp* comp_p;
     asm_ss.clear();
     asm_ss.str(string());
-
+    asm_file.open("asm.s");
     int flag = 0;
     for (auto instr: tac_instr) {
         quad_p = dynamic_cast<Quad *> (instr);
@@ -404,6 +414,7 @@ void generate_method_asm(vector<ThreeAC *> &tac_instr) {
     }
     method_footer();
 
-    cout << asm_ss.str(); 
+    asm_file << asm_ss.str();
+    asm_file.close();
 
 }

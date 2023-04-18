@@ -2132,7 +2132,7 @@ IfThenStatementSubRoutine:
                                     IfCondition($4); 
                                     $$ = $1;
                                     emit("if " , $4->threeac , "false", "goto(Else" + to_string($1) + ")");
-                                    emit("\nIf"+to_string($1)+":\n", "", "", "");
+                                    emit("\nIf"+to_string($1), "", "", "");
                                 }
                             }
 ;
@@ -2142,8 +2142,8 @@ IfThenStatement:    IfThenStatementSubRoutine Rparen ScopeIncrement Statement   
                                                                                         
                                                                                         clear_current_scope(); 
                                                                                         emit("goto(EndIf" + to_string($1) + ")", "", "", "");
-                                                                                        emit("\nElse"+to_string($1)+":\n", "", "", "");
-                                                                                        emit("\nEndIf" + to_string($1) + ":\n", "", "", "");
+                                                                                        emit("\nElse"+to_string($1), "", "", "");
+                                                                                        emit("\nEndIf" + to_string($1) , "", "", "");
                                                                                     }
                                                                                 }
 ;
@@ -2151,7 +2151,7 @@ IfThenStatement:    IfThenStatementSubRoutine Rparen ScopeIncrement Statement   
 IfThenThreeACSubRoutine: IfThenStatementSubRoutine Rparen ScopeIncrement StatementNoShortIf Else    {   
                                                                                                         if(pass_no == 2)  {
                                                                                                             emit("goto(EndIf" + to_string($1) + ")", "", "", "");
-                                                                                                            emit("\nElse"+to_string($1)+":\n", "", "", "");
+                                                                                                            emit("\nElse"+to_string($1), "", "", "");
                                                                                                             $$ = $1;
                                                                                                         }
                                                                                                     }
@@ -2159,7 +2159,7 @@ IfThenThreeACSubRoutine: IfThenStatementSubRoutine Rparen ScopeIncrement Stateme
 
 IfThenElseStatement:    IfThenThreeACSubRoutine Statement   {   
                                                                 if(pass_no == 2){
-                                                                    emit("\nEndIf" + to_string($1) + ":\n", "", "", "");
+                                                                    emit("\nEndIf" + to_string($1) , "", "", "");
                                                                     clear_current_scope(); 
                                                                 }
                                                             }
@@ -2167,7 +2167,7 @@ IfThenElseStatement:    IfThenThreeACSubRoutine Statement   {
 
 IfThenElseStatementNoShortIf:   IfThenThreeACSubRoutine StatementNoShortIf  {   
                                                                                 if(pass_no == 2){
-                                                                                    emit("\nEndIf" + to_string($1) + ":\n", "", "", "");
+                                                                                    emit("\nEndIf" + to_string($1) , "", "", "");
                                                                                     clear_current_scope(); 
                                                                                 }
                                                                             }
@@ -2187,7 +2187,7 @@ WhileStatementSubRoutine:
                                 if(pass_no == 2){
                                     WhileCondition($3); 
                                     $$ = $1;
-                                    emit("\nLoop" + to_string($1) + ":\n","","","");
+                                    emit("\nLoop" + to_string($1) ,"","","");
                                     emit("If ", $3->threeac, "false", "goto(Endloop"+to_string($1)+")");
                                 }
                             }
@@ -2196,7 +2196,7 @@ WhileStatementSubRoutine:
 WhileStatement:    WhileStatementSubRoutine Rparen Statement {   
                                                                     if(pass_no == 2){
                                                                         emit("goto(Loop"+to_string($1)+")", "", "", "");
-                                                                        emit("\nEndloop"+to_string($1)+":\n","","","");
+                                                                        emit("\nEndloop"+to_string($1),"","","");
                                                                         clear_current_scope(); 
                                                                     }
                                                             }
@@ -2205,7 +2205,7 @@ WhileStatement:    WhileStatementSubRoutine Rparen Statement {
 WhileStatementNoShortIf:    WhileStatementSubRoutine Rparen StatementNoShortIf  {   
                                                                                     if(pass_no == 2){         
                                                                                         emit("goto(Loop"+to_string($1)+")", "", "", "");
-                                                                                        emit("\nEndloop"+to_string($1)+":\n","","","");                                                                           
+                                                                                        emit("\nEndloop"+to_string($1),"","","");                                                                           
                                                                                         clear_current_scope(); 
                                                                                     }
                                                                                 }
@@ -2213,12 +2213,12 @@ WhileStatementNoShortIf:    WhileStatementSubRoutine Rparen StatementNoShortIf  
 
 DoStatement:
     do_ {
-            if(pass_no == 2) emit("\nLoop" + to_string($1) + ":\n","","","");  
+            if(pass_no == 2) emit("\nLoop" + to_string($1) ,"","","");  
         } Statement While {if(pass_no == 2) loopnum--;} Lparen Expression {     
                                                     if(pass_no == 2){ 
                                                         check_boolean($7->type); 
                                                         emit("If ", $7->threeac,"true" , "goto(Loop"+ to_string($1)+")");
-                                                        emit("\nEndloop"+to_string($1)+":\n","","","");
+                                                        emit("\nEndloop"+to_string($1),"","","");
                                                     }
                                             } Rparen Semicolon  { if(pass_no == 2) clear_current_scope(); }
 ;
@@ -2245,7 +2245,7 @@ For2SubRoutine: For7SubRoutine Expression Semicolon   {
                                         ForCondition($2); 
                                         emit("If", $2->threeac, "false", "goto(EndFor"+ to_string($1)+")");
                                         emit("If", $2->threeac, "true", "goto(ForBody"+ to_string($1)+")");
-                                        /*3ac Update*/ emit("\nForUpdate" + to_string($1) + ":\n","","","");
+                                        /*3ac Update*/ emit("\nForUpdate" + to_string($1) ,"","","");
                                         $$ = $1;
                                     }
                                 }
@@ -2254,7 +2254,7 @@ For3SubRoutine: For5SubRoutine Semicolon {
                                             if(pass_no == 2){
                                                 
                                                 emit("goto(ForBody"+ to_string($1)+")","","","");
-                                                /*3ac Update*/ emit("\nForUpdate" + to_string($1) + ":\n","","","");
+                                                /*3ac Update*/ emit("\nForUpdate" + to_string($1) ,"","","");
                                                 $$ = $1;
                                             }
                                         }
@@ -2263,48 +2263,48 @@ For4SubRoutine:    For7SubRoutine Semicolon {
                                                 if(pass_no == 2){
                                                     
                                                     emit("goto(ForBody"+ to_string($1)+")","","","");
-                                                    /*3ac Update*/ emit("\nForUpdate" + to_string($1) + ":\n","","","");
+                                                    /*3ac Update*/ emit("\nForUpdate" + to_string($1) ,"","","");
                                                     $$ = $1;
                                                 }
                                             }
 ;
 For5SubRoutine: For Lparen Semicolon    {   
                                             if(pass_no == 2){
-                                                emit("ForCondition" + to_string($1) + ":\n","","","");
+                                                emit("ForCondition" + to_string($1) ,"","","");
                                                 $$ = $1;
                                             }
                                         } 
 ;
 For6SubRoutine:    For1SubRoutine Semicolon Rparen {
                                         if(pass_no == 2){
-                                            emit("\nForUpdate" + to_string($1) + ":\n","","","");  // Not Required // Just for notation and clarity
+                                            emit("\nForUpdate" + to_string($1) ,"","","");  // Not Required // Just for notation and clarity
                                             emit("goto(ForCond"+ to_string($1)+")","","","");
-                                            emit("\nForBody" + to_string($1)+ ":\n","","","");
+                                            emit("\nForBody" + to_string($1),"","","");
                                             $$ = $1;
                                         }
                                     }
 ;
 For7SubRoutine: For Lparen ForInit Semicolon    { 
                                             if(pass_no == 2){
-                                                emit("\nForCondition" + to_string($1) + ":\n","","","");
+                                                emit("\nForCondition" + to_string($1) ,"","","");
                                                 $$ = $1;
                                             }
                                     }
 ;
 For8SubRoutine: For3SubRoutine Rparen { 
                                         if(pass_no == 2){
-                                            emit("\nForUpdate" + to_string($1) + ":\n","","","");  // Not Required // Just for notation and clarity
+                                            emit("\nForUpdate" + to_string($1) ,"","","");  // Not Required // Just for notation and clarity
                                             emit("goto(ForCond"+ to_string($1)+")","","","");
-                                            emit("\nForBody" + to_string($1)+ ":\n","","","");
+                                            emit("\nForBody" + to_string($1),"","","");
                                             $$ = $1;
                                         }
                                     }
 
 For9SubRoutine: For4SubRoutine Rparen  {    
                                             if(pass_no == 2){
-                                                emit("\nForUpdate" + to_string($1) + ":\n","","","");  // Not Required // Just for notation and clarity
+                                                emit("\nForUpdate" + to_string($1) ,"","","");  // Not Required // Just for notation and clarity
                                                 emit("goto(ForCond"+ to_string($1)+")","","","");
-                                                emit("\nForBody" + to_string($1)+ ":\n","","","");
+                                                emit("\nForBody" + to_string($1),"","","");
                                                 $$ = $1;
                                             }
                                         } 
@@ -2312,16 +2312,16 @@ For9SubRoutine: For4SubRoutine Rparen  {
 For10SubRoutine: For3SubRoutine ForUpdate Rparen {  
                                                     if(pass_no == 2){
                                                         emit("goto(ForCond"+ to_string($1)+")","","","");
-                                                        emit("\nForBody" + to_string($1)+ ":\n","","","");
+                                                        emit("\nForBody" + to_string($1),"","","");
                                                         $$ = $1;
                                                     }
                                                 }
 
 For11SubRoutine: For2SubRoutine Rparen {  
                                                     if(pass_no == 2){
-                                                        emit("\nForUpdate" + to_string($1) + ":\n","","","");  // Not Required // Just for notation and clarity
+                                                        emit("\nForUpdate" + to_string($1) ,"","","");  // Not Required // Just for notation and clarity
                                                         emit("goto(ForCond"+ to_string($1)+")","","","");
-                                                        emit("\nForBody" + to_string($1)+ ":\n","","","");
+                                                        emit("\nForBody" + to_string($1),"","","");
                                                         $$ = $1;
                                                     }
                                                 }
@@ -2329,7 +2329,7 @@ For11SubRoutine: For2SubRoutine Rparen {
 For12SubRoutine: For4SubRoutine ForUpdate Rparen {  
                                                     if(pass_no == 2){
                                                         emit("goto(ForCond"+ to_string($1)+")","","","");
-                                                        emit("\nForBody" + to_string($1)+ ":\n","","","");
+                                                        emit("\nForBody" + to_string($1),"","","");
                                                         $$ = $1;
                                                     }
                                                 }
@@ -2337,7 +2337,7 @@ For12SubRoutine: For4SubRoutine ForUpdate Rparen {
 For13SubRoutine: For1SubRoutine Semicolon ForUpdate  Rparen  {  
                                                                 if(pass_no == 2){
                                                                     emit("goto(ForCond"+ to_string($1)+")","","","");
-                                                                    emit("\nForBody" + to_string($1)+ ":\n","","","");
+                                                                    emit("\nForBody" + to_string($1),"","","");
                                                                     $$ = $1;
                                                                 }
                                                             }
@@ -2345,7 +2345,7 @@ For13SubRoutine: For1SubRoutine Semicolon ForUpdate  Rparen  {
 For14SubRoutine: For2SubRoutine ForUpdate Rparen {    
                                                                 if(pass_no == 2){
                                                                     emit("goto(ForCond"+ to_string($1)+")","","","");
-                                                                    emit("\nForBody" + to_string($1)+ ":\n","","","");
+                                                                    emit("\nForBody" + to_string($1),"","","");
                                                                     $$ = $1;
                                                                 }
                                                             }
@@ -2355,7 +2355,7 @@ BasicForStatement:      For8SubRoutine Statement {
                                                                 if(pass_no == 2){
                                                                      
                                                                     emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                    emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                    emit("\nEndFor" + to_string($1) ,"","",""); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
@@ -2365,7 +2365,7 @@ BasicForStatement:      For8SubRoutine Statement {
                                                     if(pass_no == 2){
                                                          
                                                         emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                        emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                        emit("\nEndFor" + to_string($1) ,"","",""); 
                                                         // $$ = $1;
                                                         clear_current_scope();
                                                     }
@@ -2374,7 +2374,7 @@ BasicForStatement:      For8SubRoutine Statement {
                                                             if(pass_no == 2){
                                                                  
                                                                 emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                emit("\nEndFor" + to_string($1) ,"","",""); 
                                                                 // $$ = $1;
                                                                 clear_current_scope();
                                                             }
@@ -2383,7 +2383,7 @@ BasicForStatement:      For8SubRoutine Statement {
                                                         if(pass_no == 2){
                                                              
                                                             emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                            emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                            emit("\nEndFor" + to_string($1) ,"","",""); 
                                                             // $$ = $1;
                                                             clear_current_scope();
                                                         }
@@ -2393,7 +2393,7 @@ BasicForStatement:      For8SubRoutine Statement {
                                                         if(pass_no == 2){
                                                              
                                                             emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                            emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                            emit("\nEndFor" + to_string($1) ,"","",""); 
                                                             // $$ = $1;
                                                             clear_current_scope();
                                                         }
@@ -2403,7 +2403,7 @@ BasicForStatement:      For8SubRoutine Statement {
                                                         if(pass_no == 2){
                                                              
                                                             emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                            emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                            emit("\nEndFor" + to_string($1) ,"","",""); 
                                                             // $$ = $1;
                                                             clear_current_scope();
                                                         }
@@ -2413,7 +2413,7 @@ BasicForStatement:      For8SubRoutine Statement {
                                                     if(pass_no == 2){
                                                          
                                                         emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                        emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                        emit("\nEndFor" + to_string($1) ,"","",""); 
                                                         // $$ = $1;
                                                         clear_current_scope();
                                                     }
@@ -2423,7 +2423,7 @@ BasicForStatement:      For8SubRoutine Statement {
                                                             if(pass_no == 2){
                                                                  
                                                                 emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                emit("\nEndFor" + to_string($1) ,"","",""); 
                                                                 // $$ = $1;
                                                                 clear_current_scope();
                                                             }
@@ -2435,7 +2435,7 @@ BasicForStatementNoShortIf:
                         For8SubRoutine StatementNoShortIf {     
                                                                 if(pass_no == 2){  
                                                                     emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                    emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                    emit("\nEndFor" + to_string($1) ,"","",""); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
@@ -2444,14 +2444,14 @@ BasicForStatementNoShortIf:
 |                       For9SubRoutine StatementNoShortIf {     
                                                                 if(pass_no == 2){
                                                                     emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                    emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                    emit("\nEndFor" + to_string($1) ,"","",""); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
                                                             }
 |                       For6SubRoutine StatementNoShortIf      {    if(pass_no == 2){
                                                                         emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                        emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                        emit("\nEndFor" + to_string($1) ,"","",""); 
                                                                         // $$ = $1;
                                                                         clear_current_scope();
                                                                     }
@@ -2460,7 +2460,7 @@ BasicForStatementNoShortIf:
                                                                 if(pass_no == 2){        
                                                                      
                                                                     emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                    emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                    emit("\nEndFor" + to_string($1) ,"","",""); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
@@ -2470,7 +2470,7 @@ BasicForStatementNoShortIf:
                                                                 if(pass_no == 2){
                                                                      
                                                                     emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                    emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                    emit("\nEndFor" + to_string($1) ,"","",""); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
@@ -2480,7 +2480,7 @@ BasicForStatementNoShortIf:
                                                                 if(pass_no == 2){
                                                                      
                                                                     emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                    emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                    emit("\nEndFor" + to_string($1) ,"","",""); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
@@ -2490,7 +2490,7 @@ BasicForStatementNoShortIf:
                                                                 if(pass_no == 2){
                                                                      
                                                                     emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                    emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                    emit("\nEndFor" + to_string($1) ,"","",""); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
@@ -2500,7 +2500,7 @@ BasicForStatementNoShortIf:
                                                                     if(pass_no == 2){
                                                                          
                                                                         emit("goto(ForUpdate" + to_string($1) + ")","","","");
-                                                                        emit("\nEndFor" + to_string($1) + ":\n","","",""); 
+                                                                        emit("\nEndFor" + to_string($1) ,"","",""); 
                                                                         // $$ = $1;
                                                                         clear_current_scope();
                                                                     }

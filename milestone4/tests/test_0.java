@@ -1,4 +1,5 @@
 class TestEmployee1 {
+    int x = 2+3;
     public static int main() {        
             // int a = 1, b = 2, c = 3, d= 4, e= 5,f=6;
             // a = 10;
@@ -7,9 +8,12 @@ class TestEmployee1 {
             // a = b+c;
 
             int a=0;
-            if(a==3){
-                a=5/((2+3*8)%5);
-            }
+            int c = 20;
+            a = a+20;
+
+            // if(a==3){
+            //     a=5/((2+3*8)%(5+0));
+            // }
             // b = a+d/(b*c) % 2 +()
             // if(a!=b){
             //     a = b;

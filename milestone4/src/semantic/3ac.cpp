@@ -249,9 +249,9 @@ Address* ternary_condition_3ac(Address* cond, Address* e1, Address* e2){
     emit(create_new_comp("==", cond, create_new_const("0", 4), "T" + temp->name));
     emit(create_new_quad("=", e1, NULL, temp));
     emit(create_new_goto("TEnd"+temp->name));
-    emit(create_new_label("\nT"+temp->name+":\n"));
+    emit(create_new_label("\nT"+temp->name));
     emit(create_new_quad("=", e2, NULL, temp));
-    emit(create_new_label("\nTEnd"+temp->name+":\n"));
+    emit(create_new_label("\nTEnd"+temp->name));
     return temp;
 }
 
@@ -274,11 +274,11 @@ Address* or_operator_3ac(Address* e1, Address* e2){
     emit(create_new_quad("=", e1, NULL, temp));
     emit(create_new_goto("TEnd"+temp->name));
 
-    emit(create_new_label("\nT"+temp->name+":\n")); 
+    emit(create_new_label("\nT"+temp->name)); 
 
     emit(create_new_quad("=", e2, NULL, temp));
 
-    emit(create_new_label("\nTEnd"+temp->name+":\n"));
+    emit(create_new_label("\nTEnd"+temp->name));
     return temp;
 }
 
@@ -289,11 +289,11 @@ Address* and_operator_3ac(Address* e1, Address* e2){
     emit(create_new_quad("=", e1, NULL, temp));
     emit(create_new_goto("TEnd"+temp->name));
 
-    emit(create_new_label("\nT"+temp->name+":\n"));
+    emit(create_new_label("\nT"+temp->name));
     
     emit(create_new_quad("=", e2, NULL, temp));
 
-    emit(create_new_label("\nTEnd"+temp->name+":\n"));
+    emit(create_new_label("\nTEnd"+temp->name));
     return temp;
 }
 
@@ -302,9 +302,9 @@ Address* deq_check_3ac(Address* e1, Address* e2){
     emit(create_new_comp("==", e1, e2, "T" + temp->name));
     emit(create_new_quad("=", create_new_const("0", 4), NULL, temp));
     emit(create_new_goto("TEnd"+temp->name));
-    emit(create_new_label("\nT"+temp->name+":\n"));
+    emit(create_new_label("\nT"+temp->name));
     emit(create_new_quad("=", create_new_const("1", 4), NULL, temp));
-    emit(create_new_label("\nTEnd"+temp->name+":\n"));
+    emit(create_new_label("\nTEnd"+temp->name));
     return temp;
 }
 
@@ -313,9 +313,9 @@ Address* neq_check_3ac(Address* e1, Address* e2){
     emit(create_new_comp("==", e1, e2, "T" + temp->name));
     emit(create_new_quad("=", create_new_const("1", 4), NULL, temp));
     emit(create_new_goto("TEnd"+temp->name));
-    emit(create_new_label("\nT"+temp->name+":\n"));
+    emit(create_new_label("\nT"+temp->name));
     emit(create_new_quad("=", create_new_const("0", 4), NULL, temp));
-    emit(create_new_label("\nTEnd"+temp->name+":\n"));
+    emit(create_new_label("\nTEnd"+temp->name));
     return temp;
 } // == , !=
 
@@ -324,9 +324,9 @@ Address* relation_check_3ac(Address* e1, string op, Address* e2){
     emit(create_new_comp(op, e1, e2, "T" + temp->name));
     emit(create_new_quad("=", create_new_const("0", 4), NULL, temp));
     emit(create_new_goto("TEnd"+temp->name));
-    emit(create_new_label("\nT"+temp->name+":\n"));
+    emit(create_new_label("\nT"+temp->name));
     emit(create_new_quad("=", create_new_const("1", 4),NULL, temp));
-    emit(create_new_label("\nTEnd"+temp->name+":\n"));
+    emit(create_new_label("\nTEnd"+temp->name));
     return temp;
 } // < , > , <= , >=
 

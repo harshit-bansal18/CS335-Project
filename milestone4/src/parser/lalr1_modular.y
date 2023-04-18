@@ -2184,7 +2184,7 @@ IfThenStatementSubRoutine:
                                     $$ = $1;
                                     Address* temp = create_new_temp();    /// WHYYYYYY??
                                     emit(create_new_comp("==" , $4->tac , create_new_const("0", 4), "Else" + to_string($1)));
-                                    emit(create_new_label("\nIf"+to_string($1)+":\n"));
+                                    emit(create_new_label("If"+to_string($1)));
                                 }
                             }
 ;
@@ -2194,8 +2194,8 @@ IfThenStatement:    IfThenStatementSubRoutine Rparen ScopeIncrement Statement   
                                                                                         
                                                                                         clear_current_scope(); 
                                                                                         emit(create_new_goto("EndIf" + to_string($1)));
-                                                                                        emit(create_new_label("\nElse"+to_string($1)+":\n"));
-                                                                                        emit(create_new_label("\nEndIf" + to_string($1) + ":\n"));
+                                                                                        emit(create_new_label("Else"+to_string($1)));
+                                                                                        emit(create_new_label("EndIf" + to_string($1) ));
                                                                                     }
                                                                                 }
 ;
@@ -2203,7 +2203,7 @@ IfThenStatement:    IfThenStatementSubRoutine Rparen ScopeIncrement Statement   
 IfThenThreeACSubRoutine: IfThenStatementSubRoutine Rparen ScopeIncrement StatementNoShortIf Else    {   
                                                                                                         if(pass_no == 2)  {
                                                                                                             emit(create_new_goto("EndIf" + to_string($1)));
-                                                                                                            emit(create_new_label("\nElse"+to_string($1)+":\n"));
+                                                                                                            emit(create_new_label("Else"+to_string($1)));
                                                                                                             $$ = $1;
                                                                                                         }
                                                                                                     }
@@ -2211,7 +2211,7 @@ IfThenThreeACSubRoutine: IfThenStatementSubRoutine Rparen ScopeIncrement Stateme
 
 IfThenElseStatement:    IfThenThreeACSubRoutine Statement   {   
                                                                 if(pass_no == 2){
-                                                                    emit(create_new_label("\nEndIf" + to_string($1) + ":\n"));
+                                                                    emit(create_new_label("EndIf" + to_string($1) ));
                                                                     clear_current_scope(); 
                                                                 }
                                                             }
@@ -2219,7 +2219,7 @@ IfThenElseStatement:    IfThenThreeACSubRoutine Statement   {
 
 IfThenElseStatementNoShortIf:   IfThenThreeACSubRoutine StatementNoShortIf  {   
                                                                                 if(pass_no == 2){
-                                                                                    emit(create_new_label("\nEndIf" + to_string($1) + ":\n"));
+                                                                                    emit(create_new_label("EndIf" + to_string($1) ));
                                                                                     clear_current_scope(); 
                                                                                 }
                                                                             }
@@ -2249,7 +2249,7 @@ WhileStatementSubRoutine:
 WhileStatement:    WhileStatementSubRoutine Rparen Statement {   
                                                                     if(pass_no == 2){
                                                                         emit(create_new_goto("Loop"+to_string($1)));
-                                                                        emit(create_new_label("\nEndloop"+to_string($1)+":\n"));
+                                                                        emit(create_new_label("Endloop"+to_string($1)));
                                                                         clear_current_scope(); 
                                                                     }
                                                             }
@@ -2258,7 +2258,7 @@ WhileStatement:    WhileStatementSubRoutine Rparen Statement {
 WhileStatementNoShortIf:    WhileStatementSubRoutine Rparen StatementNoShortIf  {   
                                                                                     if(pass_no == 2){         
                                                                                         emit(create_new_goto("Loop"+to_string($1)));
-                                                                                        emit(create_new_label("\nEndloop"+to_string($1)+":\n"));                                                                           
+                                                                                        emit(create_new_label("Endloop"+to_string($1)));                                                                           
                                                                                         clear_current_scope(); 
                                                                                     }
                                                                                 }
@@ -2266,12 +2266,12 @@ WhileStatementNoShortIf:    WhileStatementSubRoutine Rparen StatementNoShortIf  
 
 DoStatement:
     do_ {
-            if(pass_no == 2) emit(create_new_label("\nLoop" + to_string($1) + ":\n"));  
+            if(pass_no == 2) emit(create_new_label("Loop" + to_string($1) ));  
         } Statement While {if(pass_no == 2) loopnum--;} Lparen Expression {     
                                                     if(pass_no == 2){ 
                                                         check_boolean($7->type); 
                                                         emit(create_new_comp("== ", $7->tac,create_new_const("1", 4) , "Loop"+ to_string($1)));
-                                                        emit(create_new_label("\nEndloop"+to_string($1)+":\n"));
+                                                        emit(create_new_label("Endloop"+to_string($1)));
                                                     }
                                             } Rparen Semicolon  { if(pass_no == 2) clear_current_scope(); }
 ;
@@ -2298,7 +2298,7 @@ For2SubRoutine: For7SubRoutine Expression Semicolon   {
                                         ForCondition($2); 
                                         emit(create_new_comp("==", $2->tac, create_new_const("0", 4), "EndFor"+ to_string($1)));
                                         emit(create_new_comp("==", $2->tac, create_new_const("1", 4), "ForBody"+ to_string($1)));
-                                        /*3ac Update*/ emit(create_new_label("\nForUpdate" + to_string($1) + ":\n"));
+                                        /*3ac Update*/ emit(create_new_label("ForUpdate" + to_string($1) ));
                                         $$ = $1;
                                     }
                                 }
@@ -2307,7 +2307,7 @@ For3SubRoutine: For5SubRoutine Semicolon {
                                             if(pass_no == 2){
                                                 
                                                 emit(create_new_goto("ForBody"+ to_string($1)));
-                                                /*3ac Update*/ emit(create_new_label("\nForUpdate" + to_string($1) + ":\n"));
+                                                /*3ac Update*/ emit(create_new_label("ForUpdate" + to_string($1) ));
                                                 $$ = $1;
                                             }
                                         }
@@ -2316,48 +2316,48 @@ For4SubRoutine:    For7SubRoutine Semicolon {
                                                 if(pass_no == 2){
                                                     
                                                     emit(create_new_goto("ForBody"+ to_string($1)));
-                                                    /*3ac Update*/ emit(create_new_label("\nForUpdate" + to_string($1) + ":\n"));
+                                                    /*3ac Update*/ emit(create_new_label("ForUpdate" + to_string($1) ));
                                                     $$ = $1;
                                                 }
                                             }
 ;
 For5SubRoutine: For Lparen Semicolon    {   
                                             if(pass_no == 2){
-                                                emit(create_new_label("ForCond" + to_string($1) + ":\n"));
+                                                emit(create_new_label("ForCond" + to_string($1) ));
                                                 $$ = $1;
                                             }
                                         } 
 ;
 For6SubRoutine:    For1SubRoutine Semicolon Rparen {
                                         if(pass_no == 2){
-                                            emit(create_new_label("\nForUpdate" + to_string($1) + ":\n"));  // Not Required // Just for notation and clarity
+                                            emit(create_new_label("ForUpdate" + to_string($1) ));  // Not Required // Just for notation and clarity
                                             emit(create_new_goto("ForCond"+ to_string($1)));
-                                            emit(create_new_label("\nForBody" + to_string($1)+ ":\n"));
+                                            emit(create_new_label("ForBody" + to_string($1)));
                                             $$ = $1;
                                         }
                                     }
 ;
 For7SubRoutine: For Lparen ForInit Semicolon    { 
                                             if(pass_no == 2){
-                                                emit(create_new_label("\nForCond" + to_string($1) + ":\n"));
+                                                emit(create_new_label("ForCond" + to_string($1) ));
                                                 $$ = $1;
                                             }
                                     }
 ;
 For8SubRoutine: For3SubRoutine Rparen { 
                                         if(pass_no == 2){
-                                            emit(create_new_label("\nForUpdate" + to_string($1) + ":\n"));  // Not Required // Just for notation and clarity
+                                            emit(create_new_label("ForUpdate" + to_string($1) ));  // Not Required // Just for notation and clarity
                                             emit(create_new_goto("ForCond"+ to_string($1)));
-                                            emit(create_new_label("\nForBody" + to_string($1)+ ":\n"));
+                                            emit(create_new_label("ForBody" + to_string($1)));
                                             $$ = $1;
                                         }
                                     }
 
 For9SubRoutine: For4SubRoutine Rparen  {    
                                             if(pass_no == 2){
-                                                emit(create_new_label("\nForUpdate" + to_string($1) + ":\n"));  // Not Required // Just for notation and clarity
+                                                emit(create_new_label("ForUpdate" + to_string($1) ));  // Not Required // Just for notation and clarity
                                                 emit(create_new_goto("ForCond"+ to_string($1)));
-                                                emit(create_new_label("\nForBody" + to_string($1)+ ":\n"));
+                                                emit(create_new_label("ForBody" + to_string($1)));
                                                 $$ = $1;
                                             }
                                         } 
@@ -2365,16 +2365,16 @@ For9SubRoutine: For4SubRoutine Rparen  {
 For10SubRoutine: For3SubRoutine ForUpdate Rparen {  
                                                     if(pass_no == 2){
                                                         emit(create_new_goto("ForCond"+ to_string($1)));
-                                                        emit(create_new_label("\nForBody" + to_string($1)+ ":\n"));
+                                                        emit(create_new_label("ForBody" + to_string($1)));
                                                         $$ = $1;
                                                     }
                                                 }
 
 For11SubRoutine: For2SubRoutine Rparen {  
                                                     if(pass_no == 2){
-                                                        emit(create_new_label("\nForUpdate" + to_string($1) + ":\n"));  // Not Required // Just for notation and clarity
+                                                        emit(create_new_label("ForUpdate" + to_string($1) ));  // Not Required // Just for notation and clarity
                                                         emit(create_new_goto("ForCond"+ to_string($1)));
-                                                        emit(create_new_label("\nForBody" + to_string($1)+ ":\n"));
+                                                        emit(create_new_label("ForBody" + to_string($1)));
                                                         $$ = $1;
                                                     }
                                                 }
@@ -2382,7 +2382,7 @@ For11SubRoutine: For2SubRoutine Rparen {
 For12SubRoutine: For4SubRoutine ForUpdate Rparen {  
                                                     if(pass_no == 2){
                                                         emit(create_new_goto("ForCond"+ to_string($1)));
-                                                        emit(create_new_label("\nForBody" + to_string($1)+ ":\n"));
+                                                        emit(create_new_label("ForBody" + to_string($1)));
                                                         $$ = $1;
                                                     }
                                                 }
@@ -2390,7 +2390,7 @@ For12SubRoutine: For4SubRoutine ForUpdate Rparen {
 For13SubRoutine: For1SubRoutine Semicolon ForUpdate  Rparen  {  
                                                                 if(pass_no == 2){
                                                                     emit(create_new_goto("ForCond"+ to_string($1)));
-                                                                    emit(create_new_label("\nForBody" + to_string($1)+ ":\n"));
+                                                                    emit(create_new_label("ForBody" + to_string($1)));
                                                                     $$ = $1;
                                                                 }
                                                             }
@@ -2398,7 +2398,7 @@ For13SubRoutine: For1SubRoutine Semicolon ForUpdate  Rparen  {
 For14SubRoutine: For2SubRoutine ForUpdate Rparen {    
                                                                 if(pass_no == 2){
                                                                     emit(create_new_goto("ForCond"+ to_string($1)));
-                                                                    emit(create_new_label("\nForBody" + to_string($1)+ ":\n"));
+                                                                    emit(create_new_label("ForBody" + to_string($1)));
                                                                     $$ = $1;
                                                                 }
                                                             }
@@ -2408,7 +2408,7 @@ BasicForStatement:      For8SubRoutine Statement {
                                                                 if(pass_no == 2){
                                                                      
                                                                     emit(create_new_goto("ForUpdate" + to_string($1)));
-                                                                    emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
+                                                                    emit(create_new_label("EndFor" + to_string($1) )); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
@@ -2418,7 +2418,7 @@ BasicForStatement:      For8SubRoutine Statement {
                                                     if(pass_no == 2){
                                                          
                                                         emit(create_new_goto("ForUpdate" + to_string($1)));
-                                                        emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
+                                                        emit(create_new_label("EndFor" + to_string($1) )); 
                                                         // $$ = $1;
                                                         clear_current_scope();
                                                     }
@@ -2427,7 +2427,7 @@ BasicForStatement:      For8SubRoutine Statement {
                                                             if(pass_no == 2){
                                                                  
                                                                 emit(create_new_goto("ForUpdate" + to_string($1)));
-                                                                emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
+                                                                emit(create_new_label("EndFor" + to_string($1) )); 
                                                                 // $$ = $1;
                                                                 clear_current_scope();
                                                             }
@@ -2436,7 +2436,7 @@ BasicForStatement:      For8SubRoutine Statement {
                                                         if(pass_no == 2){
                                                              
                                                             emit(create_new_goto("ForUpdate" + to_string($1)));
-                                                            emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
+                                                            emit(create_new_label("EndFor" + to_string($1) )); 
                                                             // $$ = $1;
                                                             clear_current_scope();
                                                         }
@@ -2446,7 +2446,7 @@ BasicForStatement:      For8SubRoutine Statement {
                                                         if(pass_no == 2){
                                                              
                                                             emit(create_new_goto("ForUpdate" + to_string($1)));
-                                                            emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
+                                                            emit(create_new_label("EndFor" + to_string($1) )); 
                                                             // $$ = $1;
                                                             clear_current_scope();
                                                         }
@@ -2456,7 +2456,7 @@ BasicForStatement:      For8SubRoutine Statement {
                                                         if(pass_no == 2){
                                                              
                                                             emit(create_new_goto("ForUpdate" + to_string($1)));
-                                                            emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
+                                                            emit(create_new_label("EndFor" + to_string($1) )); 
                                                             // $$ = $1;
                                                             clear_current_scope();
                                                         }
@@ -2466,7 +2466,7 @@ BasicForStatement:      For8SubRoutine Statement {
                                                     if(pass_no == 2){
                                                          
                                                         emit(create_new_goto("ForUpdate" + to_string($1)));
-                                                        emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
+                                                        emit(create_new_label("EndFor" + to_string($1) )); 
                                                         // $$ = $1;
                                                         clear_current_scope();
                                                     }
@@ -2476,7 +2476,7 @@ BasicForStatement:      For8SubRoutine Statement {
                                                             if(pass_no == 2){
                                                                  
                                                                 emit(create_new_goto("ForUpdate" + to_string($1)));
-                                                                emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
+                                                                emit(create_new_label("EndFor" + to_string($1) )); 
                                                                 // $$ = $1;
                                                                 clear_current_scope();
                                                             }
@@ -2488,7 +2488,7 @@ BasicForStatementNoShortIf:
                         For8SubRoutine StatementNoShortIf {     
                                                                 if(pass_no == 2){  
                                                                     emit(create_new_goto("ForUpdate" + to_string($1)));
-                                                                    emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
+                                                                    emit(create_new_label("EndFor" + to_string($1) )); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
@@ -2497,14 +2497,14 @@ BasicForStatementNoShortIf:
 |                       For9SubRoutine StatementNoShortIf {     
                                                                 if(pass_no == 2){
                                                                     emit(create_new_goto("ForUpdate" + to_string($1)));
-                                                                    emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
+                                                                    emit(create_new_label("EndFor" + to_string($1) )); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
                                                             }
 |                       For6SubRoutine StatementNoShortIf      {    if(pass_no == 2){
                                                                         emit(create_new_goto("ForUpdate" + to_string($1)));
-                                                                        emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
+                                                                        emit(create_new_label("EndFor" + to_string($1) )); 
                                                                         // $$ = $1;
                                                                         clear_current_scope();
                                                                     }
@@ -2513,7 +2513,7 @@ BasicForStatementNoShortIf:
                                                                 if(pass_no == 2){        
                                                                      
                                                                     emit(create_new_goto("ForUpdate" + to_string($1)));
-                                                                    emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
+                                                                    emit(create_new_label("EndFor" + to_string($1) )); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
@@ -2523,7 +2523,7 @@ BasicForStatementNoShortIf:
                                                                 if(pass_no == 2){
                                                                      
                                                                     emit(create_new_goto("ForUpdate" + to_string($1)));
-                                                                    emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
+                                                                    emit(create_new_label("EndFor" + to_string($1) )); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
@@ -2533,7 +2533,7 @@ BasicForStatementNoShortIf:
                                                                 if(pass_no == 2){
                                                                      
                                                                     emit(create_new_goto("ForUpdate" + to_string($1)));
-                                                                    emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
+                                                                    emit(create_new_label("EndFor" + to_string($1) )); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
@@ -2543,7 +2543,7 @@ BasicForStatementNoShortIf:
                                                                 if(pass_no == 2){
                                                                      
                                                                     emit(create_new_goto("ForUpdate" + to_string($1)));
-                                                                    emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
+                                                                    emit(create_new_label("EndFor" + to_string($1) )); 
                                                                     // $$ = $1;
                                                                     clear_current_scope();
                                                                 }
@@ -2553,7 +2553,7 @@ BasicForStatementNoShortIf:
                                                                     if(pass_no == 2){
                                                                          
                                                                         emit(create_new_goto("ForUpdate" + to_string($1)));
-                                                                        emit(create_new_label("\nEndFor" + to_string($1) + ":\n")); 
+                                                                        emit(create_new_label("EndFor" + to_string($1) )); 
                                                                         // $$ = $1;
                                                                         clear_current_scope();
                                                                     }

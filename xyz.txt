@@ -1,0 +1,66 @@
+.section    .rodata
+.LC0:
+	.string    "%d\n"
+        .globl   main
+        .type    main, @function
+main:
+        pushq   %rbp
+        movq    %rsp, %rbp
+        subq    $4,%rsp
+        movq    $0,-4(%rbp)
+        movq    $3,%r8
+        movq    -4(%rbp),%r9
+        cmp     %r8,%r9
+        je      Tt0
+        movq    $0,0(%rsp)
+        jmp     TEndt0
+
+Tt0:
+        movq    $1,0(%rsp)
+TEndt0:
+        movq    $0,%r10
+        movq    0(%rsp),%r8
+        cmp     %r10,%r8
+        je      Else0
+        If0:
+        movq    $3,%r9
+        imul   $8,%r9
+        movq    %r9,8(%rsp)
+        movq    $2,%r10
+        addq    8(%rsp),%r10
+        movq    %r10,12(%rsp)
+        movq    $5,%r8
+        addq    $0,%r8
+        movq    %r8,16(%rsp)
+        movl    12(%rsp),%eax
+        cltd
+        idivl   16(%rsp)
+        movl    %edx,20(%rsp)
+        movl    $5,%eax
+        cltd
+        idivl   20(%rsp)
+        movl    %eax,24(%rsp)
+        movq    24(%rsp),%r9
+        movq    %r9,-4(%rbp)
+        movq    -4(%rbp),%rsi
+        leaq    .LC0(%rip),%rax
+        movq    %rax, %rdi
+        movq    $0,%rax
+        call    print@PLT
+
+        jmp     EndIf0
+Else0:
+EndIf0:
+return:
+        addq    $4,%rsp
+        movl    $0, %eax
+        leave
+        ret
+
+
+
+        movq    -4(%rbp),%rsi
+        leaq    .LC0(%rip),%rax
+        movq    %rax, %rdi
+        movq    $0,%rax
+        call    printf@PLT
