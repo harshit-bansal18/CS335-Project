@@ -12,27 +12,30 @@ int regcounter=0;
 
 ofstream asm_file;
 stringstream asm_ss;
+bool is_global_head_gen = false;
 
-map <instr_names, string> x86_instr = { {addl, "addl"},
+map <instr_names, string> x86_instr = { {addl, "addq"},
                                         {addq, "addq"},
                                         {mulq, "imulq"},
-                                        {mull, "imull"},
+                                        {mull, "imulq"},
                                         {movq, "movq"},
-                                        {movl, "movl"},
+                                        {movl, "movq"},
                                         {subq, "subq"},
-                                        {subl, "subl"},
-                                        {modl, "idivl"},
+                                        {subl, "subq"},
+                                        {modl, "idivq"},
                                         {modq, "idivq"},
-                                        {idivl, "idivl"},
+                                        {idivl, "idivq"},
                                         {idivq, "idivq"},
-                                        {negl, "negl"},
+                                        {negl, "negq"},
                                         {negq, "negq"},
                                         {jg, "jg"},
                                         {jl, "jl"},
                                         {je, "je"},
                                         {jne, "jne"},
                                         {jmp, "jmp"},
-                                        {call, "call"}};
+                                        {call, "call"},
+                                        {shlq, "shlq"},
+                                        {shrq, "shrq"}};
                                         
 
 string get_free_register() {
@@ -40,7 +43,7 @@ string get_free_register() {
 }
 
 string get_eax() {
-    return "\%eax";
+    return "\%rax";
 }
 
 void push_instr(string name, string dst, string src) {
@@ -63,19 +66,28 @@ static inline string get_stack_addr(string pointer_name, int offset) {
     return addr;
 }
 
+static inline string get_heap_addr(Address *heap_addr) {
+    string dst = insert_load_mem(heap_addr);
+    dst = "(" + dst + ")";
+    return dst;
+}
+
 string generate_asm_string(Address* addr) {
     string asm_code = "";
     if (addr->type == TEMP) {
         const char* name = addr->name.c_str();
-        cout << "name: " << name << endl;
         char buf[10] = {'\0'};
         memcpy(buf, name + 1, strlen(name)-1);
-        int offset = (atoi(buf)) * 4;
+        int offset = (atoi(buf)) * 8;
         asm_code = get_stack_addr("\%rsp", offset);
         // asm_code = get_stack_addr("\%rsp", addr->offset);
     }
     else if (addr->type == MEM) {
-        asm_code = get_stack_addr("\%rbp",addr->offset);
+        if (!addr->absolute)
+            asm_code = get_stack_addr("\%rbp",addr->offset);        
+        else { // heap addr
+            asm_code = get_heap_addr(addr->abs_offset);
+        }
     }
     else if (addr->type == CONST) {
         asm_code = "$" + addr->name;
@@ -89,7 +101,7 @@ string generate_asm_string(Address* addr) {
 
 string get_instr_name_mov(int size){
     if(size == 4)
-        return x86_instr[movl];
+        return x86_instr[movq];
     else if (size == 8)
         return x86_instr[movq];
     
@@ -118,7 +130,7 @@ static inline bool is_binary(string op) {
     if (op_c == '+' || op_c == '-' || op_c == '*' || op_c == '/')
         return true;
     
-    if (op == ">>" || op == "<<" || op == ">>>" )
+    if (op == ">>" || op == "<<" || op == ">>>")
         return true;
     
     return false;
@@ -188,6 +200,11 @@ string get_instr_name_binary(string op, int size) {
             return x86_instr[jle];
         else if (op == "==")
             return x86_instr[je];
+        else if (op == "<<")
+            return x86_instr[shlq];
+        else if(op == ">>")
+            return x86_instr[shrq];
+        
         else 
             return "";
 
@@ -196,13 +213,25 @@ string get_instr_name_binary(string op, int size) {
     return "";
 }
 
+// Put number of bytes to allocate in rdi
+// call malloc
+// address of allocated heap is in rax
+// store rax in result location
+void process_allocmem(Allocmem *allocmem) {
+    string name = get_instr_name_mov(allocmem->num_bytes->size);
+    push_instr(name, "\%rdi", generate_asm_string(allocmem->num_bytes));
+    push_instr(x86_instr[call], MALLOC, EMPTY_STR);
+    insert_store_mem(allocmem->result, "\%rax");
+}
+
 void process_arg(Arg *_arg) {
-//     string inst_name;
-//     inst_name = get_instr_name_mov(_arg->arg->size);
-//     dst = insert_load_mem(arg1);
-//     src = generate_asm_string(arg2);
-//     push_instr(name, dst, src);
-//     insert_store_mem(quad->result, dst);
+    if(_arg->arg->type == CONST) {
+        push_instr(get_instr_name_mov(_arg->arg->size), get_stack_addr("\%rsp", _arg->offset), generate_asm_string(_arg->arg));
+    }
+    else {
+        string temp = insert_load_mem(_arg->arg);
+        push_instr(get_instr_name_mov(_arg->arg->size), get_stack_addr("\%rsp", _arg->offset), temp);
+    }  
 }
 
 void process_call(Call *call_p) {
@@ -233,13 +262,16 @@ void process_quad(Quad *quad) {
         if (quad->operation[0] == '/' || quad->operation[0] == '\%') {
             name = get_instr_name_binary(quad->operation, arg1->size);
             // dst = insert_load_mem(arg1);
-            push_instr(x86_instr[movl], "\%eax", generate_asm_string(arg1)); // dividend pushed in eax
-            push_instr("cltd", "", ""); // sign extend eax to edx:eax
-            push_instr(name, generate_asm_string(arg2), "");
-            if(quad->operation[0] == '/')
-                insert_store_mem(quad->result, "\%eax");
+            push_instr(x86_instr[movl], "\%rax", generate_asm_string(arg1)); // dividend pushed in eax
+            push_instr("cqto", "", ""); // sign extend eax to edx:eax
+            if(arg2->type == CONST)
+                push_instr(name, insert_load_mem(arg2), "");
             else
-                insert_store_mem(quad->result, "\%edx");
+                push_instr(name, generate_asm_string(arg2), "");
+            if(quad->operation[0] == '/')
+                insert_store_mem(quad->result, "\%rax");
+            else
+                insert_store_mem(quad->result, "\%rdx");
         }
         else if (is_binary(quad->operation)) {
             // If both arguments are memory types, load one of them to register and then issue add operation
@@ -260,11 +292,8 @@ void process_quad(Quad *quad) {
             push_instr(name, dst, "");
             insert_store_mem(quad->result, dst);
         }
-        if (quad->operation == "="){
-            if (arg1->size == 4)
-                name = x86_instr[movl];
-            else if (arg1->size == 8)
-                name = x86_instr[movq];
+        if (quad->operation == "=" || quad->operation == CAST){
+            name = get_instr_name_mov(arg1->size);
             
             // if operator is "=", then also arg2 will be null
             if (arg1->type == CONST)
@@ -293,13 +322,10 @@ void process_goto(Goto* _goto){
 
 static inline void generate_return(Address* ret_val, bool  push){
     string dst, name, src;
-    if(ret_val->size == 4)
-        name = x86_instr[movl];
-    else if (ret_val->size == 8)
-        name = x86_instr[movq];
+    name = get_instr_name_mov(ret_val->size); 
     dst = generate_asm_string(ret_val);
     src = get_eax();
-    push_instr(name, src, dst);
+    push_instr(name, dst, src);
 }
 
 void process_return(Return* ret){
@@ -329,17 +355,31 @@ void process_reg(Reg* reg){
     // Add more registers if needed
 }
 
+void process_print(Print* _print){
+    // string stack_addr = get_stack_addr("\%rbp", _print->arg1->offset);
+    string addr = generate_asm_string(_print->arg1);
+    push_instr(x86_instr[movq],"\%rsi", addr);
+    push_instr(x86_instr[movq],"\%rdi","$.LC0");       
+    push_instr(x86_instr[movq],"\%rax", "$0");
+    push_instr(x86_instr[call],"printf", "");
+}
+
 void method_footer() {
-    asm_ss << "\tmovl\t$0, \%eax\n";
+    asm_ss << "\tmovq\t$0, \%rax\n";
     asm_ss << "\tleave\n";
     asm_ss << "\tret\n";
     asm_ss << "\n\n";
 }
 
-void method_header(string func_name) {
-    asm_ss<< ".section    .rodata\n";
+void global_header(){
+    asm_ss << ".text\n";
+    asm_ss << ".section    .rodata\n";
     asm_ss<< ".LC0:\n";
 	asm_ss << "\t.string    \"%d\\n\" \n";
+}
+
+void method_header(string func_name) {
+    asm_ss << "\t.text\n";
     asm_ss << "\t .globl   " + func_name << "\n";
     asm_ss << "\t .type    " + func_name << ", @function\n";
     asm_ss << func_name << ":\n";
@@ -348,6 +388,7 @@ void method_header(string func_name) {
 }
 
 void generate_method_asm(vector<ThreeAC *> &tac_instr) {
+    
     Quad *quad_p;
     Arg  *arg_p;
     Label *label_p;
@@ -356,10 +397,18 @@ void generate_method_asm(vector<ThreeAC *> &tac_instr) {
     Reg* reg_p;
     Goto* goto_p;
     Comp* comp_p;
+    Print* print_p;
+    Allocmem *allocm_p;
+
     asm_ss.clear();
     asm_ss.str(string());
-    asm_file.open("asm.s");
     int flag = 0;
+
+    if(!is_global_head_gen){
+        global_header();
+        is_global_head_gen = true;
+    }
+    
     for (auto instr: tac_instr) {
         quad_p = dynamic_cast<Quad *> (instr);
         if (quad_p != nullptr) {
@@ -411,10 +460,21 @@ void generate_method_asm(vector<ThreeAC *> &tac_instr) {
             process_comp(comp_p);
             continue;
         }
+
+        allocm_p = dynamic_cast<Allocmem *> (instr);
+        if (allocm_p != nullptr) {
+            process_allocmem(allocm_p);
+            continue;
+        }
+
+        print_p = dynamic_cast<Print *> (instr);
+        if (print_p != nullptr) {
+            process_print(print_p);
+            continue;
+        }
     }
     method_footer();
 
     asm_file << asm_ss.str();
-    asm_file.close();
 
 }

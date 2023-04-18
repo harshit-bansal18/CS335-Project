@@ -311,9 +311,11 @@ MethodDefinition ClassDefinition::find_constructor(vector<Type*> &args) {
     MethodDefinition cnstr;
     cnstr.ret_type = get_type(this->name); // cannot be array so no extra copy will be made here
     cnstr.args = v;  
-    if (constructors.empty() && args.empty())
+    if (constructors.empty() && args.empty()) {
+        // Harshit: Sending hint to parser that this constructor is not defined by the user.
+        cnstr.args.push_back(NULL);
         return cnstr;
-    
+    }
     for( auto c: constructors) {
         if (compare_argument_types(c->args, args)) {
             return *c;

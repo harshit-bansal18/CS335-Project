@@ -9,6 +9,18 @@
 
 #define SP "rsp"
 
+#define ENDLOOP_LABEL "end_loop"
+#define IF_LABEL "if"
+#define ELSE_LABEL "else"
+#define ENDIF_LABEL "end_if"
+#define LOOP_LABEL  "loop"
+#define ENDFOR_LABEL "end_for"
+#define FORBODY_LABEL "for_body"
+#define FORUPDATE_LABEL "for_update"
+#define FORCOND_LABEL "for_cond"
+#define T_LABEL     "t"
+#define TEND_LABEL "t_end"
+
 using namespace std;
 
 struct TypeName;
@@ -115,6 +127,20 @@ class Reg: public ThreeAC {
     Reg(string reg, int _size, bool _add);
 };
 
+class Print: public ThreeAC {
+    public:
+        Address* arg1;
+
+    Print(Address* _arg1);
+};
+
+class Allocmem: public ThreeAC {
+    public:
+        Address* num_bytes;
+        Address* result;
+    Allocmem(Address* _bytes, Address* _result);
+};
+
 Address* create_new_temp();
 Address* create_new_const(string val, int size);
 Address* create_new_mem(string name, int offset, int type_size);  // if absolute = false
@@ -128,29 +154,8 @@ Comp* create_new_comp(string comparator, Address* addr1, Address* addr2, string 
 Reg* create_new_reg(string reg, int _size, bool _add);  // increment-decrement the stack pointer
 Return * create_new_return( Address * retval, bool _push );
 Call* create_new_call( string f_name, int arg_count );
-
-// typedef struct entry3ac{
-//     string threeac="";
-// } entry3ac;
-
-// typedef struct loopentry{
-//     int loopnum;
-// } loopentry;
-
-// typedef struct ifentry{
-//     int ifnum;
-// } ifentry;
-
-
-// class Address {
-//     string name;
-// };
-
-// class Quad {
-//     Address result, arg1, arg2;
-//     string operation;
-
-// };
+Print* create_new_print(Address* _arg1);
+Allocmem* create_new_allocmem(Address* _bytes, Address* _result);
 
 void emit(ThreeAC* tac);
 
@@ -167,18 +172,6 @@ Address* binary_bitwise_operator_3ac(Address* e1, string op, Address* e2);
 Address* and_operator_3ac(Address* e1, Address* e2);
 
 Address* or_operator_3ac(Address* e1, Address* e2);
-
-// string and_operator_3ac(string e1, string e2){
-//     string temp = get_temp();
-//     emit("if", e1, "false", "goto(T" + temp+")" );
-//     emit("=", e1, "", temp);
-//     emit("goto(TEnd"+temp+")","","","");
-//     emit("T"+temp+":","","","");
-//     emit("if", e2, "true", "goto(T" + temp+")" );
-//     emit("=", e2, "", temp);
-//     emit("=", "false", "", temp);
-//     return temp;
-// }
 
 Address* deq_check_3ac(Address* e1, Address* e2);
 

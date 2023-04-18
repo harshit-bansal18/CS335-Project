@@ -64,3 +64,30 @@ return:
         movq    %rax, %rdi
         movq    $0,%rax
         call    printf@PLT
+
+
+
+
+
+
+----------Template---------------
+
+
+
+	.text
+        .section        .rodata
+.LC0:
+        .string "%d"
+        .text
+        .globl  main
+        .type   main, @function
+main:
+	pushq	%rbp
+	movq	%rsp, %rbp	
+	movl    %eax, %esi
+        movl    $.LC0, %edi
+        movl    $0, %eax
+        call    printf
+        movl    $0, %eax
+        leave
+        ret

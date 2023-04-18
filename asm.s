@@ -1,22 +1,45 @@
+.text
 .section    .rodata
 .LC0:
 	.string    "%d\n" 
-	 .globl   TestEmployee1.main
-	 .type    TestEmployee1.main, @function
-TestEmployee1.main:
+	.text
+	 .globl   main
+	 .type    main, @function
+main:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	subq	$8,%rsp
-	movl	$0,-4(%rbp)
-	movl	$20,-8(%rbp)
-	movl	-4(%rbp),%r8
-	addl	$20,%r8
-	movl	%r8,4(%rsp)
-	movl	4(%rsp),%r9
-	movl	%r9,-4(%rbp)
-	return:	
-	addq	$8,%rsp
-	movl	$0, %eax
+	subq	$24,%rsp
+	subq	$4,%rsp
+	movq	16(%rbp),%r8
+	movq	%r8,8(%rsp)
+	movq	8(%rsp),%r9
+	movq	%r9,0(%rsp)
+	call	FuncTest.get_int
+	addq	$4,%rsp
+	movq	%rax,0(%rsp)
+	movq	0(%rsp),%r10
+	movq	%r10,-8(%rbp)
+	movq	-8(%rbp),%rsi
+	movq	$.LC0,%rdi
+	movq	$0,%rax
+	call	printf
+	return0:	
+	addq	$24,%rsp
+	movq	$0, %rax
+	leave
+	ret
+
+
+	.text
+	 .globl   FuncTest.get_int
+	 .type    FuncTest.get_int, @function
+FuncTest.get_int:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	movq	%rax,$1
+	jmp	return1
+	return1:	
+	movq	$0, %rax
 	leave
 	ret
 

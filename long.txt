@@ -1,0 +1,66 @@
+name: t0
+name: t0
+name: t2
+name: t1
+name: t3
+name: t1
+name: t5
+name: t4
+name: t4
+name: t6
+name: t6
+name: t6
+name: t8
+name: t8
+name: t9
+name: t10
+name: t9
+name: t10
+name: t11
+name: t11
+name: t12
+name: t13
+Label: main
+Reg: rsp 136 0
+Quad: = 0  a
+Quad: << 5 2 t0
+Quad: = t0  c
+Quad: = 4  d
+Quad: cast_to_long 20  t2
+Quad: + c t2 t1
+Quad: << 1 2 t3
+Quad: cast_to_long t3  t5
+Quad: * t1 t5 t4
+Quad: = t4  a
+Comp: == a 160 Tt6
+Quad: = 0  t6
+Goto: TEndt6
+Label: 
+Tt6
+Quad: = 1  t6
+Label: 
+TEndt6
+Comp: == t6 0 Else0
+Label: If0
+Quad: * 3 8 t8
+Quad: + 2 t8 t9
+Quad: + 5 0 t10
+Quad: % t9 t10 t11
+Quad: / 5 t11 t12
+Quad: cast_to_long t12  t13
+Quad: = t13  a
+Goto: EndIf0
+Label: Else0
+Label: EndIf0
+Label: return
+Reg: rsp 136 1
+
+
+
+
+
+
+
+
+
+17685

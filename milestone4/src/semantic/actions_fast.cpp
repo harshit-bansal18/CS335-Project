@@ -938,9 +938,9 @@ stackentry* ShiftExpression(stackentry* e1, stackentry* e2) {
     }
 
     if(check_return_type(e1->type, e2->type)) 
-            return e1;
+            return make_stackentry("", e1->type, yylineno);
         else
-            return e2;
+            return make_stackentry("", e2->type, yylineno);
 }
 
 stackentry* RelationalExpression(stackentry* e1, stackentry* e2) {
@@ -993,9 +993,9 @@ stackentry* BitwiseExpression (stackentry* e1, stackentry* e2) {
     }
 
     if(check_return_type(e1->type, e2->type)) 
-            return e1;
+        return make_stackentry("", e1->type, yylineno);
     else
-        return e2;
+        return make_stackentry("", e2->type, yylineno);
 }
 
 stackentry* ConditionalExpression (stackentry* e1, stackentry* e2) {
@@ -1010,7 +1010,7 @@ stackentry* ConditionalExpression (stackentry* e1, stackentry* e2) {
         exit(-1);
     }
 
-    return e1;
+    return make_stackentry("", e1->type, yylineno);
 }
 
 Type *add_to_defined_types(Type *type) {
@@ -1084,10 +1084,12 @@ void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no) {
                     current_class->class_width += e1->type->size;
             }
             else {
-                if (e1->type->is_pointer())
-                    current_table->offset -= REF_TYPE_SIZE;
-                else
-                    current_table->offset -= e1->type->size;
+                current_table->offset -= 8;
+                // JAYA
+                // if (e1->type->is_pointer())
+                //     current_table->offset -= REF_TYPE_SIZE;
+                // else
+                //     current_table->offset -= e1->type->size;
                 add_variable(e1->token, global_modifier, e1->type, current_table->offset, false, true);
             }
 
@@ -1130,10 +1132,12 @@ void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no) {
                     current_class->class_width += e1->type->size;
             }
             else {
-                if(e1->type->is_pointer())
-                    current_table->offset -= REF_TYPE_SIZE;
-                else
-                    current_table->offset -= e1->type->size;
+                current_table->offset -= 8;
+                // JAYA
+                // if(e1->type->is_pointer())
+                //     current_table->offset -= REF_TYPE_SIZE;
+                // else
+                //     current_table->offset -= e1->type->size;
                 add_variable(e1->token, global_modifier, e1->type, current_table->offset, false, false);
             }
         }

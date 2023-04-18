@@ -498,6 +498,7 @@ EOL_COMMENT         \/\/[^\n\r]*
 
 {TRADITIONAL_COMMENT}                  {/*ignore it*/}
 
+"System.out.println"                     {return PRINT;}
 
 <INITIAL><<EOF>>        { 
                               BEGIN(REALLYEND); 

@@ -16,4 +16,4 @@ make milestone3
 
 # ${MILE1}${BIN} --input ${TEST}"test_15.java"
 
-./build/milestone3/javair --input ./milestone3/tests/test_0.java
+./build/milestone3/javair --input ./milestone3/tests/array.java

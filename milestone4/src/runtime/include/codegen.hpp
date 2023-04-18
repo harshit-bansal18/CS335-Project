@@ -7,6 +7,9 @@
 
 using namespace std;
 
+#define CAST "cast"
+#define MALLOC "malloc"
+#define EMPTY_STR ""
 
 // List all the registers
 typedef enum {
@@ -41,7 +44,9 @@ typedef enum {
     idivl,
     idivq,
     modl,
-    negq
+    negq,
+    shlq,
+    shrq
 }instr_names;
 
 
@@ -88,5 +93,7 @@ struct x86_reg {
 };
 
 string get_free_register();
+static inline string insert_load_mem(Address *mem_addr);
+
 void generate_method_asm(vector<ThreeAC *> &tac_instr);
 #endif
