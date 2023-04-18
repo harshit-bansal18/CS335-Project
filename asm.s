@@ -25,7 +25,6 @@ main:
 	call	printf
 	return0:	
 	addq	$24,%rsp
-	movq	$0, %rax
 	leave
 	ret
 
@@ -36,10 +35,9 @@ main:
 FuncTest.get_int:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	movq	%rax,$1
+	movq	$1,%rax
 	jmp	return1
 	return1:	
-	movq	$0, %rax
 	leave
 	ret
 

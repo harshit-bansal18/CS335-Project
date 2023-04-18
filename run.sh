@@ -1,19 +1,12 @@
 #!/bin/bash
 
-MILE1="./build/milestone3/"
-BIN="javair"
-TEST="milestone3/tests/"
+if [[ $# -ne 1 ]];
+then
+    echo "format: ./run.sh <input_file>"
+    exit 1
+fi
 
-
-make clean
-make milestone3
-
-# for file in ${TEST}*.java
-# do 
-#     echo "Running on $file"
-#     ${MILE1}${BIN} --input $file
-# done
-
-# ${MILE1}${BIN} --input ${TEST}"test_15.java"
-
-./build/milestone3/javair --input ./milestone3/tests/array.java
+./build/milestone4/java2x86 --input ./milestone4/tests/$1 --output asm.s > long.txt
+# gcc -c -fPIE -m64 -fno-asynchronous-unwind-tables -fno-exceptions asm.s -o asm.o 
+# gcc -o asm asm.o
+gcc -fPIE asm.s -o asm -no-pie -Wl,-z,noexecstack

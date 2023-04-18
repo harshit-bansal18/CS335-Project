@@ -325,13 +325,16 @@ static inline void generate_return(Address* ret_val, bool  push){
     name = get_instr_name_mov(ret_val->size); 
     dst = generate_asm_string(ret_val);
     src = get_eax();
-    push_instr(name, dst, src);
+    if (push)
+        push_instr(name, src, dst);
+    else
+        push_instr(name, dst, src);
 }
 
 void process_return(Return* ret){
     Address* ret_val = ret->ret_value;
 
-    if(push){
+    if(ret->push){
         if(ret_val != NULL){
             generate_return(ret_val, ret->push);
         }
@@ -364,9 +367,12 @@ void process_print(Print* _print){
     push_instr(x86_instr[call],"printf", "");
 }
 
+
 void method_footer() {
-    asm_ss << "\tmovq\t$0, \%rax\n";
-    asm_ss << "\tleave\n";
+
+    // asm_ss << "\tmovq\t$0, \%rax\n";
+    asm_ss << "\tpopq\t\%rbp\n";
+    // asm_ss << "\tleave\n";
     asm_ss << "\tret\n";
     asm_ss << "\n\n";
 }
