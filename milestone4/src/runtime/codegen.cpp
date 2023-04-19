@@ -78,7 +78,7 @@ string generate_asm_string(Address* addr) {
         const char* name = addr->name.c_str();
         char buf[10] = {'\0'};
         memcpy(buf, name + 1, strlen(name)-1);
-        int offset = (atoi(buf)) * 8;
+        int offset = (atoi(buf)) * CONSTANT_SIZE;
         asm_code = get_stack_addr("\%rsp", offset);
         // asm_code = get_stack_addr("\%rsp", addr->offset);
     }

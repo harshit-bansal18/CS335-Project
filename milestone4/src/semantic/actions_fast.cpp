@@ -1078,13 +1078,15 @@ void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no) {
             // cerr << __func__ << ": adding symbol: " << e1->token << " " << e1->type->name << endl;
             if(current_scope == scope_class){
                 add_variable(e1->token, global_modifier, e1->type, current_class->class_width, false, true);
-                if(e1->type->is_pointer())
-                    current_class->class_width += REF_TYPE_SIZE;
-                else
-                    current_class->class_width += e1->type->size;
+                current_class->class_width += CONSTANT_SIZE;
+                // JAYA
+                // if(e1->type->is_pointer())
+                //     current_class->class_width += REF_TYPE_SIZE;
+                // else
+                //     current_class->class_width += e1->type->size;
             }
             else {
-                current_table->offset -= 8;
+                current_table->offset -= CONSTANT_SIZE;
                 // JAYA
                 // if (e1->type->is_pointer())
                 //     current_table->offset -= REF_TYPE_SIZE;
@@ -1126,13 +1128,15 @@ void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no) {
         if ((pass_no == 1 && current_scope == scope_class) || (pass_no == 2 && current_scope == scope_method)){
             if(current_scope == scope_class){
                 add_variable(e1->token, global_modifier, e1->type, current_class->class_width, false, false);
-                if(e1->type->is_pointer())
-                    current_class->class_width += REF_TYPE_SIZE;
-                else
-                    current_class->class_width += e1->type->size;
+                current_class->class_width += CONSTANT_SIZE;
+                // JAYA
+                // if(e1->type->is_pointer())
+                //     current_class->class_width += REF_TYPE_SIZE;
+                // else
+                //     current_class->class_width += e1->type->size;
             }
             else {
-                current_table->offset -= 8;
+                current_table->offset -= CONSTANT_SIZE;
                 // JAYA
                 // if(e1->type->is_pointer())
                 //     current_table->offset -= REF_TYPE_SIZE;

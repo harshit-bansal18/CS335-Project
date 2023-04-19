@@ -9,6 +9,8 @@
 
 #define SP "rsp"
 
+#define CONSTANT_SIZE 8
+
 #define ENDLOOP_LABEL "end_loop"
 #define IF_LABEL "if"
 #define ELSE_LABEL "else"

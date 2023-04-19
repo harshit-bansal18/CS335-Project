@@ -105,7 +105,7 @@ Allocmem::Allocmem(Address* _bytes, Address* _result){
 Address* create_new_temp(){
     string name = T_LABEL + to_string(tcount++);
     Address* addr = new Address(name, TEMP);
-    addr->size = 8; // size of register for int operation 
+    addr->size = CONSTANT_SIZE; // size of register for int operation 
 
     return addr;
 }
@@ -268,7 +268,7 @@ Address* assign_operator_3ac(Address* result , Address* operand ){
 
 Address* ternary_condition_3ac(Address* cond, Address* e1, Address* e2){
     Address* temp = create_new_temp();
-    emit(create_new_comp("==", cond, create_new_const("0", 8), T_LABEL + temp->name));
+    emit(create_new_comp("==", cond, create_new_const("0", CONSTANT_SIZE), T_LABEL + temp->name));
     emit(create_new_quad("=", e1, NULL, temp));
     emit(create_new_goto(TEND_LABEL+temp->name));
     emit(create_new_label(T_LABEL+temp->name));
@@ -291,7 +291,7 @@ Address* binary_bitwise_operator_3ac(Address* e1, string op, Address* e2){
 
 Address* or_operator_3ac(Address* e1, Address* e2){
     Address* temp = create_new_temp();
-    emit(create_new_comp("==", e1, create_new_const("0", 8), T_LABEL + temp->name));
+    emit(create_new_comp("==", e1, create_new_const("0", CONSTANT_SIZE), T_LABEL + temp->name));
 
     emit(create_new_quad("=", e1, NULL, temp));
     emit(create_new_goto(TEND_LABEL+temp->name));
@@ -306,7 +306,7 @@ Address* or_operator_3ac(Address* e1, Address* e2){
 
 Address* and_operator_3ac(Address* e1, Address* e2){
     Address* temp = create_new_temp();
-    emit(create_new_comp("==", e1, create_new_const("1", 8), T_LABEL + temp->name));
+    emit(create_new_comp("==", e1, create_new_const("1", CONSTANT_SIZE), T_LABEL + temp->name));
 
     emit(create_new_quad("=", e1, NULL, temp));
     emit(create_new_goto(TEND_LABEL+temp->name));
@@ -322,10 +322,10 @@ Address* and_operator_3ac(Address* e1, Address* e2){
 Address* deq_check_3ac(Address* e1, Address* e2){
     Address* temp = create_new_temp();
     emit(create_new_comp("==", e1, e2, T_LABEL + temp->name));
-    emit(create_new_quad("=", create_new_const("0", 8), NULL, temp));
+    emit(create_new_quad("=", create_new_const("0", CONSTANT_SIZE), NULL, temp));
     emit(create_new_goto(TEND_LABEL+temp->name));
     emit(create_new_label(T_LABEL+temp->name));
-    emit(create_new_quad("=", create_new_const("1", 8), NULL, temp));
+    emit(create_new_quad("=", create_new_const("1", CONSTANT_SIZE), NULL, temp));
     emit(create_new_label(TEND_LABEL+temp->name));
     return temp;
 }
@@ -333,10 +333,10 @@ Address* deq_check_3ac(Address* e1, Address* e2){
 Address* neq_check_3ac(Address* e1, Address* e2){
     Address* temp = create_new_temp();
     emit(create_new_comp("==", e1, e2, T_LABEL + temp->name));
-    emit(create_new_quad("=", create_new_const("1", 8), NULL, temp));
+    emit(create_new_quad("=", create_new_const("1", CONSTANT_SIZE), NULL, temp));
     emit(create_new_goto(TEND_LABEL+temp->name));
     emit(create_new_label(T_LABEL+temp->name));
-    emit(create_new_quad("=", create_new_const("0", 8), NULL, temp));
+    emit(create_new_quad("=", create_new_const("0", CONSTANT_SIZE), NULL, temp));
     emit(create_new_label(TEND_LABEL+temp->name));
     return temp;
 } // == , !=
@@ -344,10 +344,10 @@ Address* neq_check_3ac(Address* e1, Address* e2){
 Address* relation_check_3ac(Address* e1, string op, Address* e2){
     Address* temp = create_new_temp();
     emit(create_new_comp(op, e1, e2, T_LABEL + temp->name));
-    emit(create_new_quad("=", create_new_const("0", 8), NULL, temp));
+    emit(create_new_quad("=", create_new_const("0", CONSTANT_SIZE), NULL, temp));
     emit(create_new_goto(TEND_LABEL+temp->name));
     emit(create_new_label(T_LABEL+temp->name));
-    emit(create_new_quad("=", create_new_const("1", 8),NULL, temp));
+    emit(create_new_quad("=", create_new_const("1", CONSTANT_SIZE),NULL, temp));
     emit(create_new_label(TEND_LABEL+temp->name));
     return temp;
 } // < , > , <= , >=
@@ -355,13 +355,13 @@ Address* relation_check_3ac(Address* e1, string op, Address* e2){
 Address* post_increament_3ac(Address* e1){
     Address* temp = create_new_temp();
     emit(create_new_quad("=", e1, NULL, temp));
-    emit(create_new_quad("+", temp, create_new_const("1", 8), e1));
+    emit(create_new_quad("+", temp, create_new_const("1", CONSTANT_SIZE), e1));
     return temp;
 }
 
 Address* pre_increament_3ac(Address* e1){
     Address* temp = create_new_temp();
-    emit(create_new_quad("+", e1, create_new_const("1", 8), temp));
+    emit(create_new_quad("+", e1, create_new_const("1", CONSTANT_SIZE), temp));
     emit(create_new_quad("=", temp, NULL, e1));
     return temp;
 }
@@ -369,13 +369,13 @@ Address* pre_increament_3ac(Address* e1){
 Address* post_decreament_3ac(Address* e1){
     Address* temp = create_new_temp();
     emit(create_new_quad("=", e1, NULL, temp));
-    emit(create_new_quad("-", temp, create_new_const("1", 8), e1));
+    emit(create_new_quad("-", temp, create_new_const("1", CONSTANT_SIZE), e1));
     return temp;
 }
 
 Address* pre_decreament_3ac(Address* e1){
     Address* temp = create_new_temp();
-    emit(create_new_quad("-", e1, create_new_const("1", 8), temp));
+    emit(create_new_quad("-", e1, create_new_const("1", CONSTANT_SIZE), temp));
     emit(create_new_quad("=", temp, NULL, e1));
     return temp;
 }
@@ -387,7 +387,7 @@ Address* field_access_3ac(Address* tac_name, int offset, Type* type, string id) 
     Address* temp2 = create_new_temp();
     // emit("+", tac_name, to_string(offset), temp2);
     // tacss << "+" << "" << tac_name << "+" << offset << ") " << temp2 << "\n";
-    emit(create_new_quad("+", tac_name, create_new_const(to_string(offset), 8), temp2));
+    emit(create_new_quad("+", tac_name, create_new_const(to_string(offset), CONSTANT_SIZE), temp2));
     Address* mem = create_new_mem(id, temp2, type);
     return mem;
 }
@@ -406,7 +406,7 @@ Address* type_name_3ac(TypeName *type_name, bool is_func) {
         Address* tmp = create_new_temp();
         emit(create_new_quad("=", arg1, NULL, tmp));
         Address* tmp1 = create_new_temp();
-        emit(create_new_quad("+", tmp, create_new_const(to_string(ids[i]->offset), 8), tmp1));
+        emit(create_new_quad("+", tmp, create_new_const(to_string(ids[i]->offset), CONSTANT_SIZE), tmp1));
         arg1 = create_new_mem(ids[i]->name, tmp1, ids[i]->type);
     }
 
@@ -440,7 +440,7 @@ Address* type_name_3ac(TypeName *type_name, bool is_func) {
 
 Address* get_array_size(vector<Address*> array_dims, int start_i){
     Address* temp = create_new_temp();
-    emit(create_new_quad("=", create_new_const("1", 8), NULL, temp));
+    emit(create_new_quad("=", create_new_const("1", CONSTANT_SIZE), NULL, temp));
     Address* temp1;
     for(int i=start_i; i<array_dims.size(); i++){
         temp1 = create_new_temp();
@@ -473,7 +473,11 @@ void dump_3ac(string fname, unsigned long func_local_space_size){
     // string filename = DUMP_DIR + fname + ".3ac";
     // ofstream outss(filename.c_str());
     // outss << fname << " : \n" << endl;
-    func_local_space_size += (tcount*8);
+    
+    cout << "Func name: " << fname << "\n";
+    printf("Local var size: %d, Temp size:%d\n", func_local_space_size, tcount*CONSTANT_SIZE);
+    func_local_space_size += (tcount*CONSTANT_SIZE);
+    
     insert_in_global_quads(create_new_label(fname));
     // Need function Header here
     // outss << "push ebp" << endl;

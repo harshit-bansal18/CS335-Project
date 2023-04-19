@@ -91,3 +91,17 @@ main:
         movl    $0, %eax
         leave
         ret
+
+
+
+
+
+
+
+
+
+
+./build/milestone4/java2x86 --input ./milestone4/tests/function.java --output function.s
+gcc -c function.s -o function.o  
+gcc -o function function.o 
+./function 

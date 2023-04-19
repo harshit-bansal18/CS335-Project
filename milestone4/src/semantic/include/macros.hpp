@@ -25,5 +25,6 @@
 
 #define DUMP_DIR "build/milestone3/dump/"
 
-#define REF_TYPE_SIZE 4
+// JAYA
+#define REF_TYPE_SIZE 8
 #endif

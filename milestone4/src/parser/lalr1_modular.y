@@ -792,7 +792,7 @@ FormalParameter:
                                                         current_table ->offset = 24;
                                                     add_variable($2->token, 0b0, $2->type, current_table->offset, true, true);
 
-                                                    current_table->offset += 8;
+                                                    current_table->offset += CONSTANT_SIZE;
                                                     // JAYA
                                                     // if($2->type->is_pointer())
                                                     //     current_table->offset += REF_TYPE_SIZE;
@@ -814,7 +814,7 @@ FormalParameter:
                                                         current_table ->offset = 24;
                                                     add_variable($3->token, $$->modifier, $3->type, current_table->offset, true, true);
                                                     
-                                                    current_table->offset += 8;
+                                                    current_table->offset += CONSTANT_SIZE;
                                                     // JAYA
                                                     // if($2->type->is_pointer())
                                                     //     current_table->offset += REF_TYPE_SIZE;
@@ -1023,9 +1023,10 @@ ClassInstanceCreationExpressionSubRoutine:
     New ClassOrInterfaceType Lparen {if(pass_no == 2) {
                                         $$ = make_stackentry("", ($2), yylineno);
                                         $$->tac = create_new_temp();
-
+ 
                                         emit(create_new_allocmem(create_new_const(to_string($2->class_def->class_width), 4), $$->tac));
-                                        
+
+
                                         // JAYA allocmem
                                         // Reg* reg = create_new_reg(SP, 4, false); // space for arguments  -> width
                                         // emit(reg);
@@ -1100,7 +1101,10 @@ ClassInstanceCreationExpression:
                                                                     }else {
                                                                          emit(create_new_arg(args[i], local_args_sum));
                                                                     }
-                                                                    local_args_sum += func_pair.second[i]->size;   
+
+                                                                    // JAYA 
+                                                                    // local_args_sum += func_pair.second[i]->size;   
+                                                                    local_args_sum += CONSTANT_SIZE;   
                                                                 }
 
                                                                 args.clear();
@@ -1249,17 +1253,18 @@ MethodInvocation:   TypeName Lparen Rparen  {
                                                     int names_size = ($1)->names.size();
                                                     string method_name;
 
-                                                    int ret_type_size = 0;
+                                                    // JAYA
+                                                    // int ret_type_size = 0;
 
-                                                    if(method_def_pair.first->is_class)
-                                                        ret_type_size +=  method_def_pair.first->class_def->class_width;
-                                                    else if(method_def_pair.first->is_pointer())
-                                                        ret_type_size += REF_TYPE_SIZE;
-                                                    else
-                                                        ret_type_size += method_def_pair.first->size;
+                                                    // if(method_def_pair.first->is_class)
+                                                    //     ret_type_size +=  method_def_pair.first->class_def->class_width;
+                                                    // else if(method_def_pair.first->is_pointer())
+                                                    //     ret_type_size += REF_TYPE_SIZE;
+                                                    // else
+                                                    //     ret_type_size += method_def_pair.first->size;
                                                     
-                                                    
-                                                    emit (create_new_reg(SP, 4, false));  // Space for obj refernce
+                                                    // JAYA
+                                                    emit (create_new_reg(SP, REF_TYPE_SIZE, false));  // Space for obj refernce
         
                                                     if(names_size > 1){
                                                         emit(create_new_arg($1->tac, 0)); // Push object reference in stack
@@ -1268,14 +1273,14 @@ MethodInvocation:   TypeName Lparen Rparen  {
 
                                                         // This means same class function call within class, hence get reference from stack
                                                         Address* temp = create_new_temp();
-                                                        Address* mem = create_new_mem("", 16, 4);
+                                                        Address* mem = create_new_mem("", 16, REF_TYPE_SIZE);
                                                         emit(create_new_quad("=", mem, NULL, temp));
                                                         emit(create_new_arg(temp, 0));
                                                         method_name = threeac_filename(current_class->name, mname, method_def_pair.second);
                                                     }
 
                                                     emit(create_new_call(method_name, paramcount+1));
-                                                    emit(create_new_reg(SP, 4, true));   // remove space for object reference which was passed as argument
+                                                    emit(create_new_reg(SP, REF_TYPE_SIZE, true));   // remove space for object reference which was passed as argument
                                                     if(method_def_pair.first->name !=__VOID){
                                                         emit(create_new_return($$->tac, false)); // get value returned by the callee function
                                                     }
@@ -1321,7 +1326,9 @@ MethodInvocation:   TypeName Lparen Rparen  {
                                                                     }else {
                                                                          emit(create_new_arg(args[i], local_args_sum));
                                                                     }
-                                                                    local_args_sum += method_def_pair.second[i]->size;   
+                                                                    // JAYA
+                                                                    // local_args_sum += method_def_pair.second[i]->size;   
+                                                                    local_args_sum += CONSTANT_SIZE;
                                                                 }
 
                                                                 args.clear();
@@ -1329,31 +1336,32 @@ MethodInvocation:   TypeName Lparen Rparen  {
                                                                 int names_size = ($1)->names.size();
                                                                 string method_name;
 
-                                                                int ret_type_size = 0;
+                                                                // JAYA
+                                                                // int ret_type_size = 0;
 
-                                                                if(method_def_pair.first->is_class)
-                                                                    ret_type_size +=  method_def_pair.first->class_def->class_width;
-                                                                else if(method_def_pair.first->is_pointer())
-                                                                    ret_type_size += REF_TYPE_SIZE;
-                                                                else
-                                                                    ret_type_size += method_def_pair.first->size;
+                                                                // if(method_def_pair.first->is_class)
+                                                                //     ret_type_size +=  method_def_pair.first->class_def->class_width;
+                                                                // else if(method_def_pair.first->is_pointer())
+                                                                //     ret_type_size += REF_TYPE_SIZE;
+                                                                // else
+                                                                //     ret_type_size += method_def_pair.first->size;
                                                                 
                                                                 
-                                                                emit (create_new_reg(SP, 4, false));  // Space for obj refernce
+                                                                emit (create_new_reg(SP, REF_TYPE_SIZE, false));  // Space for obj refernce
                     
                                                                 if(names_size > 1){
                                                                     emit(create_new_arg($1->tac, 0)); // Push object reference in stack
                                                                     method_name = threeac_filename(($1)->names[names_size-2]->type->name, mname, method_def_pair.second);
                                                                 } else {
                                                                     Address* temp = create_new_temp();
-                                                                    Address* mem = create_new_mem("", 16, 4);
+                                                                    Address* mem = create_new_mem("", 16, REF_TYPE_SIZE);
                                                                     emit(create_new_quad("=", mem, NULL, temp));
                                                                     emit(create_new_arg(temp, 0));
                                                                     method_name = threeac_filename(current_class->name, mname, method_def_pair.second);
                                                                 }
 
                                                                 emit(create_new_call(method_name, paramcount+1));
-                                                                emit(create_new_reg(SP, 4, true));   // remove space for object reference which was passed as argument
+                                                                emit(create_new_reg(SP, REF_TYPE_SIZE, true));   // remove space for object reference which was passed as argument
                                                                 if(method_def_pair.first->name !=__VOID){
                                                                     emit(create_new_return($$->tac, false)); // get value returned by the callee function
                                                                 }
@@ -2983,7 +2991,7 @@ Dot : DOT { }
 Char_literal : CHAR_LITERAL     { 
                                     $$ = make_stackentry($1, get_type(__CHAR), yylineno); 
                                     if(pass_no == 2){
-                                        $$->tac = create_new_const($1, 8);
+                                        $$->tac = create_new_const($1, CONSTANT_SIZE);
                                     }
                                 }
 ;
@@ -2993,9 +3001,9 @@ Boolean_literal : BOOLEAN_LITERAL {
                                     cout << $1;
                                     if(pass_no == 2){
                                         if($1 == "true")
-                                            $$->tac = create_new_const(to_string(1), 8);
+                                            $$->tac = create_new_const(to_string(1), CONSTANT_SIZE);
                                         else 
-                                            $$->tac = create_new_const(to_string(0), 8);
+                                            $$->tac = create_new_const(to_string(0), CONSTANT_SIZE);
 
                                     }
                                 }
@@ -3012,7 +3020,7 @@ Null_literal : NULL_LITERAL     {
 Integer_literal : INTEGER_LITERAL { 
                                     $$ = make_stackentry($1, get_type(__INT), yylineno);
                                     if(pass_no == 2){
-                                        $$->tac = create_new_const($1, 8);
+                                        $$->tac = create_new_const($1, CONSTANT_SIZE);
                                     } 
                                 }
 ;
