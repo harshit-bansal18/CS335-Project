@@ -60,6 +60,11 @@ void push_instr(string name, string dst, string src) {
     asm_ss << "\n"; 
 }
 
+void push_label(string name) {
+    asm_ss << "\n" << name << ":";
+    asm_ss << "\n"; 
+}
+
 static inline string get_stack_addr(string pointer_name, int offset) {
     string addr = "";
     addr = to_string(offset) + "(" + pointer_name + ")";
@@ -313,7 +318,7 @@ void process_quad(Quad *quad) {
 }
 
 void process_label(Label *label) {
-    push_instr(label->name+":", "", "");
+    push_label(label->name);
 }
 
 void process_goto(Goto* _goto){
@@ -378,17 +383,19 @@ void method_footer() {
 }
 
 void global_header(){
-    asm_ss << ".text\n";
-    asm_ss << ".section    .rodata\n";
-    asm_ss<< ".LC0:\n";
-	asm_ss << "\t.string    \"%d\\n\" \n";
+    asm_ss << "\t.text\n";
+    asm_ss << "\t.section    .rodata\n";
+    asm_ss<< "\n.LC0:\n";
+	// asm_ss << "\t.string    \"%d\\n\" \n";
+	asm_ss << "\t.string    \"%ld\" \n";
+
 }
 
 void method_header(string func_name) {
     asm_ss << "\t.text\n";
-    asm_ss << "\t .globl   " + func_name << "\n";
-    asm_ss << "\t .type    " + func_name << ", @function\n";
-    asm_ss << func_name << ":\n";
+    asm_ss << "\t.globl   " + func_name << "\n";
+    asm_ss << "\t.type    " + func_name << ", @function\n";
+    asm_ss << "\n" << func_name << ":\n";
     asm_ss << "\tpushq\t%rbp\n";
     asm_ss << "\tmovq\t%rsp, %rbp\n";
 }

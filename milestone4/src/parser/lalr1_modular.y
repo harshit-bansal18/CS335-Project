@@ -1024,7 +1024,7 @@ ClassInstanceCreationExpressionSubRoutine:
                                         $$ = make_stackentry("", ($2), yylineno);
                                         $$->tac = create_new_temp();
  
-                                        emit(create_new_allocmem(create_new_const(to_string($2->class_def->class_width), 4), $$->tac));
+                                        emit(create_new_allocmem(create_new_const(to_string($2->class_def->class_width), POINTER_SIZE), $$->tac));
 
 
                                         // JAYA allocmem
@@ -1056,7 +1056,7 @@ ClassInstanceCreationExpression:
                                                     //Mohit
                                                         $$ = $1;
 
-                                                        int args_size = 4;
+                                                        int args_size = POINTER_SIZE;
                                                         for(int i=0; i<func_pair.second.size(); i++){
                                                             args_size += func_pair.second[i]->size;
                                                         }
@@ -1112,7 +1112,7 @@ ClassInstanceCreationExpression:
                                                                 emit(create_new_reg(SP, args_size,false));  // space for obejct reference
                                                                 emit(create_new_arg($$->tac, local_args_sum));
                                                                 emit(create_new_call(threeac_filename(($1)->type->name, ($1)->type->name, func_pair.second), paramcount+1));
-                                                                emit(create_new_reg(SP, args_size+4, true));
+                                                                emit(create_new_reg(SP, args_size+POINTER_SIZE, true));
                                                                 // emit("=","popparam", $$->tac,"");
                                                                 paramcount=0;
 
@@ -1129,7 +1129,7 @@ FieldAccess:    Primary Dot Identifier  {
                                                 $1->tac = create_new_temp();
                                                 if($1->token == "this") {
                                                     // Special handling for this
-                                                    Address* mem = create_new_mem("", 16, 4);
+                                                    Address* mem = create_new_mem("", 16, POINTER_SIZE);
                                                     emit(create_new_quad("=", mem, NULL, $1->tac));
                                                 }
                                                 $$->tac = field_access_3ac($1->tac, $$->offset, $$->type, $3->name);
@@ -1429,7 +1429,7 @@ ArrayCreationExpression:
                            New PrimitiveType DimExprs              {  
                                                                         if(pass_no == 2 ){
                                                                                             $$ = assign_arr_dim($2, $3); 
-                                                                                            $$->type->arr_dim_val.push_back(create_new_const(to_string($2->size), 4));
+                                                                                            $$->type->arr_dim_val.push_back(create_new_const(to_string($2->size), POINTER_SIZE));
                                                                                             Address* size = get_array_size($3->type->arr_dim_val,0);
                                                                                             $$->tac = create_new_temp();
                                                                                             
@@ -1445,7 +1445,7 @@ ArrayCreationExpression:
 |                           New ClassOrInterfaceType DimExprs       {  
                                                                         if(pass_no == 2 ){
                                                                                             $$ = assign_arr_dim($2, $3); 
-                                                                                            $$->type->arr_dim_val.push_back(create_new_const(to_string($2->size), 4));
+                                                                                            $$->type->arr_dim_val.push_back(create_new_const(to_string($2->size), POINTER_SIZE));
                                                                                             // $$->tac = $2->name + $3->tac;
                                                                                             Address* size = get_array_size($3->type->arr_dim_val,0);
                                                                                             $$->tac = create_new_temp();
@@ -2265,7 +2265,7 @@ IfThenStatementSubRoutine:
                                     IfCondition($4); 
                                     $$ = $1;
                                     Address* temp = create_new_temp();    /// WHYYYYYY??
-                                    emit(create_new_comp("==" , $4->tac , create_new_const("0", 4), ELSE_LABEL + to_string($1)));
+                                    emit(create_new_comp("==" , $4->tac , create_new_const("0", POINTER_SIZE), ELSE_LABEL + to_string($1)));
                                     emit(create_new_label(IF_LABEL+to_string($1)));
                                 }
                             }
@@ -2310,7 +2310,7 @@ IfThenElseStatementNoShortIf:   IfThenThreeACSubRoutine StatementNoShortIf  {
 AssertStatement:    Assert Expression Semicolon {   
                                                     if(pass_no == 2){
                                                         AssertCondition($2); 
-                                                        emit(create_new_comp("==", $2->tac, create_new_const("0", 4) , "exit"));
+                                                        emit(create_new_comp("==", $2->tac, create_new_const("0", POINTER_SIZE) , "exit"));
                                                     }
                                                 }
 /* |                   Assert Expression Colon Expression Semicolon    { AssertCondition($2); } */
@@ -2323,7 +2323,7 @@ WhileStatementSubRoutine:
                                     WhileCondition($4); 
                                     $$ = $1;
                                     
-                                    emit(create_new_comp("==", $4->tac, create_new_const("0", 4), ENDLOOP_LABEL+to_string($1)));
+                                    emit(create_new_comp("==", $4->tac, create_new_const("0", POINTER_SIZE), ENDLOOP_LABEL+to_string($1)));
                                 }
                             }
 ;
@@ -2352,7 +2352,7 @@ DoStatement:
         } Statement While {if(pass_no == 2) loopnum--;} Lparen Expression {     
                                                     if(pass_no == 2){ 
                                                         check_boolean($7->type); 
-                                                        emit(create_new_comp("== ", $7->tac,create_new_const("1", 4) , LOOP_LABEL+ to_string($1)));
+                                                        emit(create_new_comp("== ", $7->tac,create_new_const("1", POINTER_SIZE) , LOOP_LABEL+ to_string($1)));
                                                         emit(create_new_label(ENDLOOP_LABEL+to_string($1)));
                                                     }
                                             } Rparen Semicolon  { if(pass_no == 2) clear_current_scope(); }
@@ -2369,8 +2369,8 @@ ForStatementNoShortIf:    BasicForStatementNoShortIf
 For1SubRoutine: For5SubRoutine Expression   { 
                                     if(pass_no == 2){
                                         ForCondition($2); 
-                                        emit(create_new_comp("==", $2->tac, create_new_const("0", 4), ENDFOR_LABEL+ to_string($1)));
-                                        emit(create_new_comp("==", $2->tac, create_new_const("1", 4), FORBODY_LABEL+ to_string($1)));
+                                        emit(create_new_comp("==", $2->tac, create_new_const("0", POINTER_SIZE), ENDFOR_LABEL+ to_string($1)));
+                                        emit(create_new_comp("==", $2->tac, create_new_const("1", POINTER_SIZE), FORBODY_LABEL+ to_string($1)));
                                         $$ = $1;
                                     }
                                 }
@@ -2378,8 +2378,8 @@ For1SubRoutine: For5SubRoutine Expression   {
 For2SubRoutine: For7SubRoutine Expression Semicolon   { 
                                     if(pass_no == 2){
                                         ForCondition($2); 
-                                        emit(create_new_comp("==", $2->tac, create_new_const("0", 4), ENDFOR_LABEL+ to_string($1)));
-                                        emit(create_new_comp("==", $2->tac, create_new_const("1", 4), FORBODY_LABEL+ to_string($1)));
+                                        emit(create_new_comp("==", $2->tac, create_new_const("0", POINTER_SIZE), ENDFOR_LABEL+ to_string($1)));
+                                        emit(create_new_comp("==", $2->tac, create_new_const("1", POINTER_SIZE), FORBODY_LABEL+ to_string($1)));
                                         /*3ac Update*/ emit(create_new_label(FORUPDATE_LABEL + to_string($1) ));
                                         $$ = $1;
                                     }
@@ -3028,7 +3028,7 @@ Integer_literal : INTEGER_LITERAL {
 Fp_literal : FP_LITERAL     { 
                                     $$ = make_stackentry($1, get_type(__FLOAT), yylineno); 
                                     if(pass_no == 2){
-                                        $$->tac = create_new_const($1, 4);
+                                        $$->tac = create_new_const($1, POINTER_SIZE);
                                     }
                                 }
 ;
@@ -3036,7 +3036,7 @@ Fp_literal : FP_LITERAL     {
 String : STRING             { 
                                     $$ = make_stackentry($1, yylineno); 
                                     if(pass_no == 2){
-                                        $$->tac = create_new_const($1, 4);
+                                        $$->tac = create_new_const($1, POINTER_SIZE);
                                     }
                                 }
 ;
@@ -3044,7 +3044,7 @@ String : STRING             {
 Text_block : TEXT_BLOCK         { 
                                     $$ = make_stackentry($1, yylineno); 
                                     if(pass_no == 2){
-                                        $$->tac = create_new_const($1, 4);
+                                        $$->tac = create_new_const($1, POINTER_SIZE);
                                     }
                                 }
 ;

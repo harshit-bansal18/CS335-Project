@@ -10,6 +10,8 @@
 #define SP "rsp"
 
 #define CONSTANT_SIZE 8
+#define POINTER_SIZE 8
+#define REF_TYPE_SIZE 8
 
 #define ENDLOOP_LABEL "end_loop"
 #define IF_LABEL "if"

@@ -475,7 +475,7 @@ void dump_3ac(string fname, unsigned long func_local_space_size){
     // outss << fname << " : \n" << endl;
     
     cout << "Func name: " << fname << "\n";
-    printf("Local var size: %d, Temp size:%d\n", func_local_space_size, tcount*CONSTANT_SIZE);
+    cout<<"Local var size: "<< func_local_space_size <<" , Temp size:" << tcount*CONSTANT_SIZE <<"\n";
     func_local_space_size += (tcount*CONSTANT_SIZE);
     
     insert_in_global_quads(create_new_label(fname));
