@@ -739,6 +739,7 @@ stackentry *make_dup_stackentry(SymTabEntry *sym, bool dup_type) {
     stackentry *s =  make_stackentry(sym->name.c_str(), sym->line_no);
     s->offset = sym->offset;
     s->tac = sym->tac;
+    s->is_ins_var = sym->is_instance_var;
     if (dup_type) {
         Type *t = new Type();
         *t = *(sym->type);

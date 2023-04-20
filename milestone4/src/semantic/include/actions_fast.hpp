@@ -34,7 +34,7 @@ typedef struct stackentry{
     unsigned long line_no;
     double expr_val;
     Address* tac;
-
+    bool is_ins_var;
     stackentry(const char *name, unsigned long line);
 
 } stackentry;

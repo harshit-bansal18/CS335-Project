@@ -21,12 +21,13 @@ typedef struct entry3ac{
 int loopnum=0;
 int ifnum=0;
 int tcount=0;
+int classtcount=0;
 int paramcount=0;
 int returncount = 0;
 string threeac_file_name = "";
 stringstream tacss;
 
-
+vector<ThreeAC*> classtacs;
 vector<ThreeAC*> tacs;
 vector<ThreeAC*> func_tacs;
 vector<ThreeAC*> global_tacs;
@@ -234,7 +235,10 @@ void emit(ThreeAC* tac){
     if(current_scope != scope_class){
         // tacss << op << " "<<arg1<<" "<<arg2<<" "<<result<<"\n";
         tacs.push_back(tac);
-    }    
+    }
+    else{
+        classtacs.push_back(tac);
+    }  
 }
 
 Address* assignment_operator_3ac(Address* result , string op , Address* operand ){
@@ -503,6 +507,30 @@ void dump_3ac(string fname, unsigned long func_local_space_size){
     // outss << "ret" << endl;
 
     generate_method_asm(func_tacs);
+    tcount = classtcount;
+    func_tacs.clear();
+}
+
+void dump_class_3ac(string classname, unsigned long classsize){
+    classtcount = tcount;
+    cout << "Class Func name: " << classname << "\n";
+    cout<<"Instance var size: "<< classsize <<" , Temp size:" << classtcount*CONSTANT_SIZE <<"\n";
+    classsize += (classtcount*CONSTANT_SIZE);
+
+    insert_in_global_quads(create_new_label(classname));
+    if(classsize) {
+        insert_in_global_quads(create_new_reg(SP, classsize, false)); // space for local variables
+    }
+    for(auto classtac: classtacs)
+        insert_in_global_quads(classtac);
+
+    classtacs.clear();
+    insert_in_global_quads(create_new_label("return"+to_string(returncount++)));
+    if(classsize) {
+        insert_in_global_quads(create_new_reg(SP, classsize, true)); // manipulate stack pointer to the top of stack removing local variables
+    }
+    generate_method_asm(func_tacs);
+    classtcount = 0;
     tcount = 0;
     func_tacs.clear();
 }

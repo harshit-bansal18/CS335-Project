@@ -50,6 +50,7 @@
     extern int loopnum;
     extern int ifnum;
     extern int tcount;
+    extern int classtcount;
     extern int paramcount;
     extern string threeac_file_name;
     extern int returncount;
@@ -520,8 +521,36 @@ Modifier:
 
 
 ClassDeclaration:
-    Modifiers Class Identifier { add_class($1, ($3)->name); free($3);} ClassBody { current_class = NULL; current_scope = scope_global; }
-|   Class Identifier { add_class(0b0, ($2)->name); free($2);} ClassBody { current_class = NULL; current_scope = scope_global;}
+    Modifiers Class Identifier { add_class($1, ($3)->name); free($3); classtcount=0; tcount=0; } ClassBody  { 
+                                                                                                                 
+                                                                                                                current_scope = scope_global; 
+                                                                                                                if(pass_no==2){
+                                                                                                                    if(current_class==NULL){
+                                                                                                                        dump_class_3ac(current_class->name, 0);
+                                                                                                                    }
+                                                                                                                    else{
+                                                                                                                        cout<<"Current Class: "<<current_class->name<<"\n";
+                                                                                                                        cout<<"Current Class Width: "<<current_class->class_width<<"\n\n";
+                                                                                                                        dump_class_3ac(current_class->name, current_class->class_width);
+                                                                                                                    }
+                                                                                                                }
+                                                                                                                current_class = NULL;
+                                                                                                            }
+|   Class Identifier { add_class(0b0, ($2)->name); free($2); classtcount=0; tcount=0; } ClassBody           { 
+                                                                                                                
+                                                                                                                current_scope = scope_global;
+                                                                                                                if(pass_no==2){
+                                                                                                                    if(current_class==NULL){
+                                                                                                                        dump_class_3ac(current_class->name, 0);
+                                                                                                                    }
+                                                                                                                    else{
+                                                                                                                        // cout<<"Current Class: "<<current_class->name<<"\n";
+                                                                                                                        // cout<<"Current Class Width: "<<current_class->class_width<<"\n\n";
+                                                                                                                        dump_class_3ac(current_class->name, current_class->class_width);
+                                                                                                                    }
+                                                                                                                }
+                                                                                                                current_class = NULL; 
+                                                                                                            }
 ;
 
 /* Super:
@@ -550,7 +579,7 @@ ClassBodyDeclarations:
 ClassBodyDeclaration:
     ClassMemberDeclaration { }
 |   ConstructorDeclaration { }
-|   StaticInitializer { }
+|   StaticInitializer { }               //not being used by Mohit
 |   Block               { }
 ;
 
@@ -567,7 +596,7 @@ ClassMemberDeclaration:
                             //     dump_3ac(threeac_file_name);
                             // }
                         }
-|   ClassDeclaration  { }
+|   ClassDeclaration  { }               //not being used by Mohit
 /* |   InterfaceDeclaration { } */
 ;
 
@@ -592,8 +621,15 @@ VariableDeclarator:
                                                                 assign_operator_3ac($1->tac, $3->tac);   // JAYA
 
                                                                 $$ = $1; // JAYA
+
                                                             }
                                                             if(pass_no == 2 && $1->type->is_pointer()) $1->type->arr_dim_val = $3->type->arr_dim_val;
+                                                        }
+
+                                                        // Mohit
+                                                        if(pass_no == 2)    //
+                                                        {
+                                                            // Add code to emit 3AC for assignment-------------Mohit----------To Do
                                                         }
                                                     }
 |   VariableDeclaratorId { 
@@ -637,6 +673,7 @@ VariableInitializer:
 MethodDeclaration:
     MethodHeader{
                     add_function(($1)->token, ($1)->argument_type, ($1)->type, ($1)->modifier);   
+                    classtcount = tcount;
                     tcount = 0;
                     current_scope = scope_method;
                     // if(pass_no==2){
@@ -836,7 +873,7 @@ StaticInitializer:
 ;
 
 ConstructorDeclaration:
-    Modifiers Declarator { add_constructor(($2)->token, ($2)->argument_type, $1); tcount = 0; current_scope = scope_method; } ConstructorBody {current_scope = scope_class;
+    Modifiers Declarator { add_constructor(($2)->token, ($2)->argument_type, $1); classtcount=tcount; tcount = 0; current_scope = scope_method; } ConstructorBody {current_scope = scope_class;
                                                                                                                                         if(pass_no==2){
                                                                                                                                             // $$ = $1;
                                                                                                                                             check_final_vars();
@@ -852,7 +889,7 @@ ConstructorDeclaration:
                                                                                                                                             dump_3ac(threeac_file_name, local_vars_size);
                                                                                                                                         }
                                                                                                                                     }
-|   Declarator { add_constructor(($1)->token, ($1)->argument_type, (int8_t) 0); tcount = 0; current_scope = scope_method; } ConstructorBody  { current_scope = scope_class;
+|   Declarator { add_constructor(($1)->token, ($1)->argument_type, (int8_t) 0); classtcount=tcount; tcount = 0; current_scope = scope_method; } ConstructorBody  { current_scope = scope_class;
                                                                                                                                         if(pass_no==2){
                                                                                                                                             // $$ = $1;
                                                                                                 
@@ -1289,16 +1326,6 @@ MethodInvocation:   TypeName Lparen Rparen  {
                                             }
 |                   TypeName Lparen ArgumentList Rparen {   
                                                             if(pass_no == 2 ){
-                                                                
-                                                                //Mohit's code
-                                                                // if($1->names[0]->name == "System" && $1->names[1]->name == "out" && $1->names[2]->name == "println"){
-                                                                //     emit(create_new_print($3->tac, true));
-                                                                //     // $$ = make_stackentry("", new Type(__VOID), yylineno);
-                                                                //     // $$->tac = create_new_temp();
-                                                                // }
-                                                                // else{
-                                                                //Mohit's code ends
-                                                                // 
                                                                 auto method_def_pair = check_function_in_class($1, ($3)->argument_type, FUNCTION);
                                                                 if(is_null(method_def_pair.first)){
                                                                     cerr << "Line No: " <<  yylineno  << "Undeclared function called\n";
@@ -1367,7 +1394,6 @@ MethodInvocation:   TypeName Lparen Rparen  {
                                                                 }
                                                                 emit(create_new_reg(SP, local_args_sum, true)); // remove space for arguments
                                                                 paramcount=0;
-                                                                // }
                                                             }
                                                         }
 |                   PRINT LPAREN Expression RPAREN      { 

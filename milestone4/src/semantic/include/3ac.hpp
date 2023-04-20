@@ -198,6 +198,7 @@ Address* type_name_3ac(TypeName* type_name, bool is_func);
 
 void insert_in_global_quads(ThreeAC* tac);
 void dump_3ac(string filename, unsigned long func_local_space_size);
+void dump_class_3ac(string classname, unsigned long classsize);
 bool check_if_temp(Address *s);
 bool check_if_const(Address *s);
 bool check_if_mem(Address* s);

@@ -1,4 +1,5 @@
 public class Arraystest{
+    int a = 0;
     public static void main(){
         long[] array = new long[10];
         long temp;
