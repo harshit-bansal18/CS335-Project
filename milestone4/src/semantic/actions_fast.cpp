@@ -1270,10 +1270,10 @@ bool compare_argument_types_exact(vector<Type *> &t1, vector<Type *> &t2) {
 void intialize_types() {
     defined_types.clear();
     defined_types.insert( {__LONG, new Type(__LONG, true, true, 8)});
-    defined_types.insert( { __INT, new Type(__INT, true, true, POINTER_SIZE)} );
-    defined_types.insert( {__BYTE, new Type(__BYTE, true, true, POINTER_SIZE)});
-    defined_types.insert( { __CHAR, new Type(__CHAR, true, true, 1)});
-    defined_types.insert( {__SHORT, new Type(__SHORT, true, true, POINTER_SIZE)});
+    defined_types.insert( { __INT, new Type(__INT, true, true, TYPE_SIZE)} );
+    defined_types.insert( {__BYTE, new Type(__BYTE, true, true, TYPE_SIZE)});
+    defined_types.insert( { __CHAR, new Type(__CHAR, true, true, TYPE_SIZE)});
+    defined_types.insert( {__SHORT, new Type(__SHORT, true, true, TYPE_SIZE)});
     defined_types.insert( {__FLOAT, new Type(__FLOAT, true, false, 4)});
     defined_types.insert( {__DOUBLE, new Type(__DOUBLE, true, false, 8)});
     defined_types.insert( {__VAR, new Type(__VAR, false, false, 4)});

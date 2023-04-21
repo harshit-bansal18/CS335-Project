@@ -387,7 +387,7 @@ void global_header(){
     asm_ss << "\t.section    .rodata\n";
     asm_ss<< "\n.LC0:\n";
 	// asm_ss << "\t.string    \"%d\\n\" \n";
-	asm_ss << "\t.string    \"%ld\" \n";
+	asm_ss << "\t.string    \"%ld\\n\" \n";
 
 }
 

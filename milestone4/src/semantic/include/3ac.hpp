@@ -10,7 +10,7 @@
 #define SP "rsp"
 
 #define CONSTANT_SIZE 8
-#define POINTER_SIZE 8
+#define TYPE_SIZE 8 // used for int, short, byte to make their type size 8, will affect type checking
 #define REF_TYPE_SIZE 8
 
 #define ENDLOOP_LABEL "end_loop"

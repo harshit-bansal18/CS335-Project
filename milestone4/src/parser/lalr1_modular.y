@@ -730,50 +730,6 @@ MethodHeader:
                                             entry->token = ($2)->token;
                                             $$ = entry;
                                         }
-/* |   Modifiers UnannType Declarator Throws { 
-                                            struct stackentry* entry = make_stackentry((($3)->token).c_str(), $2, yylineno);
-                                            entry->modifier = $1; 
-                                            entry->argument_type = ($3)->argument_type;
-                                            $$ = entry;
-                                            // global_modifier = 0b0; global_type = NULL;
-                                            // Throws ???????????????????????????????????????
-                                          }
-|   UnannType Declarator Throws           { 
-                                            struct stackentry* entry = make_stackentry((($2)->token).c_str(), $1, yylineno);  
-                                            entry->argument_type = ($2)->argument_type;
-                                            $$ = entry;
-                                            // global_type = NULL;
-                                            // Throws ???????????????????????????????????????
-                                          }
-|   Modifiers Void Declarator Throws      { 
-                                            struct stackentry* entry = make_stackentry((($3)->token).c_str(), get_type(__VOID), yylineno);
-                                            entry->modifier = $1; 
-                                            entry->argument_type = ($3)->argument_type;
-                                            $$ = entry;
-                                            // Throws ???????????????????????????????????????
-                                          }
-|   Void Declarator Throws                { 
-                                            struct stackentry* entry = make_stackentry((($2)->token).c_str(), get_type(__VOID), yylineno);
-                                            entry->argument_type = ($2)->argument_type;
-                                            $$ = entry;
-                                            // Throws ???????????????????????????????????????
-                                          } */
-;
-
-/* Throws:
-    throws_ ExceptionTypeList             { }       
-
-ExceptionTypeList:
-    ExceptionType                         { }
-|   ExceptionType CommaExceptionTypes     { }
-    
-CommaExceptionTypes:
-    CommaExceptionTypes Comma ExceptionType  { }
-|   Comma ExceptionType                      { } 
-
-ExceptionType:
-    ClassOrInterfaceType                    { } */
-
 
 /*
     Added in place  of MethodDeclarator and ConstructorDeclarator
@@ -1004,37 +960,6 @@ VariableInitializerList:
 |   VariableInitializer { if(pass_no ==2 ) $$ = $1; }
 ;
 
-/*     Productions from Chapter 9 - Interfaces      */
-
-/* InterfaceDeclaration:
-    Modifiers Interface Identifier InterfaceExtends InterfaceBody { }
-|   Interface Identifier InterfaceExtends InterfaceBody { }
-|   Interface Identifier InterfaceBody { }
-|   Modifiers Interface Identifier  InterfaceBody { }
-;
-
-InterfaceExtends:
-    Extends InterfaceTypeList { }
-
-InterfaceBody:
-    Lcurly InterfaceMembers Rcurly { }
-|   Lcurly Rcurly { }
-;
-
-InterfaceMembers:
-    InterfaceMemberDeclaration { }
-|   InterfaceMembers InterfaceMemberDeclaration { }
-;
-
-InterfaceMemberDeclaration:
-    FieldDeclaration { }
-|   InterfaceMethodDeclaration { }
-;
-
-InterfaceMethodDeclaration: 
-    MethodHeader Semicolon { }
-; */
-
 /*
     Productions from Chapter 15 (Expressions)
 */
@@ -1061,22 +986,7 @@ ClassInstanceCreationExpressionSubRoutine:
                                         $$ = make_stackentry("", ($2), yylineno);
                                         $$->tac = create_new_temp();
  
-                                        emit(create_new_allocmem(create_new_const(to_string($2->class_def->class_width), POINTER_SIZE), $$->tac));
-
-
-                                        // JAYA allocmem
-                                        // Reg* reg = create_new_reg(SP, 4, false); // space for arguments  -> width
-                                        // emit(reg);
-                                        
-                                        // Arg* arg = create_new_arg(create_new_const(to_string($2->class_def->class_width), 4), 4);
-                                        // emit(arg); 
-                                        // Call* call = create_new_call("allocmem", 1);
-                                        // emit(call);
-                                        // // Get return value
-                                        // Return* ret = create_new_return($$->tac, false);  // get object reference
-                                        // emit(ret);
-                                        // reg = create_new_reg(SP, 4, true);    // remove space for arguments
-                                        // emit(ret);  
+                                        emit(create_new_allocmem(create_new_const(to_string($2->class_def->class_width), REF_TYPE_SIZE), $$->tac));
                                     }}
 
 ClassInstanceCreationExpression: 
@@ -1088,24 +998,26 @@ ClassInstanceCreationExpression:
                                                         cerr << "Line No: " <<  yylineno << "Unknown constructor used"<<endl;
                                                         exit(1);
                                                     }
-                                                    // Mohit
-                                                    if(!(func_pair.second.size() == 1 && is_null(func_pair.second[0]))){    
-                                                    //Mohit
-                                                        $$ = $1;
 
-                                                        int args_size = POINTER_SIZE;
-                                                        for(int i=0; i<func_pair.second.size(); i++){
-                                                            args_size += func_pair.second[i]->size;
-                                                        }
-                                                        emit(create_new_reg(SP, args_size,false));
-                                                        emit(create_new_arg($$->tac, 0));
+                                                    $$ = $1;
+                                                    
+                                                    // call class 3AC function before constructor
+                                                    // emit(create_new_arg($$->tac, -1*REF_TYPE_SIZE));
+                                                    // emit(create_new_reg(SP, REF_TYPE_SIZE,false)); // space for obj reference
+                                                    // emit(create_new_call(($1)->type->name, 1));
+                                                    // emit(create_new_reg(SP, REF_TYPE_SIZE, true));
+                                                    
+                                                    // Constructor call
+                                                    if(!(func_pair.second.size() == 1 && is_null(func_pair.second[0]))){    
+                                                        emit(create_new_arg($$->tac, -1*REF_TYPE_SIZE));
+                                                        emit(create_new_reg(SP, REF_TYPE_SIZE,false)); // space for obj reference
                                                         emit(create_new_call(threeac_filename(($1)->type->name, ($1)->type->name, func_pair.second), 1));
-                                                        emit(create_new_reg(SP, args_size, true));
-                                                        // emit("=","popparam", $$->tac,"");
-                                                    }   
+                                                        emit(create_new_reg(SP, REF_TYPE_SIZE, true));
+                                                    } 
                                                     // else{
                                                         // undefined default constructor called so don't invoke call
-                                                    // }     
+                                                    // }    
+   
                                                 } 
                                             }
 |   ClassInstanceCreationExpressionSubRoutine ArgumentList Rparen {   
@@ -1126,9 +1038,8 @@ ClassInstanceCreationExpression:
                                                                     args_size += func_pair.second[i]->size;
                                                                 }
 
-                                                                emit(create_new_reg(SP, args_size,false));  // space for args
-
-                                                                int local_args_sum = 0;
+                                                               
+                                                                int local_args_sum = -8;
 
                                                                 for(int i = 0; i<args.size(); i++){
                                                                     if((!check_if_temp(args[i]) && (!check_if_const(args[i])))){
@@ -1141,15 +1052,22 @@ ClassInstanceCreationExpression:
 
                                                                     // JAYA 
                                                                     // local_args_sum += func_pair.second[i]->size;   
-                                                                    local_args_sum += CONSTANT_SIZE;   
+                                                                    local_args_sum -= CONSTANT_SIZE;   
                                                                 }
 
                                                                 args.clear();
 
-                                                                emit(create_new_reg(SP, args_size,false));  // space for obejct reference
-                                                                emit(create_new_arg($$->tac, local_args_sum));
+                                                                // call class 3AC function before constructor
+                                                                // emit(create_new_arg($$->tac, -1*REF_TYPE_SIZE));
+                                                                // emit(create_new_reg(SP, REF_TYPE_SIZE,false)); // space for obj reference
+                                                                // emit(create_new_call(($1)->type->name, 1));
+                                                                // emit(create_new_reg(SP, REF_TYPE_SIZE, true));
+
+                                                                // Constructor Call
+                                                                emit(create_new_arg($$->tac, -1*(args_size+REF_TYPE_SIZE)));
+                                                                emit(create_new_reg(SP, args_size+REF_TYPE_SIZE,false));  // space for args, move sp down and space for object reference
                                                                 emit(create_new_call(threeac_filename(($1)->type->name, ($1)->type->name, func_pair.second), paramcount+1));
-                                                                emit(create_new_reg(SP, args_size+POINTER_SIZE, true));
+                                                                emit(create_new_reg(SP, args_size+REF_TYPE_SIZE, true));
                                                                 // emit("=","popparam", $$->tac,"");
                                                                 paramcount=0;
 
@@ -1166,7 +1084,7 @@ FieldAccess:    Primary Dot Identifier  {
                                                 $1->tac = create_new_temp();
                                                 if($1->token == "this") {
                                                     // Special handling for this
-                                                    Address* mem = create_new_mem("", 16, POINTER_SIZE);
+                                                    Address* mem = create_new_mem("", 16, REF_TYPE_SIZE);
                                                     emit(create_new_quad("=", mem, NULL, $1->tac));
                                                 }
                                                 $$->tac = field_access_3ac($1->tac, $$->offset, $$->type, $3->name);
@@ -1204,7 +1122,18 @@ ArrayAccess:    TypeName Lsquare Expression Rsquare {
                                                             t->arr_dim--;
                                                             // $$->tac = $1->tac + "[" + $3->tac + "]";
                                                             
-                                                            $1->tac = type_name_3ac($1, false);
+                                                            if($$->is_ins_var && ($1->names.size() == 1)){
+                                                                // This means that instance variable is accessed directly without this
+                                                                Address* temp = create_new_temp();
+                                                                Address* mem = create_new_mem("", 16, REF_TYPE_SIZE);
+                                                                emit(create_new_quad("=", mem, NULL, temp));
+                                                                Address* tmp1 = create_new_temp();
+                                                                emit(create_new_quad("+", temp, create_new_const(to_string($$->offset), CONSTANT_SIZE), tmp1));
+                                                                $1->tac = create_new_mem($$->token, tmp1, $$->type);
+                                                            } else {
+                                                                $1->tac = type_name_3ac($1, false);
+                                                            }
+
                                                             Address* temp1 = get_array_size(t->arr_dim_val, t->arr_dim_val.size() - t->arr_dim - 1);  // 1*3 here
                                                             Address* temp3 = create_new_temp();
                                                             emit(create_new_quad("*", temp1, $3->tac, temp3));
@@ -1289,22 +1218,9 @@ MethodInvocation:   TypeName Lparen Rparen  {
                                                     $$->tac = create_new_temp();
                                                     int names_size = ($1)->names.size();
                                                     string method_name;
-
-                                                    // JAYA
-                                                    // int ret_type_size = 0;
-
-                                                    // if(method_def_pair.first->is_class)
-                                                    //     ret_type_size +=  method_def_pair.first->class_def->class_width;
-                                                    // else if(method_def_pair.first->is_pointer())
-                                                    //     ret_type_size += REF_TYPE_SIZE;
-                                                    // else
-                                                    //     ret_type_size += method_def_pair.first->size;
                                                     
-                                                    // JAYA
-                                                    emit (create_new_reg(SP, REF_TYPE_SIZE, false));  // Space for obj refernce
-        
                                                     if(names_size > 1){
-                                                        emit(create_new_arg($1->tac, 0)); // Push object reference in stack
+                                                        emit(create_new_arg($1->tac, -1*REF_TYPE_SIZE)); // Push object reference in stack
                                                         method_name = threeac_filename(($1)->names[names_size-2]->type->name, mname, method_def_pair.second);
                                                     } else {
 
@@ -1312,11 +1228,15 @@ MethodInvocation:   TypeName Lparen Rparen  {
                                                         Address* temp = create_new_temp();
                                                         Address* mem = create_new_mem("", 16, REF_TYPE_SIZE);
                                                         emit(create_new_quad("=", mem, NULL, temp));
-                                                        emit(create_new_arg(temp, 0));
+                                                        emit(create_new_arg(temp, -1*REF_TYPE_SIZE));
                                                         method_name = threeac_filename(current_class->name, mname, method_def_pair.second);
                                                     }
 
+                                                    // JAYA
+                                                    emit (create_new_reg(SP, REF_TYPE_SIZE, false));  // Space for obj refernce
+
                                                     emit(create_new_call(method_name, paramcount+1));
+
                                                     emit(create_new_reg(SP, REF_TYPE_SIZE, true));   // remove space for object reference which was passed as argument
                                                     if(method_def_pair.first->name !=__VOID){
                                                         emit(create_new_return($$->tac, false)); // get value returned by the callee function
@@ -1341,58 +1261,47 @@ MethodInvocation:   TypeName Lparen Rparen  {
                                                                     local_args_sum += method_def_pair.second[i]->size;
                                                                 }
 
-                                                                emit(create_new_reg(SP, local_args_sum, false));   // Space for args
-                                                                local_args_sum = 0;
+                                                                
+                                                                int args_offset = -8;
 
-                                                                for(int i = 0; i<args.size(); i++){
+                                                                for(int i = args.size()-1; i>=0; i--){
                                                                     if((!check_if_temp(args[i]) && (!check_if_const(args[i])))){
                                                                         Address* temp = create_new_temp();
                                                                         
                                                                         emit(create_new_quad("=", args[i], NULL, temp));
-                                                                        emit(create_new_arg(temp, local_args_sum));
+                                                                        emit(create_new_arg(temp, args_offset));
                                                                     }else {
-                                                                         emit(create_new_arg(args[i], local_args_sum));
+                                                                         emit(create_new_arg(args[i], args_offset));
                                                                     }
                                                                     // JAYA
-                                                                    // local_args_sum += method_def_pair.second[i]->size;   
-                                                                    local_args_sum += CONSTANT_SIZE;
+                                                                    args_offset -= method_def_pair.second[i]->size;   
                                                                 }
 
                                                                 args.clear();
 
                                                                 int names_size = ($1)->names.size();
                                                                 string method_name;
-
-                                                                // JAYA
-                                                                // int ret_type_size = 0;
-
-                                                                // if(method_def_pair.first->is_class)
-                                                                //     ret_type_size +=  method_def_pair.first->class_def->class_width;
-                                                                // else if(method_def_pair.first->is_pointer())
-                                                                //     ret_type_size += REF_TYPE_SIZE;
-                                                                // else
-                                                                //     ret_type_size += method_def_pair.first->size;
-                                                                
-                                                                
-                                                                emit (create_new_reg(SP, REF_TYPE_SIZE, false));  // Space for obj refernce
-                    
+                                                                                    
                                                                 if(names_size > 1){
-                                                                    emit(create_new_arg($1->tac, 0)); // Push object reference in stack
+                                                                    emit(create_new_arg($1->tac, -1*(local_args_sum+REF_TYPE_SIZE))); // Push object reference in stack
                                                                     method_name = threeac_filename(($1)->names[names_size-2]->type->name, mname, method_def_pair.second);
                                                                 } else {
                                                                     Address* temp = create_new_temp();
                                                                     Address* mem = create_new_mem("", 16, REF_TYPE_SIZE);
                                                                     emit(create_new_quad("=", mem, NULL, temp));
-                                                                    emit(create_new_arg(temp, 0));
+                                                                    emit(create_new_arg(temp, -1*(local_args_sum+REF_TYPE_SIZE)));
                                                                     method_name = threeac_filename(current_class->name, mname, method_def_pair.second);
                                                                 }
+                                                                emit (create_new_reg(SP, REF_TYPE_SIZE + local_args_sum, false));  // Space for obj refernce and local vars
 
                                                                 emit(create_new_call(method_name, paramcount+1));
-                                                                emit(create_new_reg(SP, REF_TYPE_SIZE, true));   // remove space for object reference which was passed as argument
+
+                                                                emit(create_new_reg(SP, REF_TYPE_SIZE + local_args_sum, true));   // remove space for object reference which was passed as argument
+
                                                                 if(method_def_pair.first->name !=__VOID){
                                                                     emit(create_new_return($$->tac, false)); // get value returned by the callee function
                                                                 }
-                                                                emit(create_new_reg(SP, local_args_sum, true)); // remove space for arguments
+
                                                                 paramcount=0;
                                                             }
                                                         }
@@ -1455,7 +1364,7 @@ ArrayCreationExpression:
                            New PrimitiveType DimExprs              {  
                                                                         if(pass_no == 2 ){
                                                                                             $$ = assign_arr_dim($2, $3); 
-                                                                                            $$->type->arr_dim_val.push_back(create_new_const(to_string($2->size), POINTER_SIZE));
+                                                                                            $$->type->arr_dim_val.push_back(create_new_const(to_string($2->size), REF_TYPE_SIZE));
                                                                                             Address* size = get_array_size($3->type->arr_dim_val,0);
                                                                                             $$->tac = create_new_temp();
                                                                                             
@@ -1471,7 +1380,7 @@ ArrayCreationExpression:
 |                           New ClassOrInterfaceType DimExprs       {  
                                                                         if(pass_no == 2 ){
                                                                                             $$ = assign_arr_dim($2, $3); 
-                                                                                            $$->type->arr_dim_val.push_back(create_new_const(to_string($2->size), POINTER_SIZE));
+                                                                                            $$->type->arr_dim_val.push_back(create_new_const(to_string($2->size), REF_TYPE_SIZE));
                                                                                             // $$->tac = $2->name + $3->tac;
                                                                                             Address* size = get_array_size($3->type->arr_dim_val,0);
                                                                                             $$->tac = create_new_temp();
@@ -1623,8 +1532,18 @@ LeftHandSide:
                     // Careful manipulation required
                     struct stackentry* entry = find_variable_in_class($1, true);
                     $$ = entry;
-                    $$->tac = type_name_3ac($1, false);  // in a.b.c it returns c, in a it returns a
-                    // $$->tac  = create_new_mem(entry->token, entry->offset, entry->type);
+                    if(entry->is_ins_var && ($1->names.size() == 1)){
+                        // This means that instance variable is accessed directly without this
+                        Address* temp = create_new_temp();
+                        Address* mem = create_new_mem("", 16, REF_TYPE_SIZE);
+                        emit(create_new_quad("=", mem, NULL, temp));
+                        Address* tmp1 = create_new_temp();
+                        emit(create_new_quad("+", temp, create_new_const(to_string(entry->offset), CONSTANT_SIZE), tmp1));
+                        $$->tac = create_new_mem(entry->token, tmp1, entry->type);
+                    } else {
+                        $$->tac = type_name_3ac($1, false);  // in a.b.c it returns c, in a it returns a
+                        // $$->tac  = create_new_mem(entry->token, entry->offset, entry->type);
+                    }
                 }
             }
 |   FieldAccess { if(pass_no == 2 ) $$ = $1; }
@@ -2001,7 +1920,19 @@ PreIncrementExpression: Increment Primary       {
                                                             cerr << "Line No: " <<  yylineno  << "unary Expression Type should be numeric\n";
                                                             exit(1);
                                                         }
-                                                        $2->tac = type_name_3ac($2, false);
+
+                                                        if($$->is_ins_var && ($2->names.size() == 1)){
+                                                            // This means that instance variable is accessed directly without this
+                                                            Address* temp = create_new_temp();
+                                                            Address* mem = create_new_mem("", 16, REF_TYPE_SIZE);
+                                                            emit(create_new_quad("=", mem, NULL, temp));
+                                                            Address* tmp1 = create_new_temp();
+                                                            emit(create_new_quad("+", temp, create_new_const(to_string($$->offset), CONSTANT_SIZE), tmp1));
+                                                            $2->tac = create_new_mem($$->token, tmp1, $$->type);
+                                                        } else {
+                                                            $2->tac = type_name_3ac($2, false);
+                                                        }
+
                                                         // $2->tac = create_new_mem($$->token, $$->offset, $$->type);
                                                         $$->tac = pre_increament_3ac($2->tac); 
                                                     }
@@ -2036,7 +1967,18 @@ PreDecrementExpression: Decrement Primary   {
                                                             cerr << "Line No: " <<  yylineno  << "unary Expression Type should be numeric\n";
                                                             exit(1);
                                                         }
-                                                        $2->tac = type_name_3ac($2, false);
+
+                                                        if($$->is_ins_var && ($2->names.size() == 1)){
+                                                            // This means that instance variable is accessed directly without this
+                                                            Address* temp = create_new_temp();
+                                                            Address* mem = create_new_mem("", 16, REF_TYPE_SIZE);
+                                                            emit(create_new_quad("=", mem, NULL, temp));
+                                                            Address* tmp1 = create_new_temp();
+                                                            emit(create_new_quad("+", temp, create_new_const(to_string($$->offset), CONSTANT_SIZE), tmp1));
+                                                            $2->tac = create_new_mem($$->token, tmp1, $$->type);
+                                                        } else {
+                                                            $2->tac = type_name_3ac($2, false);
+                                                        }
 
                                                         // $2->tac = create_new_mem($$->token, $$->offset, $$->type);
                                                         
@@ -2091,7 +2033,17 @@ PostfixExpression:  Primary                 { if(pass_no == 2 ) {
                                             }
 |                   TypeName                {   if(pass_no == 2 ) {
                                                     $$ = find_variable_in_class($1, false);
-                                                    $$->tac = type_name_3ac($1, false);
+                                                    if($$->is_ins_var && ($1->names.size() == 1)){
+                                                        // This means that instance variable is accessed directly without this
+                                                        Address* temp = create_new_temp();
+                                                        Address* mem = create_new_mem("", 16, REF_TYPE_SIZE);
+                                                        emit(create_new_quad("=", mem, NULL, temp));
+                                                        Address* tmp1 = create_new_temp();
+                                                        emit(create_new_quad("+", temp, create_new_const(to_string($$->offset), CONSTANT_SIZE), tmp1));
+                                                        $$->tac = create_new_mem($$->token, tmp1, $$->type);
+                                                    } else {
+                                                        $$->tac = type_name_3ac($1, false);
+                                                    }
                                                     // $$->tac = create_new_mem($$->token, $$->offset, $$->type);
                                                 }
                                             }
@@ -2127,7 +2079,17 @@ PostIncrementExpression:    Primary Increment   {
                                                             cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '++' \n first type: "<< ($$)->type << "\n";
                                                             exit(-1);
                                                         }
-                                                        $1->tac = type_name_3ac($1, false);
+                                                        if($$->is_ins_var && ($1->names.size() == 1)){
+                                                            // This means that instance variable is accessed directly without this
+                                                            Address* temp = create_new_temp();
+                                                            Address* mem = create_new_mem("", 16, REF_TYPE_SIZE);
+                                                            emit(create_new_quad("=", mem, NULL, temp));
+                                                            Address* tmp1 = create_new_temp();
+                                                            emit(create_new_quad("+", temp, create_new_const(to_string($$->offset), CONSTANT_SIZE), tmp1));
+                                                            $1->tac = create_new_mem($$->token, tmp1, $$->type);
+                                                        } else {
+                                                            $1->tac = type_name_3ac($1, false);
+                                                        }
 
                                                         // $1->tac = create_new_mem($$->token, $$->offset, $$->type);
                                                         
@@ -2167,7 +2129,18 @@ PostDecrementExpression:    Primary Decrement   {
                                                             cerr << "Line No: " <<  yylineno  << "bad operand types for binary operator '--' \n first type: "<< ($$)->type << "\n";
                                                             exit(-1);
                                                         }
-                                                        $1->tac = type_name_3ac($1, false);
+
+                                                        if($$->is_ins_var && ($1->names.size() == 1)){
+                                                            // This means that instance variable is accessed directly without this
+                                                            Address* temp = create_new_temp();
+                                                            Address* mem = create_new_mem("", 16, REF_TYPE_SIZE);
+                                                            emit(create_new_quad("=", mem, NULL, temp));
+                                                            Address* tmp1 = create_new_temp();
+                                                            emit(create_new_quad("+", temp, create_new_const(to_string($$->offset), CONSTANT_SIZE), tmp1));
+                                                            $1->tac = create_new_mem($$->token, tmp1, $$->type);
+                                                        } else {
+                                                            $1->tac = type_name_3ac($1, false);
+                                                        }
                                                         // $1->tac = create_new_mem($$->token, $$->offset, $$->type);
 
                                                         $$->tac = post_decreament_3ac($1->tac);
@@ -2291,7 +2264,7 @@ IfThenStatementSubRoutine:
                                     IfCondition($4); 
                                     $$ = $1;
                                     Address* temp = create_new_temp();    /// WHYYYYYY??
-                                    emit(create_new_comp("==" , $4->tac , create_new_const("0", POINTER_SIZE), ELSE_LABEL + to_string($1)));
+                                    emit(create_new_comp("==" , $4->tac , create_new_const("0", CONSTANT_SIZE), ELSE_LABEL + to_string($1)));
                                     emit(create_new_label(IF_LABEL+to_string($1)));
                                 }
                             }
@@ -2336,7 +2309,7 @@ IfThenElseStatementNoShortIf:   IfThenThreeACSubRoutine StatementNoShortIf  {
 AssertStatement:    Assert Expression Semicolon {   
                                                     if(pass_no == 2){
                                                         AssertCondition($2); 
-                                                        emit(create_new_comp("==", $2->tac, create_new_const("0", POINTER_SIZE) , "exit"));
+                                                        emit(create_new_comp("==", $2->tac, create_new_const("0", CONSTANT_SIZE) , "exit"));
                                                     }
                                                 }
 /* |                   Assert Expression Colon Expression Semicolon    { AssertCondition($2); } */
@@ -2349,7 +2322,7 @@ WhileStatementSubRoutine:
                                     WhileCondition($4); 
                                     $$ = $1;
                                     
-                                    emit(create_new_comp("==", $4->tac, create_new_const("0", POINTER_SIZE), ENDLOOP_LABEL+to_string($1)));
+                                    emit(create_new_comp("==", $4->tac, create_new_const("0", CONSTANT_SIZE), ENDLOOP_LABEL+to_string($1)));
                                 }
                             }
 ;
@@ -2378,7 +2351,7 @@ DoStatement:
         } Statement While {if(pass_no == 2) loopnum--;} Lparen Expression {     
                                                     if(pass_no == 2){ 
                                                         check_boolean($7->type); 
-                                                        emit(create_new_comp("== ", $7->tac,create_new_const("1", POINTER_SIZE) , LOOP_LABEL+ to_string($1)));
+                                                        emit(create_new_comp("== ", $7->tac,create_new_const("1", CONSTANT_SIZE) , LOOP_LABEL+ to_string($1)));
                                                         emit(create_new_label(ENDLOOP_LABEL+to_string($1)));
                                                     }
                                             } Rparen Semicolon  { if(pass_no == 2) clear_current_scope(); }
@@ -2395,8 +2368,8 @@ ForStatementNoShortIf:    BasicForStatementNoShortIf
 For1SubRoutine: For5SubRoutine Expression   { 
                                     if(pass_no == 2){
                                         ForCondition($2); 
-                                        emit(create_new_comp("==", $2->tac, create_new_const("0", POINTER_SIZE), ENDFOR_LABEL+ to_string($1)));
-                                        emit(create_new_comp("==", $2->tac, create_new_const("1", POINTER_SIZE), FORBODY_LABEL+ to_string($1)));
+                                        emit(create_new_comp("==", $2->tac, create_new_const("0", CONSTANT_SIZE), ENDFOR_LABEL+ to_string($1)));
+                                        emit(create_new_comp("==", $2->tac, create_new_const("1", CONSTANT_SIZE), FORBODY_LABEL+ to_string($1)));
                                         $$ = $1;
                                     }
                                 }
@@ -2404,8 +2377,8 @@ For1SubRoutine: For5SubRoutine Expression   {
 For2SubRoutine: For7SubRoutine Expression Semicolon   { 
                                     if(pass_no == 2){
                                         ForCondition($2); 
-                                        emit(create_new_comp("==", $2->tac, create_new_const("0", POINTER_SIZE), ENDFOR_LABEL+ to_string($1)));
-                                        emit(create_new_comp("==", $2->tac, create_new_const("1", POINTER_SIZE), FORBODY_LABEL+ to_string($1)));
+                                        emit(create_new_comp("==", $2->tac, create_new_const("0", CONSTANT_SIZE), ENDFOR_LABEL+ to_string($1)));
+                                        emit(create_new_comp("==", $2->tac, create_new_const("1", CONSTANT_SIZE), FORBODY_LABEL+ to_string($1)));
                                         /*3ac Update*/ emit(create_new_label(FORUPDATE_LABEL + to_string($1) ));
                                         $$ = $1;
                                     }
@@ -3054,7 +3027,7 @@ Integer_literal : INTEGER_LITERAL {
 Fp_literal : FP_LITERAL     { 
                                     $$ = make_stackentry($1, get_type(__FLOAT), yylineno); 
                                     if(pass_no == 2){
-                                        $$->tac = create_new_const($1, POINTER_SIZE);
+                                        $$->tac = create_new_const($1, CONSTANT_SIZE);
                                     }
                                 }
 ;
@@ -3062,7 +3035,7 @@ Fp_literal : FP_LITERAL     {
 String : STRING             { 
                                     $$ = make_stackentry($1, yylineno); 
                                     if(pass_no == 2){
-                                        $$->tac = create_new_const($1, POINTER_SIZE);
+                                        $$->tac = create_new_const($1, CONSTANT_SIZE);
                                     }
                                 }
 ;
@@ -3070,7 +3043,7 @@ String : STRING             {
 Text_block : TEXT_BLOCK         { 
                                     $$ = make_stackentry($1, yylineno); 
                                     if(pass_no == 2){
-                                        $$->tac = create_new_const($1, POINTER_SIZE);
+                                        $$->tac = create_new_const($1, CONSTANT_SIZE);
                                     }
                                 }
 ;
