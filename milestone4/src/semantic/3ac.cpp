@@ -18,6 +18,7 @@ typedef struct entry3ac{
     string threeac="";
 } entry3ac;
 
+int tlabelcount=0;
 int loopnum=0;
 int ifnum=0;
 int tcount=0;
@@ -104,7 +105,9 @@ Allocmem::Allocmem(Address* _bytes, Address* _result){
 }
 
 Address* create_new_temp(){
-    string name = T_LABEL + to_string(tcount++);
+    
+    string name = T_LABEL + to_string(tcount);
+    tcount++;
     Address* addr = new Address(name, TEMP);
     addr->size = CONSTANT_SIZE; // size of register for int operation 
 
@@ -267,6 +270,7 @@ Address* assign_operator_3ac(Address* result , Address* operand ){
     emit(create_new_quad("=", temp, NULL, result));
     
     tcount++;
+    tlabelcount++;
     return result;
 }
 
@@ -517,7 +521,7 @@ void dump_class_3ac(string classname, unsigned long classsize){
     cout<<"Instance var size: "<< classsize <<" , Temp size:" << classtcount*CONSTANT_SIZE <<"\n";
     classsize += (classtcount*CONSTANT_SIZE);
 
-    insert_in_global_quads(create_new_label(classname));
+    insert_in_global_quads(create_new_label("Class_"+classname));
     if(classsize) {
         insert_in_global_quads(create_new_reg(SP, classsize, false)); // space for local variables
     }

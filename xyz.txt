@@ -25,3 +25,7 @@ main:
 gcc -c function.s -o function.o  
 gcc -o function function.o 
 ./function 
+
+
+
+

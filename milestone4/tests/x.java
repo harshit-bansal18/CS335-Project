@@ -1,14 +1,24 @@
 public class Main
 {
-    static int a=5+6;
+    int a=100;
+
     static int geta(){
-        return a;
+        return 5;
     }
 
     static int main(){
         // int b = geta();
         int c = 2+3;
-        // System.out.println(b);
+        Main m = new Main();
+        m.a = 5+6;
+
+        System.out.println(m.a);
         return 0;
     }
+
+    Main(){
+        int b = 7;
+        System.out.println(this.a);
+    }
+
 }

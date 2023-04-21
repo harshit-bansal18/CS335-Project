@@ -47,6 +47,7 @@
 
     extern unordered_map<string, Type *> defined_types;
 
+    extern int tlabelcount;
     extern int loopnum;
     extern int ifnum;
     extern int tcount;
@@ -614,22 +615,33 @@ VariableDeclaratorList:
 VariableDeclarator:
     VariableDeclaratorId Assign VariableInitializer {    
                                                         if((pass_no==1 && current_scope==scope_class) || (pass_no==2)) {
+
+                                                            // if(pass_no == 2 )
+
+
                                                             VariableDeclarator($1, $3, 1);
                                                             if(pass_no == 2){
-                                                                $1->tac = create_new_mem($1->token, current_table->offset, $1->type);
 
+// --------Mohit--------
+                                                                if(current_scope == scope_class) {
+                                                                    stackentry* entry = find_variable_in_class($1->token, true);
+                                                                    Address* temp = create_new_temp();
+                                                                    Address* mem = create_new_mem("", 16, REF_TYPE_SIZE);
+                                                                    emit(create_new_quad("=", mem, NULL, temp));
+                                                                    Address* tmp1 = create_new_temp();
+                                                                    emit(create_new_quad("+", temp, create_new_const(to_string(entry->offset), CONSTANT_SIZE), tmp1));
+                                                                    $1->tac = create_new_mem($1->token, tmp1, $1->type);
+                                                                }
+// --------Mohit--------
+                                                                else{
+                                                                    $1->tac = create_new_mem($1->token, current_table->offset, $1->type);
+                                                                }
                                                                 assign_operator_3ac($1->tac, $3->tac);   // JAYA
 
                                                                 $$ = $1; // JAYA
 
                                                             }
                                                             if(pass_no == 2 && $1->type->is_pointer()) $1->type->arr_dim_val = $3->type->arr_dim_val;
-                                                        }
-
-                                                        // Mohit
-                                                        if(pass_no == 2)    //
-                                                        {
-                                                            // Add code to emit 3AC for assignment-------------Mohit----------To Do
                                                         }
                                                     }
 |   VariableDeclaratorId { 
@@ -687,8 +699,8 @@ MethodDeclaration:
                                     unsigned long local_var_size = current_table->offset;
                                     current_table->empty_table(); 
                                     // $$ = $1;
-                                    loopnum=0;
-                                    ifnum=0;
+                                    // loopnum=0;
+                                    // ifnum=0;
                                     // tcount=0;
                                     paramcount=0;
                                     if(($1)->token == "main")
@@ -836,8 +848,8 @@ ConstructorDeclaration:
                                                                                                                                             current_table->offset = -1 * current_table->offset;
                                                                                                                                             unsigned long local_vars_size = current_table->offset;
                                                                                                                                             current_table->empty_table();
-                                                                                                                                            loopnum=0;
-                                                                                                                                            ifnum=0;
+                                                                                                                                            // loopnum=0;
+                                                                                                                                            // ifnum=0;
                                                                                                                                             // tcount=0;
                                                                                                                                             paramcount=0;
                                                                                                                                             // threeac_file_name =current_class->name + "." +  ($2)->token + three_ac_type_dump(($2)->argument_type) ;
@@ -853,8 +865,8 @@ ConstructorDeclaration:
                                                                                                                                             current_table->offset = -1 * current_table->offset;
                                                                                                                                             unsigned long local_vars_size = current_table->offset;
                                                                                                                                             current_table->empty_table();
-                                                                                                                                            loopnum=0;
-                                                                                                                                            ifnum=0;
+                                                                                                                                            // loopnum=0;
+                                                                                                                                            // ifnum=0;
                                                                                                                                             // tcount=0;
                                                                                                                                             paramcount=0;
                                                                                                                                             threeac_file_name =threeac_filename(current_class->name , ($1)->token , ($1)->argument_type) ;
@@ -987,6 +999,11 @@ ClassInstanceCreationExpressionSubRoutine:
                                         $$->tac = create_new_temp();
  
                                         emit(create_new_allocmem(create_new_const(to_string($2->class_def->class_width), REF_TYPE_SIZE), $$->tac));
+
+                                        emit(create_new_arg($$->tac, -1*REF_TYPE_SIZE));
+                                        emit(create_new_reg(SP, REF_TYPE_SIZE,false)); // space for obj reference
+                                        emit(create_new_call("Class_"+($$)->type->name, 1));
+                                        emit(create_new_reg(SP, REF_TYPE_SIZE, true));
                                     }}
 
 ClassInstanceCreationExpression: 
@@ -1319,7 +1336,7 @@ MethodInvocation:   TypeName Lparen Rparen  {
 ;
 // A -> B Lparen Rparen    $$.type = $1.type    $1.nature = "function"     $1.argtype = ""
 // A -> B Lparen C Rparen      $$.type = $1.type    $1.nature = "function"     $1.argtype = $3.type   This argtype will be string concatenation of arguments type with a " , " in between
-// A -> B Dot C Lparen D Rparen    $$.type = $3.type    $1.nature = "class"    $3.nature = "function"    $3.argtype = $5.type
+// A -> B Dot C Lparen D Rparen    $$.type = $3.type    $1.nature = "class"    $performs3.nature = "function"    $3.argtype = $5.type
 // A -> B Dot C Lparen Rparen    $$.type = $3.type    $1.nature = "class"    $3.nature = "function"    $3.argtype = ""
 
 ArgumentList:       Expression  { 

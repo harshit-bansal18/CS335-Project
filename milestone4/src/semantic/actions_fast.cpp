@@ -1073,6 +1073,7 @@ Type* ClassOrInterfaceType(TypeName* e1) {
 // }
 
 void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no) {
+
     if(rule_no == 1){
                 
         if ((pass_no == 1 && current_scope == scope_class) || (pass_no == 2 && current_scope == scope_method)) {
@@ -1103,6 +1104,14 @@ void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no) {
             }
             
         }
+
+// // Mohit's Edit for Class 3ac
+//         if (pass_no == 2 && current_scope == scope_class){
+
+            
+
+//         }
+// // Mohit's Edit for Class 3ac Ends
 
         if(pass_no == 2){
     
@@ -1149,28 +1158,6 @@ void VariableDeclarator(stackentry* e1, stackentry* e2, int rule_no) {
     }
 
 }
-
-// void MethodDeclaration() {
-    // cerr << "In Method Declaration\n";
-    // if(pass_no == 1){
-    //     int l = symmbol_table_pass1[current_class].size(); 
-    //     symmbol_table_pass1[current_class][l-1]->nature = FUNCTION;
-    // } else {
-    //     int l = symmbol_table_pass2[current_class].size(); 
-    //     symmbol_table_pass2[current_class][l-1]->nature = FUNCTION;
-    // }
-// }
-
-// void ConstructorDeclaration() {
-    // if(pass_no == 1){
-    //     int l = symmbol_table_pass1[current_class].size(); 
-    //     symmbol_table_pass1[current_class][l-1]->nature = CONSTRUCTOR;
-    // } else {
-    //     int l = symmbol_table_pass2[current_class].size(); 
-    //     symmbol_table_pass2[current_class][l-1]->nature = CONSTRUCTOR;
-    // }
-    
-// }
 
 void IfCondition(stackentry* e1){
     if(pass_no == 2 ){

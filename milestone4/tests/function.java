@@ -1,12 +1,9 @@
 class Argfunc {
     int x;
     int y = 1000;
-    Argfunc(){
-        x = 10;
-    }
     Argfunc(int a, int b){
         x = a;
-        y = b;
+        // y = b;
     }
     int func(int a, int b){
         x = b;
@@ -17,11 +14,16 @@ class Argfunc {
         y = func(a,b);
         return b;
     }
+    Argfunc(){
+        x = 10;
+        // y = 100;
+    }
 }
 
 public class FuncTest{
     public static void main(){
-        long x = get_int();
+        int c = 5;
+        long x = get_int(c,c);
         System.out.println(x);              // 7
         Argfunc af = new Argfunc();
         System.out.println(af.x);           // 10
@@ -33,10 +35,10 @@ public class FuncTest{
         System.out.println(af.y);           // 4
         Argfunc af1 = new Argfunc(5,6);
         System.out.println(af1.x);          // 5
-        System.out.println(af1.y);          // 6
+        // System.out.println(af1.y);          // 6
     }
 
-    static int get_int() {
-        return 7;
+    static int get_int(int a, int b) {
+        return a/2+b;
     }
 }
