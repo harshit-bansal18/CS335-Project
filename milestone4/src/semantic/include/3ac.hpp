@@ -13,17 +13,18 @@
 #define TYPE_SIZE 8 // used for int, short, byte to make their type size 8, will affect type checking
 #define REF_TYPE_SIZE 8
 
-#define ENDLOOP_LABEL "end_loop"
-#define IF_LABEL "if"
-#define ELSE_LABEL "else"
-#define ENDIF_LABEL "end_if"
-#define LOOP_LABEL  "loop"
-#define ENDFOR_LABEL "end_for"
-#define FORBODY_LABEL "for_body"
-#define FORUPDATE_LABEL "for_update"
-#define FORCOND_LABEL "for_cond"
-#define T_LABEL     "t"
-#define TEND_LABEL "t_end"
+#define ENDLOOP_LABEL "End_loop_"
+#define IF_LABEL "If_"
+#define ELSE_LABEL "Else_"
+#define ENDIF_LABEL "End_If_"
+#define LOOP_LABEL  "Loop_"
+#define ENDFOR_LABEL "End_For_"
+#define FORBODY_LABEL "For_Body_"
+#define FORUPDATE_LABEL "For_Update_"
+#define FORCOND_LABEL "For_Cond_"
+#define T_LABEL     "Tlabel_"
+#define TEND_LABEL "Tlabel_End_"
+#define TEMP_VAR "t" // used for temporary variables
 
 using namespace std;
 

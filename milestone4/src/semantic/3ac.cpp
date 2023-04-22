@@ -106,8 +106,9 @@ Allocmem::Allocmem(Address* _bytes, Address* _result){
 
 Address* create_new_temp(){
     
-    string name = T_LABEL + to_string(tcount);
+    string name = "t" + to_string(tcount);
     tcount++;
+    tlabelcount++;
     Address* addr = new Address(name, TEMP);
     addr->size = CONSTANT_SIZE; // size of register for int operation 
 
@@ -269,19 +270,23 @@ Address* assign_operator_3ac(Address* result , Address* operand ){
     emit(create_new_quad("=", operand , NULL, temp));
     emit(create_new_quad("=", temp, NULL, result));
     
-    tcount++;
-    tlabelcount++;
+    tcount++;       //unnecessary
+    tlabelcount++;  //unnecessary
     return result;
 }
 
 Address* ternary_condition_3ac(Address* cond, Address* e1, Address* e2){
     Address* temp = create_new_temp();
-    emit(create_new_comp("==", cond, create_new_const("0", CONSTANT_SIZE), T_LABEL + temp->name));
+    // emit(create_new_comp("==", cond, create_new_const("0", CONSTANT_SIZE), T_LABEL + temp->name));
+    emit(create_new_comp("==", cond, create_new_const("0", CONSTANT_SIZE), T_LABEL + to_string(tlabelcount)));
     emit(create_new_quad("=", e1, NULL, temp));
-    emit(create_new_goto(TEND_LABEL+temp->name));
-    emit(create_new_label(T_LABEL+temp->name));
+    // emit(create_new_goto(TEND_LABEL+temp->name));
+    emit(create_new_goto(TEND_LABEL+to_string(tlabelcount)));
+    // emit(create_new_label(T_LABEL+temp->name));
+    emit(create_new_label(T_LABEL+to_string(tlabelcount)));
     emit(create_new_quad("=", e2, NULL, temp));
-    emit(create_new_label(TEND_LABEL+temp->name));
+    // emit(create_new_label(TEND_LABEL+temp->name));
+    emit(create_new_label(TEND_LABEL+to_string(tlabelcount)));
     return temp;
 }
 
@@ -299,64 +304,84 @@ Address* binary_bitwise_operator_3ac(Address* e1, string op, Address* e2){
 
 Address* or_operator_3ac(Address* e1, Address* e2){
     Address* temp = create_new_temp();
-    emit(create_new_comp("==", e1, create_new_const("0", CONSTANT_SIZE), T_LABEL + temp->name));
+    // emit(create_new_comp("==", e1, create_new_const("0", CONSTANT_SIZE), T_LABEL + temp->name));
+    emit(create_new_comp("==", e1, create_new_const("0", CONSTANT_SIZE), T_LABEL + to_string(tlabelcount)));
 
     emit(create_new_quad("=", e1, NULL, temp));
-    emit(create_new_goto(TEND_LABEL+temp->name));
+    // emit(create_new_goto(TEND_LABEL+temp->name));
+    emit(create_new_goto(TEND_LABEL+to_string(tlabelcount)));
 
-    emit(create_new_label(T_LABEL+temp->name)); 
+    // emit(create_new_label(T_LABEL+temp->name));
+    emit(create_new_label(T_LABEL+to_string(tlabelcount))); 
 
     emit(create_new_quad("=", e2, NULL, temp));
 
-    emit(create_new_label(TEND_LABEL+temp->name));
+    // emit(create_new_label(TEND_LABEL+temp->name));
+    emit(create_new_label(TEND_LABEL+to_string(tlabelcount)));
     return temp;
 }
 
 Address* and_operator_3ac(Address* e1, Address* e2){
     Address* temp = create_new_temp();
-    emit(create_new_comp("==", e1, create_new_const("1", CONSTANT_SIZE), T_LABEL + temp->name));
+    // emit(create_new_comp("==", e1, create_new_const("1", CONSTANT_SIZE), T_LABEL + temp->name));
+    emit(create_new_comp("==", e1, create_new_const("1", CONSTANT_SIZE), T_LABEL + to_string(tlabelcount)));
 
     emit(create_new_quad("=", e1, NULL, temp));
-    emit(create_new_goto(TEND_LABEL+temp->name));
+    // emit(create_new_goto(TEND_LABEL+temp->name));
+    emit(create_new_goto(TEND_LABEL+to_string(tlabelcount)));
 
-    emit(create_new_label(T_LABEL+temp->name));
+    // emit(create_new_label(T_LABEL+temp->name));
+    emit(create_new_label(T_LABEL+to_string(tlabelcount)));
     
     emit(create_new_quad("=", e2, NULL, temp));
 
-    emit(create_new_label(TEND_LABEL+temp->name));
+    // emit(create_new_label(TEND_LABEL+temp->name));
+    emit(create_new_label(TEND_LABEL+to_string(tlabelcount)));
     return temp;
 }
 
 Address* deq_check_3ac(Address* e1, Address* e2){
     Address* temp = create_new_temp();
-    emit(create_new_comp("==", e1, e2, T_LABEL + temp->name));
+    // emit(create_new_comp("==", e1, e2, T_LABEL + temp->name));
+    emit(create_new_comp("==", e1, e2, T_LABEL + to_string(tlabelcount)));
     emit(create_new_quad("=", create_new_const("0", CONSTANT_SIZE), NULL, temp));
-    emit(create_new_goto(TEND_LABEL+temp->name));
-    emit(create_new_label(T_LABEL+temp->name));
+    // emit(create_new_goto(TEND_LABEL+temp->name));
+    emit(create_new_goto(TEND_LABEL+to_string(tlabelcount)));
+    // emit(create_new_label(T_LABEL+temp->name));
+    emit(create_new_label(T_LABEL+to_string(tlabelcount)));
     emit(create_new_quad("=", create_new_const("1", CONSTANT_SIZE), NULL, temp));
-    emit(create_new_label(TEND_LABEL+temp->name));
+    // emit(create_new_label(TEND_LABEL+temp->name));
+    emit(create_new_label(TEND_LABEL+to_string(tlabelcount)));
     return temp;
 }
 
 Address* neq_check_3ac(Address* e1, Address* e2){
     Address* temp = create_new_temp();
-    emit(create_new_comp("==", e1, e2, T_LABEL + temp->name));
+    // emit(create_new_comp("==", e1, e2, T_LABEL + temp->name));
+    emit(create_new_comp("==", e1, e2, T_LABEL + to_string(tlabelcount)));
     emit(create_new_quad("=", create_new_const("1", CONSTANT_SIZE), NULL, temp));
-    emit(create_new_goto(TEND_LABEL+temp->name));
-    emit(create_new_label(T_LABEL+temp->name));
+    // emit(create_new_goto(TEND_LABEL+temp->name));
+    emit(create_new_goto(TEND_LABEL+to_string(tlabelcount)));
+    // emit(create_new_label(T_LABEL+temp->name));
+    emit(create_new_label(T_LABEL+to_string(tlabelcount)));
     emit(create_new_quad("=", create_new_const("0", CONSTANT_SIZE), NULL, temp));
-    emit(create_new_label(TEND_LABEL+temp->name));
+    // emit(create_new_label(TEND_LABEL+temp->name));
+    emit(create_new_label(TEND_LABEL+to_string(tlabelcount)));
     return temp;
 } // == , !=
 
 Address* relation_check_3ac(Address* e1, string op, Address* e2){
     Address* temp = create_new_temp();
-    emit(create_new_comp(op, e1, e2, T_LABEL + temp->name));
+    // emit(create_new_comp(op, e1, e2, T_LABEL + temp->name));
+    emit(create_new_comp(op, e1, e2, T_LABEL + to_string(tlabelcount)));
     emit(create_new_quad("=", create_new_const("0", CONSTANT_SIZE), NULL, temp));
-    emit(create_new_goto(TEND_LABEL+temp->name));
-    emit(create_new_label(T_LABEL+temp->name));
+    // emit(create_new_goto(TEND_LABEL+temp->name));
+    emit(create_new_goto(TEND_LABEL+to_string(tlabelcount)));
+    // emit(create_new_label(T_LABEL+temp->name));
+    emit(create_new_label(T_LABEL+to_string(tlabelcount)));
     emit(create_new_quad("=", create_new_const("1", CONSTANT_SIZE),NULL, temp));
-    emit(create_new_label(TEND_LABEL+temp->name));
+    // emit(create_new_label(TEND_LABEL+temp->name));
+    emit(create_new_label(TEND_LABEL+to_string(tlabelcount)));
     return temp;
 } // < , > , <= , >=
 
