@@ -1,31 +1,99 @@
-----------Template---------------
-
-
-
-	.text
-        .section        .rodata
-.LC0:
-        .string "%d"
-        .text
-        .globl  main
-        .type   main, @function
-main:
-	pushq	%rbp
-	movq	%rsp, %rbp	
-	movl    %eax, %esi
-        movl    $.LC0, %edi
-        movl    $0, %eax
-        call    printf
-        movl    $0, %eax
-        leave
-        ret
-
-
-./build/milestone4/java2x86 --input ./milestone4/tests/function.java --output function.s
-gcc -c function.s -o function.o  
-gcc -o function function.o 
-./function 
-
-
-
-
+0
+4
+0
+0
+0
+0
+0
+8
+0
+4
+0
+8
+0
+0
+0
+0
+11
+0
+0
+8
+0
+7
+0
+4
+0
+0
+2
+0
+0
+7
+0
+9
+14
+0
+0
+0
+0
+0
+0
+9
+0
+10
+0
+0
+0
+0
+0
+4
+14
+10
+0
+2
+0
+0
+0
+0
+0
+0
+0
+2
+0
+1
+6
+8
+11
+0
+0
+0
+0
+1
+0
+7
+0
+0
+2
+0
+0
+0
+6
+7
+0
+0
+0
+1
+-6917529027641081856
+2
+-8745990476353503232
+3
+109951162777600000
+4
+429496729600000
+5
+1677721600000
+6
+6553600000
+7
+25600000
+8
+100000

@@ -902,6 +902,23 @@ ExplicitConstructorInvocation:
                                     cerr << "Line No: " <<  yylineno  << "No such constructor present in class\n";
                                     exit(-1);
                                 }
+                                
+                                // Constructor call
+                                if(!(method_def_pair.second.size() == 1 && is_null(method_def_pair.second[0]))){   
+
+                                    Address* temp = create_new_temp();
+                                    Address* mem = create_new_mem("", 16, REF_TYPE_SIZE);
+                                    emit(create_new_quad("=", mem, NULL, temp));
+                                    emit(create_new_arg(temp, -1*REF_TYPE_SIZE));
+                                    emit(create_new_reg(SP, REF_TYPE_SIZE,false)); // space for obj reference
+                                    string method_name = threeac_filename(current_class->name, current_class->name, method_def_pair.second);
+                                    emit(create_new_call(method_name, 1));
+                                    emit(create_new_reg(SP, REF_TYPE_SIZE, true));
+                                } 
+                                // else{
+                                    // undefined default constructor called so don't invoke call
+                                // }  
+
                             }
                         }
 |   This Lparen ArgumentList Rparen {
@@ -913,7 +930,45 @@ ExplicitConstructorInvocation:
                                                 exit(-1);
                                             }
 
+                                            int local_args_sum = 0;
+                                            for(int i =0; i<method_def_pair.second.size();i++){
+                                                local_args_sum += method_def_pair.second[i]->size;
+                                            }
+
+                                            
+                                            int args_offset = -8;
+
+                                            for(int i = args.size()-1; i>=0; i--){
+                                                if((!check_if_temp(args[i]) && (!check_if_const(args[i])))){
+                                                    Address* temp = create_new_temp();
+                                                    
+                                                    emit(create_new_quad("=", args[i], NULL, temp));
+                                                    emit(create_new_arg(temp, args_offset));
+                                                }else {
+                                                        emit(create_new_arg(args[i], args_offset));
+                                                }
+                                                // JAYA
+                                                args_offset -= method_def_pair.second[i]->size;   
+                                            }
+
                                             args.clear();
+
+                                            string method_name;
+                                                                
+                                            Address* temp = create_new_temp();
+                                            Address* mem = create_new_mem("", 16, REF_TYPE_SIZE);
+                                            emit(create_new_quad("=", mem, NULL, temp));
+                                            emit(create_new_arg(temp, -1*(local_args_sum+REF_TYPE_SIZE)));
+                                            method_name = threeac_filename(current_class->name, current_class->name, method_def_pair.second);
+                                            
+                                            emit (create_new_reg(SP, REF_TYPE_SIZE + local_args_sum, false));  // Space for obj refernce and local vars
+
+                                            emit(create_new_call(method_name, paramcount+1));
+
+                                            emit(create_new_reg(SP, REF_TYPE_SIZE + local_args_sum, true));   // remove space for object reference which was passed as argument
+
+                                            paramcount=0;
+                                            
                                         }
                                     }
 /* |   super_ Lparen Rparen { }
@@ -1058,7 +1113,7 @@ ClassInstanceCreationExpression:
                                                                
                                                                 int local_args_sum = -8;
 
-                                                                for(int i = 0; i<args.size(); i++){
+                                                                for(int i = args.size()-1; i>=0; i--){
                                                                     if((!check_if_temp(args[i]) && (!check_if_const(args[i])))){
                                                                         Address* temp = create_new_temp();
                                                                         emit(create_new_quad("=", args[i], NULL, temp));
@@ -1329,8 +1384,102 @@ MethodInvocation:   TypeName Lparen Rparen  {
                                                                 // $$->tac = create_new_temp();
                                                             }
                                                         }                              
-|                   Primary Dot Identifier Lparen Rparen { }
-|                   Primary Dot Identifier Lparen ArgumentList Rparen { if(pass_no == 2) args.clear(); }
+|                   Primary Dot Identifier Lparen Rparen {      
+                                                                if(pass_no == 2){
+                                                                    if($1->token == "this") {
+                                                                        // Special handling for this
+                                                                        vector<Type *> v;
+                                                    
+                                                                        auto method_def_pair = check_function_in_class($3->name, v, FUNCTION);
+                                                                        if(is_null(method_def_pair.first)){
+                                                                            cerr << "Line No: " <<  yylineno  << "Undeclared function called\n";
+                                                                            exit(1);
+                                                                        }
+                                                                        // Previously was wrong here. Return type directly used
+                                                                        // Maybe if return type was array then code was wrong here
+                                                                        // whenever making new stackentry of given type, use only this function
+                                                                        // do not manually assign type
+  
+                                                                        $$ = make_stackentry("", method_def_pair.first, yylineno);
+                                                                        $$->tac = create_new_temp();
+                                                                        string method_name;
+                                                                        
+                                                                        // This means same class function call within class, hence get reference from stack
+                                                                        Address* temp = create_new_temp();
+                                                                        Address* mem = create_new_mem("", 16, REF_TYPE_SIZE);
+                                                                        emit(create_new_quad("=", mem, NULL, temp));
+                                                                        emit(create_new_arg(temp, -1*REF_TYPE_SIZE));
+                                                                        method_name = threeac_filename(current_class->name, $3->name, method_def_pair.second);
+
+                                                                        // JAYA
+                                                                        emit (create_new_reg(SP, REF_TYPE_SIZE, false));  // Space for obj refernce
+
+                                                                        emit(create_new_call(method_name, 1));
+
+                                                                        emit(create_new_reg(SP, REF_TYPE_SIZE, true));   // remove space for object reference which was passed as argument
+                                                                        if(method_def_pair.first->name !=__VOID){
+                                                                            emit(create_new_return($$->tac, false)); // get value returned by the callee function
+                                                                        }
+                                                                        paramcount=0;   
+                                                                    }
+                                                                }
+                                                        }
+|                   Primary Dot Identifier Lparen ArgumentList Rparen { if(pass_no == 2){
+                                                                            if($1->token == "this"){
+                                                                                auto method_def_pair = check_function_in_class($3->name, ($5)->argument_type, FUNCTION);
+                                                                                if(is_null(method_def_pair.first)){
+                                                                                    cerr << "Line No: " <<  yylineno  << "Undeclared function called\n";
+                                                                                    exit(-1);
+                                                                                }
+
+                                                                                $$ = make_stackentry("", method_def_pair.first, yylineno); 
+                                                                                $$->tac = create_new_temp();
+
+                                                                                int local_args_sum = 0;
+                                                                                for(int i =0; i<method_def_pair.second.size();i++){
+                                                                                    local_args_sum += method_def_pair.second[i]->size;
+                                                                                }
+
+                                                                                
+                                                                                int args_offset = -8;
+
+                                                                                for(int i = args.size()-1; i>=0; i--){
+                                                                                    if((!check_if_temp(args[i]) && (!check_if_const(args[i])))){
+                                                                                        Address* temp = create_new_temp();
+                                                                                        
+                                                                                        emit(create_new_quad("=", args[i], NULL, temp));
+                                                                                        emit(create_new_arg(temp, args_offset));
+                                                                                    }else {
+                                                                                        emit(create_new_arg(args[i], args_offset));
+                                                                                    }
+                                                                                    // JAYA
+                                                                                    args_offset -= method_def_pair.second[i]->size;   
+                                                                                }
+
+                                                                                args.clear();
+
+                                                                                string method_name;
+                                                                                                    
+                                                                                Address* temp = create_new_temp();
+                                                                                Address* mem = create_new_mem("", 16, REF_TYPE_SIZE);
+                                                                                emit(create_new_quad("=", mem, NULL, temp));
+                                                                                emit(create_new_arg(temp, -1*(local_args_sum+REF_TYPE_SIZE)));
+                                                                                method_name = threeac_filename(current_class->name, $3->name, method_def_pair.second);
+
+                                                                                emit (create_new_reg(SP, REF_TYPE_SIZE + local_args_sum, false));  // Space for obj refernce and local vars
+
+                                                                                emit(create_new_call(method_name, paramcount+1));
+
+                                                                                emit(create_new_reg(SP, REF_TYPE_SIZE + local_args_sum, true));   // remove space for object reference which was passed as argument
+
+                                                                                if(method_def_pair.first->name !=__VOID){
+                                                                                    emit(create_new_return($$->tac, false)); // get value returned by the callee function
+                                                                                }
+
+                                                                                paramcount=0;
+                                                                            }
+                                                                        } 
+                                                                    }
 /* |                   super_ Dot Identifier Lparen Rparen { }
 |                   super_ Dot Identifier Lparen ArgumentList Rparen { } */
 ;
@@ -1897,6 +2046,7 @@ UnaryExpression:    PreIncrementExpression      { if(pass_no == 2 ) $$ = $1; }
                                                             exit(1);
                                                         }
                                                         Address *tmp = create_new_temp();
+                                                        
                                                         emit(create_new_quad("-", ($2)->tac, NULL, tmp));
                                                         $$ = $2;
                                                         $$->tac = tmp;
@@ -2020,9 +2170,11 @@ UnaryExpressionNotPlusMinus:    PostfixExpression                   {
                                                                                 cerr << "unary Expression type must be integral\n";
                                                                                 exit(1);
                                                                             }
+
+                                                                            Address* temp = create_new_temp();
+                                                                            emit(create_new_quad("~", ($2)->tac, NULL, temp));
                                                                             $$ = $2;
-                                                                            $$->tac = create_new_temp();
-                                                                            emit(create_new_quad("~", ($2)->tac, NULL, ($$)->tac));
+                                                                            $$->tac = temp;
                                                                             
                                                                         }
                                                                     }
@@ -2035,10 +2187,10 @@ UnaryExpressionNotPlusMinus:    PostfixExpression                   {
 
                                                                             check_boolean($2->type);
                                                                             
+                                                                            Address* temp = create_new_temp();
+                                                                            emit(create_new_quad("!", ($2)->tac, NULL, temp));
                                                                             $$ = $2;
-                                                                            $$->tac = create_new_temp();
-                                                                            emit(create_new_quad("!", ($2)->tac, NULL, ($$)->tac));
-                                                                            
+                                                                            $$->tac = temp;         
                                                                         }
                                                                     }
 |                               CastExpression                      { if(pass_no == 2 ) $$ = $1; }
@@ -2368,7 +2520,7 @@ DoStatement:
         } Statement While {if(pass_no == 2) loopnum--;} Lparen Expression {     
                                                     if(pass_no == 2){ 
                                                         check_boolean($7->type); 
-                                                        emit(create_new_comp("== ", $7->tac,create_new_const("1", CONSTANT_SIZE) , LOOP_LABEL+ to_string($1)));
+                                                        emit(create_new_comp("==", $7->tac,create_new_const("1", CONSTANT_SIZE) , LOOP_LABEL+ to_string($1)));
                                                         emit(create_new_label(ENDLOOP_LABEL+to_string($1)));
                                                     }
                                             } Rparen Semicolon  { if(pass_no == 2) clear_current_scope(); }
@@ -3013,10 +3165,10 @@ Char_literal : CHAR_LITERAL     {
 ;
 
 Boolean_literal : BOOLEAN_LITERAL { 
-                                    $$ = make_stackentry($1, get_type(__BOOLEAN), yylineno); 
-                                    cout << $1;
+                                    $$ = make_stackentry($1, get_type(__BOOLEAN), yylineno);
                                     if(pass_no == 2){
-                                        if($1 == "true")
+                                        string s = $1;
+                                        if(s == "true")
                                             $$->tac = create_new_const(to_string(1), CONSTANT_SIZE);
                                         else 
                                             $$->tac = create_new_const(to_string(0), CONSTANT_SIZE);

@@ -13,12 +13,12 @@
 #define TYPE_SIZE 8 // used for int, short, byte to make their type size 8, will affect type checking
 #define REF_TYPE_SIZE 8
 
-#define ENDLOOP_LABEL "End_loop_"
+#define ENDLOOP_LABEL "End_Loop_"
 #define IF_LABEL "If_"
 #define ELSE_LABEL "Else_"
 #define ENDIF_LABEL "End_If_"
 #define LOOP_LABEL  "Loop_"
-#define ENDFOR_LABEL "End_For_"
+#define ENDFOR_LABEL "End_Loop_"
 #define FORBODY_LABEL "For_Body_"
 #define FORUPDATE_LABEL "For_Update_"
 #define FORCOND_LABEL "For_Cond_"

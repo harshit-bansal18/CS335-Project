@@ -37,7 +37,13 @@ map <instr_names, string> x86_instr = { {addl, "addq"},
                                         {jmp, "jmp"},
                                         {call, "call"},
                                         {shlq, "shlq"},
-                                        {shrq, "shrq"}};
+                                        {shrq, "shrq"},
+                                        {sarq, "sarq"},
+                                        {notq, "notq"},
+                                        {andq, "andq"},
+                                        {orq, "orq"},
+                                        {xorq, "xorq"},
+                                        {logicalnot, "xorq\t$1,"}};
                                         
 
 string get_free_register() {
@@ -107,12 +113,12 @@ string generate_asm_string(Address* addr) {
 }
 
 string get_instr_name_mov(int size){
-    if(size == 4)
-        return x86_instr[movq];
-    else if (size == 8)
+    // if(size == 4)
+    //     return x86_instr[movq];
+    // else if (size == 8)
         return x86_instr[movq];
     
-    return "";
+    // return "";
 }
 
 static inline string insert_load_mem(Address *mem_addr) {
@@ -134,10 +140,10 @@ static inline void insert_store_mem(Address *mem_addr, string reg) {
 // Returns if the operation is binary i.e has two operands.
 static inline bool is_binary(string op) {
     char op_c = op[0];
-    if (op_c == '+' || op_c == '-' || op_c == '*' || op_c == '/')
+    if (op_c == '+' || op_c == '-' || op_c == '*' || op_c == '/' || op_c == '%')
         return true;
     
-    if (op == ">>" || op == "<<" || op == ">>>")
+    if (op == ">>" || op == "<<" || op == ">>>" || op == "&" || op == "|" || op == "^" )
         return true;
     
     return false;
@@ -145,7 +151,7 @@ static inline bool is_binary(string op) {
 
 static inline bool is_unary(string op) {
     char op_c = op[0];
-    if (op_c == '-' || op_c == '!')
+    if (op_c == '-' || op_c == '!' || op_c == '~')
         return true;
 
     return false;
@@ -153,40 +159,42 @@ static inline bool is_unary(string op) {
 
 string get_instr_name_unary(string op) {
     if (op == "-")
-        return x86_instr[negl];
-    else {
-        return "";
-    }
+        return x86_instr[negl];     //why neg"l"
+    else if (op == "!")
+        return x86_instr[logicalnot];
+    else if (op == "~")
+        return x86_instr[notq];
+    return "";
 }
 string get_instr_name_binary(string op, int size) {
 
-    switch (size) {
+    // switch (size) {
     
-    case 4:
-        if (op == "+") 
-            return x86_instr[addl];
-        else if (op == "-")
-            return x86_instr[subl];
-        else if (op == "*")
-            return x86_instr[mull];
-        else if (op == "/")
-            return x86_instr[idivl];
-        else if (op == "\%")
-            return x86_instr[modl];
-        else if (op == ">")
-            return x86_instr[jg];
-        else if (op == "<")
-            return x86_instr[jl];
-        else if (op == ">=")
-            return x86_instr[jge];
-        else if (op == "<=")
-            return x86_instr[jle];
-        else if (op == "==")
-            return x86_instr[je];
-        else 
-            return "";
+    // case 4:
+    //     if (op == "+") 
+    //         return x86_instr[addl];
+    //     else if (op == "-")
+    //         return x86_instr[subl];
+    //     else if (op == "*")
+    //         return x86_instr[mull];
+    //     else if (op == "/")
+    //         return x86_instr[idivl];
+    //     else if (op == "\%")
+    //         return x86_instr[modl];
+    //     else if (op == ">")
+    //         return x86_instr[jg];
+    //     else if (op == "<")
+    //         return x86_instr[jl];
+    //     else if (op == ">=")
+    //         return x86_instr[jge];
+    //     else if (op == "<=")
+    //         return x86_instr[jle];
+    //     else if (op == "==")
+    //         return x86_instr[je];
+    //     else 
+    //         return "Check_"+op+"_instr";
         
-    case 8:
+    // case 8:
         if (op == "+") 
             return x86_instr[addq];
         else if (op == "-")
@@ -211,13 +219,21 @@ string get_instr_name_binary(string op, int size) {
             return x86_instr[shlq];
         else if(op == ">>")
             return x86_instr[shrq];
+        else if(op == ">>>")
+            return x86_instr[sarq];
+        else if(op == "&")
+            return x86_instr[andq];
+        else if(op == "|")
+            return x86_instr[orq];
+        else if(op == "^")
+            return x86_instr[xorq];
         
         else 
-            return "";
+            return "Check_"+op+"_instr";
 
-    }
+    // }
  
-    return "";
+    // return "";
 }
 
 // Put number of bytes to allocate in rdi

@@ -4,14 +4,12 @@ public class Arraystest{
         long[] array = new long[10];
         long temp;
         long i=0;
-        for(; i<10; ){
+        for(i =0; i<10; i++){
             array[i] = i;
-            i++;
+            // i++;
         }
-        for(i = 0; i < 9; i++){
-            temp = array[i];
-            // System.out.println(temp);
-            System.out.println(array[i+1]);
+        for(i = 0; i < 10; i++){
+            System.out.println(array[i]);
         }
     }
 }

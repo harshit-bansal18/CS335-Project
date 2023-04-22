@@ -1,89 +1,66 @@
-Func name: Arg.Arg_int0
-Local var size: 8 , Temp size:232
-Func name: Arg.func_int0_int0
-Local var size: 8 , Temp size:0
-Current Class: Arg
-Current Class Width: 32
-
-Class Func name: Arg
-Instance var size: 32 , Temp size:32
-Args size: 0
 Func name: main
-Local var size: 8 , Temp size:24
-Current Class: FuncTest
+Local var size: 72 , Temp size:80
+Current Class: ifelse
 Current Class Width: 0
 
-Class Func name: FuncTest
+Class Func name: ifelse
 Instance var size: 0 , Temp size:0
-Label: Arg.Arg_int0
-Reg: rsp 240 0
-Quad: =   t0
-Quad: + t0 8 t1
-Quad: = 69  a
-Quad: =   t2
-Quad: + t2 8 t3
-Quad: = a  t4
-Quad: + t4 1 a
-Quad: =   t5
-Quad: + t5 8 t6
-Quad: + a 1 t7
-Quad: = t7  a
-Quad: =   t8
-Quad: + t8 24 t9
-Quad: = 1  t10
-Quad: * t10 5 t11
-Quad: * t11 6 t12
-Quad: * t12 8 t13
-Quad: = t14  arr
-Quad: =   t15
-Quad: + t15 24 t16
-Quad: = 1  t17
-Quad: * t17 6 t18
-Quad: * t18 8 t19
-Quad: * t19 1 t20
-Quad: + arr t20 t21
-Quad: = 1  t22
-Quad: * t22 8 t23
-Quad: * t23 2 t24
-Quad: + t21 t24 t25
-Quad: cast 26  t26
-Quad: = t26  
-Quad: = b  t27
-Quad: = t27  x
-Label: return0
-Reg: rsp 240 1
-Label: Arg.func_int0_int0
-Reg: rsp 8 0
-Quad: = 100  x
-Return: x 1
-Goto: return1
-Label: return1
-Reg: rsp 8 1
-Label: Class_Arg
-Reg: rsp 64 0
-Quad: =   t0
-Quad: + t0 0 t1
-Quad: = 5  x
-Quad: =   t2
-Quad: + t2 0 t3
-Quad: = 11  already_init
-Label: return2
-Reg: rsp 64 1
 Label: main
-Reg: rsp 32 0
-Arg: t0 -8
-Reg: rsp 8 0
-Call: Class_Arg 0
-Reg: rsp 8 1
-Arg: 5 -8
-Arg: t0 -16
-Reg: rsp 16 0
-Call: Arg.Arg_int0 0
-Reg: rsp 16 1
-Quad: = t0  a1
-Quad: = a1  t1
-Quad: + t1 0 t2
-Label: return3
-Reg: rsp 32 1
-Label: Class_FuncTest
-Label: return4
+Reg: rsp 152 0
+Quad: = 1  h
+Quad: = 1  i
+Quad: = 2  c
+Quad: = 3  d
+Quad: = 4  e
+Quad: = 5  f
+Quad: = 6  g
+Quad: ! h  t0
+Comp: == i 0 Tlabel_2
+Quad: = 1  t1
+Goto: Tlabel_End_2
+Label: Tlabel_2
+Quad: = 0  t1
+Label: Tlabel_End_2
+Comp: == t0 1 Tlabel_3
+Quad: = t0  t2
+Goto: Tlabel_End_3
+Label: Tlabel_3
+Quad: = t1  t2
+Label: Tlabel_End_3
+Comp: == c d Tlabel_4
+Quad: = 1  t3
+Goto: Tlabel_End_4
+Label: Tlabel_4
+Quad: = 0  t3
+Label: Tlabel_End_4
+Comp: == t2 1 Tlabel_5
+Quad: = t2  t4
+Goto: Tlabel_End_5
+Label: Tlabel_5
+Quad: = t3  t4
+Label: Tlabel_End_5
+Quad: + e f t5
+Comp: < t5 g Tlabel_7
+Quad: = 0  t6
+Goto: Tlabel_End_7
+Label: Tlabel_7
+Quad: = 1  t6
+Label: Tlabel_End_7
+Comp: == t4 1 Tlabel_8
+Quad: = t4  t7
+Goto: Tlabel_End_8
+Label: Tlabel_8
+Quad: = t6  t7
+Label: Tlabel_End_8
+Comp: == t7 0 Else_0
+Label: If_0
+Quad: = 293989  a
+Quad: & a a t9
+Quad: = t9  b
+Goto: End_If_0
+Label: Else_0
+Label: End_If_0
+Label: return0
+Reg: rsp 152 1
+Label: Class_ifelse
+Label: return1

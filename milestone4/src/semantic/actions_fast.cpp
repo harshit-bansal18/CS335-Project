@@ -1264,7 +1264,7 @@ void intialize_types() {
     defined_types.insert( {__FLOAT, new Type(__FLOAT, true, false, 4)});
     defined_types.insert( {__DOUBLE, new Type(__DOUBLE, true, false, 8)});
     defined_types.insert( {__VAR, new Type(__VAR, false, false, 4)});
-    defined_types.insert( {__BOOLEAN, new Type(__BOOLEAN, false, false, 1)});
+    defined_types.insert( {__BOOLEAN, new Type(__BOOLEAN, false, false, TYPE_SIZE)});
     defined_types.insert( {__VOID, new Type(__VOID, false, false, 0)});
 }
 

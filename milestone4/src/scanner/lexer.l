@@ -457,6 +457,7 @@ EOL_COMMENT         \/\/[^\n\r]*
 
 {INTEGER_LITERAL}                       {   
                                             yylval.str = strdup(yytext); 
+                                          //   cerr << "In integer literal: " << yylval.str << "\n";
                                             check_for_null(yylval.str); 
                                             return INTEGER_LITERAL;
                                         }

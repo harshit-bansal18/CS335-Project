@@ -46,7 +46,13 @@ typedef enum {
     modl,
     negq,
     shlq,
-    shrq
+    shrq,
+    sarq,
+    notq,
+    andq,
+    orq,
+    xorq,
+    logicalnot
 }instr_names;
 
 
