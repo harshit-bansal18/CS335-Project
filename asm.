@@ -1,0 +1,311 @@
+	.text
+	.section    .rodata
+
+.LC0:
+	.string    "%ld\n" 
+	.text
+	.globl   Student.calculateAverage
+	.type    Student.calculateAverage, @function
+
+Student.calculateAverage:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	subq	$112,%rsp
+	movq	$0,-8(%rbp)
+	movq	$0,-16(%rbp)
+
+For_Cond_0:
+	movq	$5,%r8
+	movq	-16(%rbp),%r9
+	cmp	%r8,%r9
+	jl	Tlabel_9
+	movq	$0,0(%rsp)
+	jmp	Tlabel_End_9
+
+Tlabel_9:
+	movq	$1,0(%rsp)
+
+Tlabel_End_9:
+	movq	$0,%r10
+	movq	0(%rsp),%r8
+	cmp	%r10,%r8
+	je	End_Loop_0
+	movq	$1,%r9
+	movq	0(%rsp),%r10
+	cmp	%r9,%r10
+	je	For_Body_0
+
+For_Update_0:
+	movq	-16(%rbp),%r8
+	movq	%r8,8(%rsp)
+	movq	8(%rsp),%r9
+	addq	$1,%r9
+	movq	%r9,-16(%rbp)
+	jmp	For_Cond_0
+
+For_Body_0:
+	movq	16(%rbp),%r10
+	movq	%r10,16(%rsp)
+	movq	16(%rsp),%r8
+	addq	$8,%r8
+	movq	%r8,24(%rsp)
+	movq	$1,32(%rsp)
+	movq	32(%rsp),%r9
+	imulq	$8,%r9
+	movq	%r9,40(%rsp)
+	movq	40(%rsp),%r10
+	imulq	-16(%rbp),%r10
+	movq	%r10,48(%rsp)
+	movq	24(%rsp),%r8
+	movq	(%r8),%r9
+	addq	48(%rsp),%r9
+	movq	%r9,56(%rsp)
+	movq	-8(%rbp),%r10
+	movq	56(%rsp),%r8
+	addq	(%r8),%r10
+	movq	%r10,64(%rsp)
+	movq	64(%rsp),%r9
+	movq	%r9,-8(%rbp)
+	jmp	For_Update_0
+
+End_Loop_0:
+	movq	-8(%rbp),%r10
+	movq	%r10,72(%rsp)
+	movq	$5,88(%rsp)
+	movq	72(%rsp),%rax
+	cqto	
+	idivq	88(%rsp)
+	movq	%rax,80(%rsp)
+	movq	80(%rsp),%rax
+	jmp	return0
+
+return0:
+	addq	$112,%rsp
+	popq	%rbp
+	ret
+
+
+	.text
+	.globl   Student.assignGrades
+	.type    Student.assignGrades, @function
+
+Student.assignGrades:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	subq	$80,%rsp
+	movq	$0,-8(%rbp)
+
+For_Cond_1:
+	movq	$5,%r8
+	movq	-8(%rbp),%r9
+	cmp	%r8,%r9
+	jl	Tlabel_21
+	movq	$0,0(%rsp)
+	jmp	Tlabel_End_21
+
+Tlabel_21:
+	movq	$1,0(%rsp)
+
+Tlabel_End_21:
+	movq	$0,%r10
+	movq	0(%rsp),%r8
+	cmp	%r10,%r8
+	je	End_Loop_1
+	movq	$1,%r9
+	movq	0(%rsp),%r10
+	cmp	%r9,%r10
+	je	For_Body_1
+
+For_Update_1:
+	movq	-8(%rbp),%r8
+	movq	%r8,8(%rsp)
+	movq	8(%rsp),%r9
+	addq	$1,%r9
+	movq	%r9,-8(%rbp)
+	jmp	For_Cond_1
+
+For_Body_1:
+	movq	16(%rbp),%r10
+	movq	%r10,16(%rsp)
+	movq	16(%rsp),%r8
+	addq	$8,%r8
+	movq	%r8,24(%rsp)
+	movq	$1,32(%rsp)
+	movq	32(%rsp),%r9
+	imulq	$8,%r9
+	movq	%r9,40(%rsp)
+	movq	40(%rsp),%r10
+	imulq	-8(%rbp),%r10
+	movq	%r10,48(%rsp)
+	movq	24(%rsp),%r8
+	movq	(%r8),%r9
+	addq	48(%rsp),%r9
+	movq	%r9,56(%rsp)
+	movq	$10,%r10
+	imulq	-8(%rbp),%r10
+	movq	%r10,64(%rsp)
+	movq	64(%rsp),%r8
+	movq	56(%rsp),%r9
+	movq	%r8,(%r9)
+	jmp	For_Update_1
+
+End_Loop_1:
+
+return1:
+	addq	$80,%rsp
+	popq	%rbp
+	ret
+
+
+	.text
+	.globl   main
+	.type    main, @function
+
+main:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	subq	$120,%rsp
+	movq	$1000001,%rsi
+	movq	$.LC0,%rdi
+	movq	$0,%rax
+	call	printf
+	movq	16(%rbp),%r10
+	movq	%r10,0(%rsp)
+	movq	0(%rsp),%r8
+	addq	$0,%r8
+	movq	%r8,8(%rsp)
+	movq	8(%rsp),%r9
+	movq	(%r9),%rsi
+	movq	$.LC0,%rdi
+	movq	$0,%rax
+	call	printf
+	movq	$2000002,%rsi
+	movq	$.LC0,%rdi
+	movq	$0,%rax
+	call	printf
+	movq	$0,-8(%rbp)
+
+For_Cond_2:
+	movq	$5,%r10
+	movq	-8(%rbp),%r8
+	cmp	%r10,%r8
+	jl	Tlabel_32
+	movq	$0,16(%rsp)
+	jmp	Tlabel_End_32
+
+Tlabel_32:
+	movq	$1,16(%rsp)
+
+Tlabel_End_32:
+	movq	$0,%r9
+	movq	16(%rsp),%r10
+	cmp	%r9,%r10
+	je	End_Loop_2
+	movq	$1,%r8
+	movq	16(%rsp),%r9
+	cmp	%r8,%r9
+	je	For_Body_2
+
+For_Update_2:
+	movq	-8(%rbp),%r10
+	movq	%r10,24(%rsp)
+	movq	24(%rsp),%r8
+	addq	$1,%r8
+	movq	%r8,-8(%rbp)
+	jmp	For_Cond_2
+
+For_Body_2:
+	movq	16(%rbp),%r9
+	movq	%r9,32(%rsp)
+	movq	32(%rsp),%r10
+	addq	$8,%r10
+	movq	%r10,40(%rsp)
+	movq	$1,48(%rsp)
+	movq	48(%rsp),%r8
+	imulq	$8,%r8
+	movq	%r8,56(%rsp)
+	movq	56(%rsp),%r9
+	imulq	-8(%rbp),%r9
+	movq	%r9,64(%rsp)
+	movq	40(%rsp),%r10
+	movq	(%r10),%r8
+	addq	64(%rsp),%r8
+	movq	%r8,72(%rsp)
+	movq	72(%rsp),%r9
+	movq	(%r9),%rsi
+	movq	$.LC0,%rdi
+	movq	$0,%rax
+	call	printf
+	jmp	For_Update_2
+
+End_Loop_2:
+	movq	$3000003,%rsi
+	movq	$.LC0,%rdi
+	movq	$0,%rax
+	call	printf
+	movq	16(%rbp),%r10
+	movq	%r10,88(%rsp)
+	movq	88(%rsp),%r8
+	movq	%r8,-8(%rsp)
+	subq	$8,%rsp
+	call	Student.assignGrades
+	addq	$8,%rsp
+	movq	16(%rbp),%r9
+	movq	%r9,104(%rsp)
+	movq	104(%rsp),%r10
+	movq	%r10,-8(%rsp)
+	subq	$8,%rsp
+	call	Student.calculateAverage
+	addq	$8,%rsp
+	movq	%rax,96(%rsp)
+	movq	96(%rsp),%rsi
+	movq	$.LC0,%rdi
+	movq	$0,%rax
+	call	printf
+
+return2:
+	addq	$120,%rsp
+	popq	%rbp
+	ret
+
+
+	.text
+	.globl   Class_Student
+	.type    Class_Student, @function
+
+Class_Student:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	subq	$80,%rsp
+	movq	16(%rbp),%r8
+	movq	%r8,0(%rsp)
+	movq	0(%rsp),%r9
+	addq	$0,%r9
+	movq	%r9,8(%rsp)
+	movq	8(%rsp),%r10
+	movq	$200597,(%r10)
+	movq	$1,16(%rsp)
+	movq	16(%rsp),%r8
+	imulq	$5,%r8
+	movq	%r8,24(%rsp)
+	movq	24(%rsp),%r9
+	imulq	$8,%r9
+	movq	%r9,32(%rsp)
+	movq	32(%rsp),%rdi
+	call	malloc
+	movq	%rax,40(%rsp)
+	movq	16(%rbp),%r10
+	movq	%r10,48(%rsp)
+	movq	48(%rsp),%r8
+	addq	$8,%r8
+	movq	%r8,56(%rsp)
+	movq	40(%rsp),%r9
+	movq	56(%rsp),%r10
+	movq	%r9,(%r10)
+
+return3:
+	addq	$80,%rsp
+	popq	%rbp
+	ret
+
+

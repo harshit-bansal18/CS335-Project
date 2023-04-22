@@ -501,6 +501,8 @@ EOL_COMMENT         \/\/[^\n\r]*
 
 "System.out.println"                     {return PRINT;}
 
+"String[] args"                          {}
+
 <INITIAL><<EOF>>        { 
                               BEGIN(REALLYEND); 
                               return EOF_; 

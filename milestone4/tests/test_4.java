@@ -1,24 +1,38 @@
+//  Recursion
 
-class A {
-	int a = 0;
-	int b = 89;
-
-	void fun()  {
-
-	}
-}
-
-class test_25
-{  
-    public static void main(int args[])
-    {  
-		int x = 20;
-		int y = 18;
-		if (x > y) {
-			int z;
-		}
-		boolean p = true;
-		A a_ = new A();
-		a_.b = 3;
+public class RecursionExample3 {  
+    static int factorial(int n){      
+          if (n == 1)      
+            return 1;      
+          else      
+            return(n * factorial(n-1));      
+    }    
+    static int factorial1(int n){      
+          if (n == 1)      
+            return 1;      
+          else      
+            return(n * factorial(n-1));      
+    }    
+    static int factorial2(int n){      
+          if (n == 1)      
+            return 1;      
+          else      
+            return(n * factorial(n-1));      
+    }    
+    static int factorial3(int n){      
+          if (n == 1)      
+            return 1;      
+          else      
+            return(n * factorial(n-1));      
+    }    
+    static int factorial4(int n){      
+          if (n == 1)      
+            return 1;      
+          else      
+            return(n * factorial(n-1));      
+    }      
+  
+    public static void main(int[] args) {  
+        System.out.println(factorial(5));  
     }  
-}
+}  

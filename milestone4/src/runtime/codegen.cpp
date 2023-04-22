@@ -10,6 +10,8 @@ using namespace std;
 
 int regcounter=0;
 
+#define __LOG__(x) ;
+
 ofstream asm_file;
 stringstream asm_ss;
 bool is_global_head_gen = false;
@@ -47,7 +49,9 @@ map <instr_names, string> x86_instr = { {addl, "addq"},
                                         
 
 string get_free_register() {
-    return "\%r" + to_string((regcounter++)%3+8);
+    string reg = "\%r" + to_string((regcounter++)%3+8);
+    __LOG__("return reg: " << reg);
+    return reg;
 }
 
 string get_eax() {
@@ -55,7 +59,7 @@ string get_eax() {
 }
 
 void push_instr(string name, string dst, string src) {
-
+    __LOG__("Start");
     // asm_ss << "\t" << name << "\t" << dst;
     // if (src != "")
     //     asm_ss << ", " << src;
@@ -66,6 +70,7 @@ void push_instr(string name, string dst, string src) {
         asm_ss<< src<<",";
     asm_ss << dst;
     asm_ss << "\n"; 
+    __LOG__("end");
 }
 
 void push_label(string name) {
@@ -74,18 +79,23 @@ void push_label(string name) {
 }
 
 static inline string get_stack_addr(string pointer_name, int offset) {
+    __LOG__("start");
     string addr = "";
     addr = to_string(offset) + "(" + pointer_name + ")";
+    __LOG__("end");
     return addr;
 }
 
 static inline string get_heap_addr(Address *heap_addr) {
+    __LOG__("start");
     string dst = insert_load_mem(heap_addr);
     dst = "(" + dst + ")";
+    __LOG__("end");
     return dst;
 }
 
 string generate_asm_string(Address* addr) {
+    __LOG__("start");
     string asm_code = "";
     if (addr->type == TEMP) {
         const char* name = addr->name.c_str();
@@ -109,6 +119,7 @@ string generate_asm_string(Address* addr) {
         cerr << "Error: Invalid address type\n";
         exit(1);
     }
+    __LOG__("end");
     return asm_code;
 }
 
@@ -122,19 +133,24 @@ string get_instr_name_mov(int size){
 }
 
 static inline string insert_load_mem(Address *mem_addr) {
+    __LOG__("start");
     string dst, name, src;
-    dst = get_free_register();
     name = get_instr_name_mov(mem_addr->size);
     src = generate_asm_string(mem_addr);
+    //// ALERT DONOT CHANGE THE ORDER OF CODE HERE
+    dst = get_free_register();
     push_instr(name, dst, src);
+    __LOG__("end");
     return dst;
 }
 
 static inline void insert_store_mem(Address *mem_addr, string reg) {
+    __LOG__("start");
     string dst, name;
     name = get_instr_name_mov(mem_addr->size);
     dst = generate_asm_string(mem_addr);
     push_instr(name, dst, reg);
+    __LOG__("end");
 }
 
 // Returns if the operation is binary i.e has two operands.
@@ -276,6 +292,7 @@ void process_comp(Comp *comp) {
 // Check size of arguments
 // Check type of arguments -> MEM, TEMP, CONST
 void process_quad(Quad *quad) {
+    __LOG__("start");
     Address *arg1 = quad->arg1;
     Address *arg2 = quad->arg2;
     string src, dst;
@@ -302,8 +319,10 @@ void process_quad(Quad *quad) {
             name = get_instr_name_binary(quad->operation, arg1->size);
             dst = insert_load_mem(arg1);
             src = generate_asm_string(arg2);
+            __LOG__("in binary operation: instr: " << name << " dst: " << dst << " src: " << src);
             push_instr(name, dst, src);
             insert_store_mem(quad->result, dst);
+
         }
         
     }
@@ -324,7 +343,11 @@ void process_quad(Quad *quad) {
             else
                 src = insert_load_mem(arg1);
             
+            __LOG__("'=': got src: " << src);
+
             dst = generate_asm_string(quad->result);
+            __LOG__("'=' got dst: " << dst);
+            
             push_instr(name, dst, src);
         }
     }
@@ -332,7 +355,7 @@ void process_quad(Quad *quad) {
         cerr << "Both arg1 and arg2 are null\n";
         exit(1);
     }
-    
+    __LOG__("end");
 }
 
 void process_label(Label *label) {
@@ -441,6 +464,7 @@ void generate_method_asm(vector<ThreeAC *> &tac_instr) {
     }
     
     for (auto instr: tac_instr) {
+        __LOG__("---------------------");
         quad_p = dynamic_cast<Quad *> (instr);
         if (quad_p != nullptr) {
             process_quad(quad_p);

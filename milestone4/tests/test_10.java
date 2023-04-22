@@ -1,110 +1,97 @@
-class Me{
-	int vars;
+public class Calculator {
+    public static void main() {
+        int a = 5;
+        int b = 3;
 
-	Me() {
-		vars = 20;
-	}
+        // Arithmetic operators
+        int c = a * b;
+        int d = a / b;
+        int e = a % b;
+        int f = a + b;
+        int g = a - b;
+        int h = -a;
+        int i = +a;
 
-	private Me(final int b){
-		int a;
-		// vars = 89;
-		a= 20;
-		a = b;
-		double[] b_ = new double[20];
-		return;
-	}
+        // Increment and decrement operators
+        int j = a++;
+        int k = ++a;
+        int l = b--;
+        int m = --b;
 
-	void func1(long a) {
+        // Logical not operator
+        boolean n = true;
+        boolean o = !n;
 
-	}
+        // Assignment operators
+        int p = a;
+        p += b;
+        p -= b;
+        p *= b;
+        p /= b;
+        p %= b;
 
-	static int func1(int a) {
-		return a;
-	}
+        // Comparison operators
+        boolean q = a == b;
+        boolean r = a != b;
+        boolean s = a < b;
+        boolean t = a <= b;
+        boolean u = a > b;
+        boolean v = a >= b;
 
-}
+        // Logical operators
+        boolean w = true;
+        boolean x = false;
+        boolean y = w && x;
+        boolean z = w || x;
 
-public class Demo
-{
-	private long b ;
-	// Example ex;
-	public long a;
-	// a = ex.x;
-    public double c = 20.0;
-	public static Me m = new Me();
-    public double[] array = {};
-	double [][]array1 = new double[3][];
-	Me m2 = new Me();
-	int a__ = m.func1(1);
-    public Demo(int a1, int b1) {
-        this.a = a1;
-        this.b = b1;
-    }
+        // Bitwise operators
+        int aa = 0b1010;
+        int bb = 0b1100;
+        int cc = aa & bb;
+        int dd = aa | bb;
+        int ee = aa ^ bb;
+        int ff = ~aa;
 
-	static void funny(){
-		int a = 12;
-		int b = 23;
-		// m.vars = 12;
-		final int i = 0;
-		for(int j = 0; true; j++) {
-			
-			int d = i << 2;
-			// for(int k=2; k<5; k++){
-			// 	if(k==2){
-			// 		return;
-			// 	} else {
-			// 		continue;
-			// 	}
-			// }
-		}
+        // Shift operators
+        int gg = aa << 2;
+        int hh = aa >> 2;
+        int ii = aa >>> 2;
 
-		if(i<20) {
-			int x = 20;
-		} else {
-			int x = 40;
-		}
-	}
+        // Ternary operator
+        int jj = (a > b) ? a : b;
 
-	int funny(long m, boolean p, double x, int y) {
-		return 3;
-	}
-
-	public static void main(int[] args) {
-		// System.out.println("Hello World!");
-		Example e = new Example();
-		Me m = new Me();
-		int a_ = 0;
-		int b_ = 9;
-		int ff = 0;
-		int c = a_ + b_;
-		int a[][] = new int[2][3];
-		// a[10][20] = e.foo(5,6)[2];
-		// funny(c);
-	}
-}
-
-class Example {
-    final int x = 90;
-	// x = 90;
-    double y;
-	Demo demo;
-	int n = 3;
-	public void fun1() {
-		n = x;
-	}
-    public static int foo(int a, int b) {
-        double c = 1.23;
-        char d = 'x';
-		return 5;
-    }
-    
-    public static void example_f(int[] args) {
-        int i = 42;
-        int s = 2;
-        Example e = new Example();
-        e.foo(i, s);
-	// short a = (short) 20;
-	int a = 20;
-	long b = 20;	// e.demo.b = 20;
+        // Output
+        System.out.println(c);
+        System.out.println(d);
+        System.out.println(e);
+        System.out.println(f);
+        System.out.println(g);
+        System.out.println(h);
+        System.out.println(i);
+        System.out.println(j);
+        System.out.println(k);
+        System.out.println(l);
+        System.out.println(m);
+        System.out.println(n);
+        System.out.println(o);
+        System.out.println(p);
+        System.out.println(q);
+        System.out.println(r);
+        System.out.println(s);
+        System.out.println(t);
+        System.out.println(u);
+        System.out.println(v);
+        System.out.println(w);
+        System.out.println(x);
+        System.out.println(y);
+        System.out.println(z);
+        System.out.println(cc);
+        System.out.println(dd);
+        System.out.println(ee);
+        System.out.println(ff);
+        System.out.println(gg);
+        System.out.println(hh);
+        System.out.println(ii);
+        System.out.println(jj);
     }
 }

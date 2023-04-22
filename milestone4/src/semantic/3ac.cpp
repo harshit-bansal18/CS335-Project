@@ -507,8 +507,8 @@ void dump_3ac(string fname, unsigned long func_local_space_size){
     // ofstream outss(filename.c_str());
     // outss << fname << " : \n" << endl;
     
-    cout << "Func name: " << fname << "\n";
-    cout<<"Local var size: "<< func_local_space_size <<" , Temp size:" << tcount*CONSTANT_SIZE <<"\n";
+    // cout << "Func name: " << fname << "\n";
+    // cout<<"Local var size: "<< func_local_space_size <<" , Temp size:" << tcount*CONSTANT_SIZE <<"\n";
     func_local_space_size += (tcount*CONSTANT_SIZE);
     
     insert_in_global_quads(create_new_label(fname));
@@ -542,8 +542,8 @@ void dump_3ac(string fname, unsigned long func_local_space_size){
 
 void dump_class_3ac(string classname, unsigned long classsize){
     classtcount = tcount;
-    cout << "Class Func name: " << classname << "\n";
-    cout<<"Instance var size: "<< classsize <<" , Temp size:" << classtcount*CONSTANT_SIZE <<"\n";
+    // cout << "Class Func name: " << classname << "\n";
+    // cout<<"Instance var size: "<< classsize <<" , Temp size:" << classtcount*CONSTANT_SIZE <<"\n";
     classsize += (classtcount*CONSTANT_SIZE);
 
     insert_in_global_quads(create_new_label("Class_"+classname));

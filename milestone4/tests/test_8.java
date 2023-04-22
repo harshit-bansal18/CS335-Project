@@ -1,32 +1,26 @@
-public class Main {
+// Complex multiconditional if-else nested java code involving all kind of operators:
+// if, else, else if, ==, !=, >, <, >=, <=, &&, ||, !, +, -, *, /, %, ++, --, +=, -=, *=, /=, %=
 
-  public static void main(int[] args) {
-    int number = 34;
-    boolean flag = false;
-    for (int i = 2; i <= number / 2; ++i) {
+public class ifelse {
+    public static void main(){
+        boolean h = true;
+        int i = 1;
+        int c = 2;
+        int d = 3;
+        int e = 4;
+        int f = 5;
+        int g = 6;
 
-      // condition for i to be a prime number
-      if (checkPrime(i)) {
-
-        // condition for n-i to be a prime number
-        if (checkPrime(number - i)) {
-          flag = true;
+        if(2+3<5){
+            System.out.println(1000);
         }
 
-      }
+        if( !h && i != 0 && c != d	&& e + f < g ){
+            long a = 293989;
+            System.out.println(a);
+        }
+        else{
+            System.out.println(2);
+        }
     }
-  }
-  // Function to check prime number
-  static boolean checkPrime(int num) {
-    boolean isPrime = true;
-
-    for (int i = 2; i <= num / 2; ++i) {
-      if (num % i == 0) {
-        isPrime = false;
-        break;
-      }
-    }
-
-    return isPrime;
-  }
 }

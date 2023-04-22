@@ -16,14 +16,8 @@ class TestEmployee1 {
             System.out.println(a); // 5
 
             for(int i=0; i<10; i++){
-                int j = 0;
-                while(j<10){
-                    if(j++<5)
-                        System.out.println(j);
-                }
-                System.out.println(j);
-
-                System.out.println(i);
+                for(int j=0; j<10; j++)
+                    System.out.println(i+j);
             }
 
             

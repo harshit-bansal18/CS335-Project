@@ -1,99 +1,72 @@
-0
-4
-0
-0
-0
-0
-0
-8
-0
-4
-0
-8
-0
-0
-0
-0
-11
-0
-0
-8
-0
-7
-0
-4
-0
-0
-2
-0
-0
-7
-0
-9
-14
-0
-0
-0
-0
-0
-0
-9
-0
-10
-0
-0
-0
-0
-0
-4
-14
-10
-0
-2
-0
-0
-0
-0
-0
-0
-0
-2
-0
+* : Multiplication
+/ : Division
+% : Modulo
++ : Addition
+- : Subtraction
+- : Unary minus, used for negating the values.
++ : Unary plus indicates the positive value (numbers are positive without this, however). It performs an automatic conversion to int when the type of its operand is the byte, char, or short. This is called unary numeric promotion.
+++ : Increment operator, used for incrementing the value by 1. There are two varieties of increment operators. 
+    Post-Increment: Value is first used for computing the result and then incremented.
+    Pre-Increment: Value is incremented first, and then the result is computed.
+-- : Decrement operator, used for decrementing the value by 1. There are two varieties of decrement operators. 
+    Post-decrement: Value is first used for computing the result and then decremented.
+    Pre-Decrement: Value is decremented first, and then the result is computed.
+! : Logical not operator, used for inverting a boolean value.
+= : Assignment operator, used for assigning a value to a variable.
++= : Add and assignment operator, used for adding a value to a variable and assigning the result to the variable.
+-= : Subtract and assignment operator, used for subtracting a value from a variable and assigning the result to the variable.
+*= : Multiply and assignment operator, used for multiplying a value with a variable and assigning the result to the variable.
+/= : Divide and assignment operator, used for dividing a variable by a value and assigning the result to the variable.
+%= : Modulo and assignment operator, used for calculating the remainder of a variable divided by a value and assigning the result to the variable.
+==: Equal to returns true if the left-hand side is equal to the right-hand side.
+!=: Not Equal to returns true if the left-hand side is not equal to the right-hand side.
+<: less than: returns true if the left-hand side is less than the right-hand side.
+<=: less than or equal to returns true if the left-hand side is less than or equal to the right-hand side.
+>: Greater than: returns true if the left-hand side is greater than the right-hand side.
+>=: Greater than or equal to returns true if the left-hand side is greater than or equal to the right-hand side.
+&&: Logical AND: returns true when both conditions are true.
+||: Logical OR: returns true if at least one condition is true.
+!: Logical NOT: returns true when a condition is false and vice-versa
+&: Bitwise AND operator: returns bit by bit AND of input values.
+|: Bitwise OR operator: returns bit by bit OR of input values.
+^: Bitwise XOR operator: returns bit-by-bit XOR of input values.
+~: Bitwise Complement Operator: This is a unary operator which returns the one’s complement representation of the input value, i.e., with all bits inverted
+<<: Left shift operator: shifts the bits of the number to the left and fills 0 on voids left as a result. Similar effect as multiplying the number with some power of two.
+>>: Signed Right shift operator: shifts the bits of the number to the right and fills 0 on voids left as a result. The leftmost bit depends on the sign of the initial number. Similar effect as dividing the number with some power of two.
+>>>: Unsigned Right shift operator: shifts the bits of the number to the right and fills 0 on voids left as a result. The leftmost bit is set to 0.
+Ternary Operator
+
+
+
+15
 1
-6
+2
 8
-11
-0
-0
-0
-0
-1
-0
-7
-0
-0
 2
-0
-0
-0
-6
-7
-0
-0
-0
-1
--6917529027641081856
-2
--8745990476353503232
-3
-109951162777600000
-4
-429496729600000
+-5
 5
-1677721600000
-6
-6553600000
+5
 7
-25600000
+3
+1
+1
+0
+0
+0
+1
+0
+0
+1
+1
+1
+0
+0
+1
 8
-100000
+14
+6
+-11
+40
+2
+2
+7

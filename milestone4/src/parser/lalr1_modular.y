@@ -21,6 +21,7 @@
     #include "3ac.hpp"
 
     #define YYDEBUG 1
+    #define CAST "cast"
     using namespace std;
 
     struct args {
@@ -937,8 +938,9 @@ ExplicitConstructorInvocation:
 
                                             
                                             int args_offset = -8;
+                                            int llimit = args.size() - method_def_pair.second.size();
 
-                                            for(int i = args.size()-1; i>=0; i--){
+                                            for(int i = args.size()-1; i>=llimit; i--){
                                                 if((!check_if_temp(args[i]) && (!check_if_const(args[i])))){
                                                     Address* temp = create_new_temp();
                                                     
@@ -948,10 +950,11 @@ ExplicitConstructorInvocation:
                                                         emit(create_new_arg(args[i], args_offset));
                                                 }
                                                 // JAYA
-                                                args_offset -= method_def_pair.second[i]->size;   
+                                                args_offset -= method_def_pair.second[i-llimit]->size;   
                                             }
 
-                                            args.clear();
+                                            for (int i = 0; i < method_def_pair.second.size(); i++)
+                                                args.pop_back();
 
                                             string method_name;
                                                                 
@@ -1112,8 +1115,9 @@ ClassInstanceCreationExpression:
 
                                                                
                                                                 int local_args_sum = -8;
+                                                                int llimit = args.size() - func_pair.second.size();
 
-                                                                for(int i = args.size()-1; i>=0; i--){
+                                                                for(int i = args.size()-1; i>=llimit; i--){
                                                                     if((!check_if_temp(args[i]) && (!check_if_const(args[i])))){
                                                                         Address* temp = create_new_temp();
                                                                         emit(create_new_quad("=", args[i], NULL, temp));
@@ -1127,7 +1131,8 @@ ClassInstanceCreationExpression:
                                                                     local_args_sum -= CONSTANT_SIZE;   
                                                                 }
 
-                                                                args.clear();
+                                                                for (int i = 0; i < func_pair.second.size(); i++)
+                                                                    args.pop_back();
 
                                                                 // call class 3AC function before constructor
                                                                 // emit(create_new_arg($$->tac, -1*REF_TYPE_SIZE));
@@ -1142,8 +1147,6 @@ ClassInstanceCreationExpression:
                                                                 emit(create_new_reg(SP, args_size+REF_TYPE_SIZE, true));
                                                                 // emit("=","popparam", $$->tac,"");
                                                                 paramcount=0;
-
-                                                                args.clear();
                                                             }
                                                         }
 ;
@@ -1318,6 +1321,11 @@ MethodInvocation:   TypeName Lparen Rparen  {
                                             }
 |                   TypeName Lparen ArgumentList Rparen {   
                                                             if(pass_no == 2 ){
+                                                                
+                                                        
+
+                                                                int cnt = 1;
+                                                                
                                                                 auto method_def_pair = check_function_in_class($1, ($3)->argument_type, FUNCTION);
                                                                 if(is_null(method_def_pair.first)){
                                                                     cerr << "Line No: " <<  yylineno  << "Undeclared function called\n";
@@ -1327,29 +1335,37 @@ MethodInvocation:   TypeName Lparen Rparen  {
                                                                 string mname = ($1->names[(($1)->names).size() - 1])->name;  
                                                                 $$ = make_stackentry("", method_def_pair.first, yylineno); 
                                                                 $$->tac = create_new_temp();
-
                                                                 int local_args_sum = 0;
                                                                 for(int i =0; i<method_def_pair.second.size();i++){
                                                                     local_args_sum += method_def_pair.second[i]->size;
                                                                 }
 
+                                                                int llimit = args.size() - method_def_pair.second.size();
+
+                                                                // assert(method_def_pair.second.size() == args.size());
+
                                                                 
                                                                 int args_offset = -8;
+                                                                // cout << "debug " << cnt ++ << "\n";
 
-                                                                for(int i = args.size()-1; i>=0; i--){
+                                                                for(int i = args.size()-1; i>= llimit; i--){
                                                                     if((!check_if_temp(args[i]) && (!check_if_const(args[i])))){
                                                                         Address* temp = create_new_temp();
-                                                                        
                                                                         emit(create_new_quad("=", args[i], NULL, temp));
                                                                         emit(create_new_arg(temp, args_offset));
+                                                                        
                                                                     }else {
-                                                                         emit(create_new_arg(args[i], args_offset));
+                                                                        
+                                                                        emit(create_new_arg(args[i], args_offset));
                                                                     }
                                                                     // JAYA
-                                                                    args_offset -= method_def_pair.second[i]->size;   
+                                                                   
+                                                                    args_offset -= method_def_pair.second[i-llimit]->size;   
+                                                                   
                                                                 }
-
-                                                                args.clear();
+                                                                
+                                                                for (int i = 0; i < method_def_pair.second.size(); i++)
+                                                                    args.pop_back();
 
                                                                 int names_size = ($1)->names.size();
                                                                 string method_name;
@@ -1373,6 +1389,7 @@ MethodInvocation:   TypeName Lparen Rparen  {
                                                                 if(method_def_pair.first->name !=__VOID){
                                                                     emit(create_new_return($$->tac, false)); // get value returned by the callee function
                                                                 }
+                                                                
 
                                                                 paramcount=0;
                                                             }
@@ -1425,6 +1442,7 @@ MethodInvocation:   TypeName Lparen Rparen  {
                                                                 }
                                                         }
 |                   Primary Dot Identifier Lparen ArgumentList Rparen { if(pass_no == 2){
+                                                                            
                                                                             if($1->token == "this"){
                                                                                 auto method_def_pair = check_function_in_class($3->name, ($5)->argument_type, FUNCTION);
                                                                                 if(is_null(method_def_pair.first)){
@@ -1442,8 +1460,8 @@ MethodInvocation:   TypeName Lparen Rparen  {
 
                                                                                 
                                                                                 int args_offset = -8;
-
-                                                                                for(int i = args.size()-1; i>=0; i--){
+                                                                                int llimit = args.size() - method_def_pair.second.size();
+                                                                                for(int i = args.size()-1; i>=llimit; i--){
                                                                                     if((!check_if_temp(args[i]) && (!check_if_const(args[i])))){
                                                                                         Address* temp = create_new_temp();
                                                                                         
@@ -1453,10 +1471,11 @@ MethodInvocation:   TypeName Lparen Rparen  {
                                                                                         emit(create_new_arg(args[i], args_offset));
                                                                                     }
                                                                                     // JAYA
-                                                                                    args_offset -= method_def_pair.second[i]->size;   
+                                                                                    args_offset -= method_def_pair.second[i-llimit]->size;   
                                                                                 }
 
-                                                                                args.clear();
+                                                                                for (int i = 0; i < method_def_pair.second.size(); i++)
+                                                                                    args.pop_back();
 
                                                                                 string method_name;
                                                                                                     
@@ -1478,6 +1497,8 @@ MethodInvocation:   TypeName Lparen Rparen  {
 
                                                                                 paramcount=0;
                                                                             }
+                                                                            
+                                                                            // args.clear(); 
                                                                         } 
                                                                     }
 /* |                   super_ Dot Identifier Lparen Rparen { }
@@ -1493,18 +1514,21 @@ ArgumentList:       Expression  {
                                         struct stackentry* entry = make_stackentry("", yylineno); 
                                         entry->argument_type.push_back(($1)->type);
                                         $$ = entry;
-                                        cout << "Args size: " << args.size() << "\n";
+                                        
                                         args.push_back(($1)->tac);
                                         // emit("pushparam" ,($1)->tac,"","");
                                         paramcount++;
                                         free($1);
                                     }
                                 }
-|                   ArgumentList Comma Expression { 
+|                   ArgumentList Comma Expression {
                                                     if(pass_no == 2 ){
                                                         $1->argument_type.push_back($3->type);
                                                         $$ = $1;
+                                                        
                                                         args.push_back(($3)->tac);
+                                                         
+
                                                         // emit("pushparam" ,($3)->tac,"","");
                                                         paramcount++;
                                                         free($3);
@@ -1645,12 +1669,13 @@ Assignment:
                                                             Address* temp = create_new_temp();
                                                             // Harshit: removing cast
                                                             // emit(create_new_quad("cast_to_" + $1->type->name, $3->tac, NULL, temp));
-                                                            emit(create_new_quad("cast", $3->tac, NULL, temp));
+                                                            emit(create_new_quad(CAST, $3->tac, NULL, temp));
                                                             // Harshit $1->token to $1->tac
                                                             $$->tac = assignment_operator_3ac($1->tac, $2, temp);
                                                         }
 
                                                         if($3->type->arr_dim_val.size()>0){
+                                                            //Change array dim val of object's array
                                                             $1->type->arr_dim_val = $3->type->arr_dim_val;
                                                         }
                                                     }
@@ -1678,7 +1703,7 @@ Assignment:
                                                             Address* temp = create_new_temp();
                                                             // Harshit: removing cast
                                                             // emit(create_new_quad("cast_to_" + $1->type->name, $3->tac, NULL, temp));
-                                                            emit(create_new_quad("cast", $3->tac, NULL, temp));
+                                                            emit(create_new_quad(CAST, $3->tac, NULL, temp));
                                                             // Harshit
                                                             $$->tac = assign_operator_3ac($1->tac, temp);
                                                         }
@@ -1892,7 +1917,7 @@ AdditiveExpression: MultiplicativeExpression                        {
                                                                                     Address* temp = create_new_temp();
                                                                                     // Harshit: removing cast
                                                                                     // emit(create_new_quad("cast_to_"+$$->type->name, $1->tac, NULL, temp));
-                                                                                    emit(create_new_quad("cast", $1->tac, NULL, temp));
+                                                                                    emit(create_new_quad(CAST, $1->tac, NULL, temp));
                                                                                     // emit(create_new_quad("+"+$$->type->name, temp, ($3)->tac, ($$)->tac));
                                                                                     emit(create_new_quad("+", temp, ($3)->tac, ($$)->tac));
                                                                                 }
@@ -1900,7 +1925,7 @@ AdditiveExpression: MultiplicativeExpression                        {
                                                                                     Address* temp = create_new_temp();
                                                                                     // Harshit: removing cast
                                                                                     // emit(create_new_quad("cast_to_"+$$->type->name, $3->tac,NULL, temp));
-                                                                                    emit(create_new_quad("cast", $3->tac,NULL, temp));
+                                                                                    emit(create_new_quad(CAST, $3->tac,NULL, temp));
                                                                                     // emit(create_new_quad("+"+$$->type->name, ($1)->tac, temp, ($$)->tac));
                                                                                      emit(create_new_quad("+", ($1)->tac, temp, ($$)->tac));
                                                                                 }
@@ -1917,7 +1942,7 @@ AdditiveExpression: MultiplicativeExpression                        {
                                                                                     Address* temp = create_new_temp();
                                                                                     // removing cast
                                                                                     // emit(create_new_quad("cast_to_"+$$->type->name, $1->tac, NULL, temp));
-                                                                                    emit(create_new_quad("cast", $1->tac, NULL, temp));
+                                                                                    emit(create_new_quad(CAST, $1->tac, NULL, temp));
                                                                                     // emit(create_new_quad("-"+$$->type->name, temp, ($3)->tac, ($$)->tac));
                                                                                     emit(create_new_quad("-", temp, ($3)->tac, ($$)->tac));
                                                                                 }
@@ -1925,7 +1950,7 @@ AdditiveExpression: MultiplicativeExpression                        {
                                                                                     Address* temp = create_new_temp();
                                                                                     // Harshit: removing cast
                                                                                     // emit(create_new_quad("cast_to_"+$$->type->name, $3->tac,NULL, temp));
-                                                                                    emit(create_new_quad("cast", $3->tac,NULL, temp));
+                                                                                    emit(create_new_quad(CAST, $3->tac,NULL, temp));
                                                                                     // emit(create_new_quad("-"+$$->type->name, ($1)->tac, temp, ($$)->tac));
                                                                                     emit(create_new_quad("-", ($1)->tac, temp, ($$)->tac));
                                                                                 }
@@ -1949,7 +1974,7 @@ MultiplicativeExpression:   UnaryExpression                         {
                                                                                     Address* temp = create_new_temp();
                                                                                     // Harshit: removing cast
                                                                                     // emit(create_new_quad("cast_to_"+$$->type->name, $1->tac, NULL, temp));
-                                                                                    emit(create_new_quad("cast", $1->tac, NULL, temp));
+                                                                                    emit(create_new_quad(CAST, $1->tac, NULL, temp));
                                                                                     // emit(create_new_quad("*"+$$->type->name, temp, ($3)->tac, ($$)->tac));
                                                                                     emit(create_new_quad("*", temp, ($3)->tac, ($$)->tac));
                                                                                 }
@@ -1957,7 +1982,7 @@ MultiplicativeExpression:   UnaryExpression                         {
                                                                                     Address* temp = create_new_temp();
                                                                                     // Harshit: removing cast
                                                                                     // emit(create_new_quad("cast_to_"+$$->type->name, $3->tac, NULL, temp));
-                                                                                    emit(create_new_quad("cast", $3->tac, NULL, temp));
+                                                                                    emit(create_new_quad(CAST, $3->tac, NULL, temp));
                                                                                     // emit(create_new_quad("*"+$$->type->name, ($1)->tac, temp, ($$)->tac));
                                                                                     emit(create_new_quad("*", ($1)->tac, temp, ($$)->tac));
                                                                                 }
@@ -1974,7 +1999,7 @@ MultiplicativeExpression:   UnaryExpression                         {
                                                                                     Address* temp = create_new_temp();
                                                                                     // Harshit: removing cast
                                                                                     // emit(create_new_quad("cast_to_"+$$->type->name, $1->tac, NULL,temp));
-                                                                                    emit(create_new_quad("cast", $1->tac, NULL,temp));
+                                                                                    emit(create_new_quad(CAST, $1->tac, NULL,temp));
                                                                                     // emit(create_new_quad("/"+$$->type->name, temp, ($3)->tac, ($$)->tac));
                                                                                     emit(create_new_quad("/", temp, ($3)->tac, ($$)->tac));
                                                                                 }
@@ -1982,7 +2007,7 @@ MultiplicativeExpression:   UnaryExpression                         {
                                                                                     Address* temp = create_new_temp();
                                                                                     // Harshit: removing cast
                                                                                     // emit(create_new_quad("cast_to_"+$$->type->name, $3->tac, NULL,temp));
-                                                                                    emit(create_new_quad("cast", $3->tac, NULL,temp));
+                                                                                    emit(create_new_quad(CAST, $3->tac, NULL,temp));
                                                                                     // emit(create_new_quad("/"+$$->type->name, ($1)->tac, temp, ($$)->tac));
                                                                                     emit(create_new_quad("/", ($1)->tac, temp, ($$)->tac));
                                                                                 }
@@ -1999,7 +2024,7 @@ MultiplicativeExpression:   UnaryExpression                         {
                                                                                     Address* temp = create_new_temp();
                                                                                     // Harshit: removing cast
                                                                                     // emit(create_new_quad("cast_to_"+$$->type->name, $1->tac, NULL, temp));
-                                                                                    emit(create_new_quad("cast", $1->tac, NULL, temp));
+                                                                                    emit(create_new_quad(CAST, $1->tac, NULL, temp));
                                                                                     // emit(create_new_quad("%"+$$->type->name, temp, ($3)->tac, ($$)->tac));
                                                                                     emit(create_new_quad("%", temp, ($3)->tac, ($$)->tac));
                                                                                 }
@@ -2007,7 +2032,7 @@ MultiplicativeExpression:   UnaryExpression                         {
                                                                                     Address* temp = create_new_temp();
                                                                                     // Harshit: removing cast
                                                                                     // emit(create_new_quad("cast_to_"+$$->type->name, $3->tac, NULL, temp));
-                                                                                    emit(create_new_quad("cast", $3->tac, NULL, temp));
+                                                                                    emit(create_new_quad(CAST, $3->tac, NULL, temp));
                                                                                     // emit(create_new_quad("%"+$$->type->name, ($1)->tac, temp, ($$)->tac));
                                                                                     emit(create_new_quad("%", ($1)->tac, temp, ($$)->tac));
                                                                                 }
@@ -2324,7 +2349,7 @@ CastExpression:     Lparen PrimitiveType Rparen UnaryExpression                 
                                                                                         $$->tac = create_new_temp();
                                                                                         // Harshit: removing cast
                                                                                         // emit(create_new_quad("cast_to_" + $2->name, $4->tac, NULL, $$->tac));
-                                                                                        emit(create_new_quad("cast", $4->tac, NULL, $$->tac));
+                                                                                        emit(create_new_quad(CAST, $4->tac, NULL, $$->tac));
                                                                                         // emit($4->type->name + "to_" + $2->name, $4->tac, "", $$->tac);
                                                                                     }
                                                                                 }
@@ -2335,7 +2360,7 @@ CastExpression:     Lparen PrimitiveType Rparen UnaryExpression                 
                                                                                         $$->tac = create_new_temp();
                                                                                         // Harshit: removing cast
                                                                                         // emit(create_new_quad("cast_to_" + $2->name, $4->tac, NULL, $$->tac));
-                                                                                        emit(create_new_quad("cast", $4->tac, NULL, $$->tac));
+                                                                                        emit(create_new_quad(CAST, $4->tac, NULL, $$->tac));
                                                                                         // emit($4->type->name + "to_" + $2->name, $4->tac, "", $$->tac);
                                                                                     }
                                                                                 }
@@ -3392,7 +3417,7 @@ int main(int argc, char *argv[])
         yyparse();
     } while(!feof(yyin));
 
-    print_3ac();
+    /* print_3ac(); */
 
     asm_file.close();
     return 0;

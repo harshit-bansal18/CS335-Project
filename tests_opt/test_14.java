@@ -10,18 +10,24 @@ class Computer {
     b = false;
   }
  
-  void computer_method() {
+  void  main() {
     int j = 0;
-    // int i =0;
+    int count = 0;
     while(true){    
         for(int i=0; i<10; i++){
             if(i<20) 
                 i++;
+            
+            count++;
         }
     }
+
+    System.out.println(count);
 
     do {
         j++;
     } while (j < 6); 
+
+    System.out.println(j);
   }
 }

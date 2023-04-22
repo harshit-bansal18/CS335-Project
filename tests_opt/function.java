@@ -86,8 +86,6 @@ public class FuncTest{
 
     }
 
-    
-
     static int get_int(int a, int b) {
         return a/2+b;
     }

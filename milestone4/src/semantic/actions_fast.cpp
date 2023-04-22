@@ -26,11 +26,26 @@ extern ofstream symtable_out;
 int8_t set_modifier(int8_t curr_modf, int8_t new_modf) {
     if (curr_modf & new_modf) {
         cerr << "Line no: " << yylineno << " conflicting modifiers\n";
-        exit (1);
+        exit(1);
     }
 
     return (curr_modf | new_modf);
 }
+
+// Type *is_class_name(string name) {
+//     Type *cls_type; 
+
+//     if (defined_types.find(name) == defined_types.end())
+//         return NULL;
+    
+//     else {
+//         cls_type = defined_types[name];
+//         if (cls_type->is_class)
+//             return cls_type;
+//     }
+
+//     return NULL;
+// }
 
 void increase_current_level() {
     current_table->increase_level();
@@ -113,6 +128,7 @@ pair<Type *, vector<Type *>> check_function_in_class(TypeName *type_name, vector
             cerr << "Error Line No: "<<yylineno <<": variable not declared in this scope. Variable Name: " << tmp_str << endl;
             exit (1);
         }
+
         if (check_static && sym->is_instance_var && !sym->is_static) {
             cerr << "Error Line No: " << yylineno << ": error: non-static variable " << sym->name << " accessed in static method " << current_table->method_name << endl;
             exit(1);
@@ -153,6 +169,7 @@ pair<Type *, vector<Type *>> check_function_in_class(TypeName *type_name, vector
             ids[i]->offset = sym->offset;
         }
         string mthd_name = ids[num_names-1]->name;
+        
         MethodDefinition *mthd = cls->get_method_call(mthd_name, argument_type);
         if (!is_null(mthd)){
             ids[num_names-1]->type = mthd->ret_type;

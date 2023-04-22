@@ -1,0 +1,3 @@
+Array in instance variables -> if class is declared below and array is initialized in class
+then its value wont be visible in class above it.
+

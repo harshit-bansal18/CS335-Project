@@ -1,19 +1,35 @@
-private class MatrixAdditionExample{  
-    public static int main(int args[], int z){  
-        //creating two matrices    
-        int a[][]=new int[5][6];    
-        int b[][]=new int[3][4];    
-            
-        //creating another matrix to store the sum of two matrices    
-        int c[]=new int[3];  //3 rows and 3 columns  
-        int i,j,k;
-        //adding and printing addition of 2 matrices    
-        for(i=0;i<3;++i){    
-            for(j=0;j<3;j=j-2){    
-                c[i]=a[i][j]+b[i][j];    //use - for subtraction  
-                c = a[i];    
-            }    
-        }  
-        return 0;  
+public class GFG {
+    int x;
+    int z;
+    int[][] arr = new int[10][20];
+
+    GFG(int x){
+        for(int i=0; i<10; i++){
+            for (int j=0; j<20; j++){
+                arr[i][j] = i+j;
+            }
+        }
     }
-}  
+
+    static int add(int a, int b){
+        int sum = a + b;
+        return sum;
+    }
+
+    static void main(){
+        GFG obj = new GFG(1);
+        obj.x = 2;
+
+        int a = 20;
+        int b = 40;
+        char c = 'a';
+        boolean bool = true;
+
+        b = b+a;
+        b = a+c;
+        b = a+b+c;
+        bool = (b  < a) ? true: false;
+
+        System.out.println(obj.add(obj.arr[2][3], obj.arr[4][5]));
+    }
+}
