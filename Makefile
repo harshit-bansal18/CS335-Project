@@ -53,7 +53,8 @@ milestone3: build/milestone3
 
 
 build/milestone4:
-	mkdir -p build/milestone4/dump
+	mkdir -p build/milestone4/dump/tests/
+	mkdir -p build/milestone4/dump/bonus_tests/
 	bison -t --header=$@/${Parser_Header} -o $@/${Parser_Out} ${MILESTONE4}/${Parser_Src}
 	flex -o $@/${Lexer_Out} ${MILESTONE4}/${Lexer_Src}
 	${G++} ${INCLUDE4} -o $@/${Binary4} $@/*.c ${MILESTONE4}/${Semantic}/*.cpp ${MILESTONE4}/${Runtime}/*.cpp
