@@ -20,7 +20,7 @@
 #define LOOP_LABEL  "Loop_"
 #define ENDFOR_LABEL "End_Loop_"
 #define FORBODY_LABEL "For_Body_"
-#define FORUPDATE_LABEL "For_Update_"
+#define FORUPDATE_LABEL "Loop_"
 #define FORCOND_LABEL "For_Cond_"
 #define T_LABEL     "Tlabel_"
 #define TEND_LABEL "Tlabel_End_"
