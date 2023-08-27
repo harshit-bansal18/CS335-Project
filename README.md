@@ -1,12 +1,12 @@
 # CS335-Project
 
 ## SIT Details
-Source Language : Java17
-Implementation Language : C++
-Target Language : x86_64
+Source Language: Java17 <br/>
+Implementation Language: C++ <br/>
+Target Language: x86_64 <br/>
 
 ## Group Members
-Jaya Gupta
-Harshit Bansal
-Mohit Gupta
+Jaya Gupta <br/>
+Harshit Bansal <br/>
+Mohit Gupta <br/>
 
