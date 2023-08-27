@@ -1,10 +1,12 @@
 # CS335-Project
 
+## SIT Details
+Source Language : Java17
+Implementation Language : C++
+Target Language : x86_64
 
-## Milestone 1
+## Group Members
+Jaya Gupta
+Harshit Bansal
+Mohit Gupta
 
-### Instructions
-Following command will compile the parser source code and run on all the test files in `milestone1/tests` folder.
-```
-./run.sh
-```
